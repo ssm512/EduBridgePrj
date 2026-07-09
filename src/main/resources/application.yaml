@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: EduBridgePrj
+
+  web:
+    resources:
+      static-locations:
+        - file:src/main/resources/static/
+        - classpath:/static/
+      cache:
+        period: 0
+
+  datasource:
+    url: ${DB_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+  flyway:
+    enabled: true
+    locations: classpath:db
+
+  ai:
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY:DUMMY_KEY}
+        chat:
+          model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
+          temperature: 0.7
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.edu.domain
+  configuration:
+    map-underscore-to-camel-case: true
+
+app:
+  jwt:
+    issuer: edubridge
+    secret: ${JWT_SECRET}
+    access-token-minutes: 30
+    refresh-token-days: 7
+
+

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.domain.member.mapper.UserMapper">
+
+    <!-- map-underscore-to-camel-case: true 이므로 resultMap 생략 가능 -->
+
+    <select id="selectByLoginId" resultType="com.edu.domain.member.dto.UserDto">
+        SELECT user_id, login_id, password, name, email, phone,
+               role_code, status_code, last_login_at, created_at, updated_at
+          FROM users
+         WHERE login_id = #{loginId}
+    </select>
+
+    <select id="selectByUserId" resultType="com.edu.domain.member.dto.UserDto">
+        SELECT user_id, login_id, password, name, email, phone,
+               role_code, status_code, last_login_at, created_at, updated_at
+          FROM users
+         WHERE user_id = #{userId}
+    </select>
+
+    <!-- useGeneratedKeys: INSERT 후 자동 생성된 user_id를 UserDto.userId에 채워준다 -->
+    <insert id="insertUser" useGeneratedKeys="true" keyProperty="userId" keyColumn="user_id">
+        INSERT INTO users (login_id, password, name, email, phone, role_code, status_code)
+        VALUES (#{loginId}, #{password}, #{name}, #{email}, #{phone}, #{roleCode}, #{statusCode})
+    </insert>
+
+    <update id="updateUser">
+        UPDATE users
+           SET name        = #{name},
+               email       = #{email},
+               phone       = #{phone},
+               updated_at  = CURRENT_TIMESTAMP
+         WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateLastLoginAt">
+        UPDATE users
+           SET last_login_at = CURRENT_TIMESTAMP
+         WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE users
+           SET status_code = #{statusCode},
+               updated_at  = CURRENT_TIMESTAMP
+         WHERE user_id = #{userId}
+    </update>
+
+</mapper>

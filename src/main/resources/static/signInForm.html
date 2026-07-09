@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>EduBridge 회원가입</title>
+<style>
+  body { font-family: sans-serif; max-width: 420px; margin: 40px auto; }
+  h2 { text-align: center; }
+  .field { margin-bottom: 12px; }
+  label { display: block; margin-bottom: 4px; font-size: 14px; }
+  input, select { width: 100%; padding: 8px; box-sizing: border-box; }
+  button { width: 100%; padding: 10px; margin-top: 8px; cursor: pointer; }
+  .link { text-align: center; margin-top: 12px; font-size: 14px; }
+  pre { background: #f4f4f4; padding: 12px; white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body>
+<h2>회원가입</h2>
+
+<div class="field">
+  <label for="loginId">아이디</label>
+  <input id="loginId" placeholder="아이디">
+</div>
+<div class="field">
+  <label for="password">비밀번호</label>
+  <input id="password" type="password" placeholder="비밀번호 (4자 이상)">
+</div>
+<div class="field">
+  <label for="name">이름</label>
+  <input id="name" placeholder="이름">
+</div>
+<div class="field">
+  <label for="email">이메일</label>
+  <input id="email" placeholder="이메일 (선택)">
+</div>
+<div class="field">
+  <label for="phone">연락처</label>
+  <input id="phone" placeholder="연락처 (선택)">
+</div>
+<div class="field">
+  <label for="roleCode">역할</label>
+  <select id="roleCode">
+    <option>STUDENT</option>
+    <option>PARENT</option>
+    <option>TEACHER</option>
+  </select>
+</div>
+
+<button onclick="signup()">가입하기</button>
+<div class="link"><a href="/loginForm.html">이미 계정이 있으신가요? 로그인</a></div>
+
+<pre id="out" hidden></pre>
+
+<script>
+// 쿠키에서 XSRF-TOKEN 값 읽기
+function getCsrfCookie() {
+  const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+// CSRF 쿠키가 없으면 발급받기
+async function ensureCsrf() {
+  if (!getCsrfCookie()) {
+    await fetch('/api/auth/csrf');
+  }
+  return getCsrfCookie();
+}
+
+async function signup() {
+  const res = await fetch('/api/auth/signup', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-XSRF-TOKEN': await ensureCsrf()   // CSRF Double Submit
+    },
+    body: JSON.stringify({
+      loginId: document.getElementById('loginId').value,
+      password: document.getElementById('password').value,
+      name: document.getElementById('name').value,
+      email: document.getElementById('email').value || null,
+      phone: document.getElementById('phone').value || null,
+      roleCode: document.getElementById('roleCode').value
+    })
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (res.ok) {
+    alert('회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.');
+    location.href = '/loginForm.html';
+    return;
+  }
+  const out = document.getElementById('out');
+  out.hidden = false;
+  out.textContent = res.status + ' ' + res.statusText + '\n' + JSON.stringify(data, null, 2);
+}
+</script>
+</body>
+</html>
