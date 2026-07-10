@@ -11,7 +11,6 @@
   input { width: 100%; padding: 8px; box-sizing: border-box; }
   button { width: 100%; padding: 10px; margin-top: 8px; cursor: pointer; }
   .link { text-align: center; margin-top: 12px; font-size: 14px; }
-  #afterLogin { display: none; }
   #afterLogin button { width: auto; padding: 6px 12px; margin-right: 4px; }
   pre { background: #f4f4f4; padding: 12px; white-space: pre-wrap; word-break: break-all; }
 </style>
@@ -31,15 +30,7 @@
   <button onclick="login()">로그인</button>
   <div class="link"><a href="/signInForm.html">계정이 없으신가요? 회원가입</a></div>
 </div>
-
-<div id="afterLogin">
-  <p id="welcome"></p>
-  <button onclick="me()">내 정보</button>
-  <button onclick="refresh()">토큰 재발급</button>
-  <button onclick="logout()">로그아웃</button>
-</div>
-
-<pre id="out" hidden></pre>
+<div class="msg"></div>
 
 <script>
 // Access Token은 메모리에만 보관 (데모용)
@@ -74,15 +65,9 @@ async function api(url, method = 'GET', body = null) {
     body: body ? JSON.stringify(body) : null
   });
   const data = await res.json().catch(() => ({}));
-  show(res.status + ' ' + res.statusText, data);
   return { res, data };
 }
 
-function show(title, data) {
-  const out = document.getElementById('out');
-  out.hidden = false;
-  out.textContent = title + '\n' + JSON.stringify(data, null, 2);
-}
 
 async function login() {
   const { res, data } = await api('/api/auth/login', 'POST', {
@@ -90,34 +75,17 @@ async function login() {
     password: document.getElementById('password').value
   });
   if (res.ok) {
-    accessToken = data.accessToken;
-    refreshToken = data.refreshToken;
-    document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('afterLogin').style.display = 'block';
-    document.getElementById('welcome').textContent =
-        data.user.name + '님 로그인되었습니다. (' + data.user.roleCode + ')';
+    // 서버가 ACCESS_TOKEN 쿠키(httpOnly)를 내려줬으므로 페이지 이동만 하면 된다.
+    // 실제 어느 역할 화면으로 갈지는 서버("/home")가 권한을 보고 결정한다.
+    window.location.href = '/home';
+  } else {
+    document.querySelector('.msg').innerHTML = JSON.stringify(data.message);
   }
 }
 
-async function me() {
-  await api('/api/auth/me');
-}
 
-async function refresh() {
-  const { res, data } = await api('/api/auth/refresh', 'POST', { refreshToken });
-  if (res.ok) {
-    accessToken = data.accessToken;
-    refreshToken = data.refreshToken;
-  }
-}
 
-async function logout() {
-  await api('/api/auth/logout', 'POST', { refreshToken });
-  accessToken = null;
-  refreshToken = null;
-  document.getElementById('loginForm').style.display = 'block';
-  document.getElementById('afterLogin').style.display = 'none';
-}
 </script>
+
 </body>
 </html>

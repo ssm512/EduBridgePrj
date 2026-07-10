@@ -1,0 +1,95 @@
+/* ===== EduBridge 공통 레이아웃 ===== */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+  color: #1f2937;
+  background: #f3f4f6;
+}
+a { text-decoration: none; color: inherit; }
+
+/* 상단바 */
+.topbar {
+  height: 56px;
+  background: #1e3a8a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+.topbar .brand { font-weight: 700; font-size: 18px; }
+.topbar .user { font-size: 14px; display: flex; align-items: center; gap: 12px; }
+.topbar .user button {
+  background: rgba(255,255,255,.15);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.35);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.topbar .user button:hover { background: rgba(255,255,255,.28); }
+
+/* 본문: 사이드바 + 콘텐츠 */
+.shell { display: flex; min-height: calc(100vh - 56px); }
+.sidebar {
+  width: 220px;
+  background: #fff;
+  border-right: 1px solid #e5e7eb;
+  padding: 16px 0;
+}
+.sidebar .group-label {
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 8px 20px 4px;
+  letter-spacing: .04em;
+}
+.sidebar a {
+  display: block;
+  padding: 10px 20px;
+  font-size: 14px;
+  color: #374151;
+  border-left: 3px solid transparent;
+}
+.sidebar a:hover { background: #eef2ff; border-left-color: #6366f1; color: #1e3a8a; }
+
+.content { flex: 1; padding: 28px 32px; }
+.content h1 { margin: 0 0 4px; font-size: 22px; }
+.content .sub { color: #6b7280; margin: 0 0 24px; font-size: 14px; }
+
+/* 카드 그리드 */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 18px;
+  transition: box-shadow .15s, transform .15s;
+}
+.card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); transform: translateY(-2px); }
+.card .card-title { font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+.card .card-desc { font-size: 12.5px; color: #6b7280; line-height: 1.5; }
+
+/* placeholder 안내 */
+.notice-box {
+  background: #fff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 28px;
+  max-width: 640px;
+}
+.notice-box code {
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.badge {
+  display: inline-block;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}

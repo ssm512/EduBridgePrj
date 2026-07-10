@@ -57,7 +57,7 @@ public class AuthService {
                 .email(request.email())
                 .phone(request.phone())
                 .roleCode(request.roleCode() != null ? request.roleCode() : "STUDENT")
-                .statusCode("ACTIVE")
+                .statusCode(request.roleCode().equals("TEACHER") ? "INACTIVE" : "ACTIVE")
                 .build();
 
         userMapper.insertUser(user);   // useGeneratedKeys로 userId 채워짐

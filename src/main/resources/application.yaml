@@ -27,6 +27,13 @@ spring:
           model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
           temperature: 0.7
 
+  servlet:
+    multipart:
+      enabled: true
+      location: ${UPLOAD_PATH}
+      max-file-size: 100MB
+      max-request-size: 1000MB
+
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
   type-aliases-package: com.edu.domain
@@ -40,4 +47,6 @@ app:
     access-token-minutes: 30
     refresh-token-days: 7
 
+part1:
+  upload-path: ${UPLOAD_PATH}
 

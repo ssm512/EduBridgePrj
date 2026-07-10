@@ -55,7 +55,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/", "/loginForm.html", "/signInForm.html",
-                                "/css/**", "/js/**", "/img/**", "/favicon.ico"
+                                "/css/**", "/js/**", "/img/**", "/favicon.ico",
+                                "/edudata/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
@@ -68,29 +69,33 @@ public class SecurityConfig {
                                 "/api/auth/signup",
                                 "/api/auth/login",
                                 "/api/auth/refresh",
-                                "/api/auth/logout"
+                                "/api/auth/logout",
+                                "/api/auth/logout-web"
                         ).permitAll()
 
-                        // 나머지 API는 Authorization: Bearer <accessToken> 필요
+                        // ===== 서버 렌더링 페이지: 역할별 접근 제어 =====
+                        // 로그인 후 진입점(디스패처). 인증만 되어 있으면 됨.
+                        .requestMatchers("/home").authenticated()
+                        // 각 역할 전용 화면 (JWT roles 클레임의 ROLE_XXX 권한으로 검사)
+                        .requestMatchers("/adminPage/**").hasRole("ADMIN")
+                        .requestMatchers("/teacherPage/**").hasRole("TEACHER")
+                        .requestMatchers("/studentPage/**").hasRole("STUDENT")
+                        .requestMatchers("/parentPage/**").hasRole("PARENT")
+
+                        // 나머지 API/페이지는 인증 필요
                         .anyRequest().authenticated()
                 )
 
-                //이 서버는 OAuth2 Resource Server 방식으로 동작한다.
-                //요청의 Authorization 헤더에서 Bearer Token을 읽어라.
-                //그 토큰을 JWT로 해석하고 검증해라.
-                //브라우저 요청이 이렇게 들어오면:
-                    // GET /api/users
-                    // Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
-                // Spring Security가 자동으로 다음 일을 합니다.
-                //1. Authorization 헤더 확인
-                //2. Bearer 토큰 추출
-                //3. JWT 서명 검증
-                //4. 만료 시간 exp 확인
-                //5. JWT 안의 sub, roles claim 읽기
-                //6. Authentication 객체 생성
-                //7. Controller로 요청 전달
+                // JWT를 헤더(모바일/API) 또는 ACCESS_TOKEN 쿠키(웹)에서 읽는다.
                 .oauth2ResourceServer(oauth2 -> oauth2
+                        .bearerTokenResolver(new CookieBearerTokenResolver())
+                        .authenticationEntryPoint(new HtmlAwareAuthenticationEntryPoint())
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                )
+
+                // 인증 안 된 요청: 브라우저는 로그인("/")으로, API는 401
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(new HtmlAwareAuthenticationEntryPoint())
                 );
 
         return http.build();

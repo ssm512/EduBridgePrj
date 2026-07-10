@@ -7,8 +7,12 @@ import com.edu.domain.auth.dto.SignupRequest;
 import com.edu.domain.auth.dto.TokenRefreshRequest;
 import com.edu.domain.auth.dto.UserResponse;
 import com.edu.domain.auth.service.AuthService;
+import com.edu.common.util.CookieUtil;
 import com.edu.domain.member.mapper.UserMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.apache.ibatis.annotations.Param;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -54,10 +58,17 @@ public class AuthController {
         return authService.signup(request);
     }
 
-    /** POST /api/auth/login - 로그인 */
+    /**
+     * POST /api/auth/login - 로그인
+     * - 모바일/API: 응답 body의 accessToken(Bearer 헤더용)을 사용
+     * - 웹 브라우저: 같은 accessToken을 httpOnly 쿠키(ACCESS_TOKEN)로도 내려줌
+     *   → 이후 페이지 이동/새로고침 시 쿠키가 자동으로 실려 서버측 권한 검사가 동작
+     */
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request);
+    public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+        AuthResponse auth = authService.login(request);
+        CookieUtil.addAccessTokenCookie(response, auth.accessToken(), auth.expiresIn());
+        return auth;
     }
 
     /** POST /api/auth/refresh - Access Token 재발급 */
@@ -66,10 +77,21 @@ public class AuthController {
         return authService.refresh(request);
     }
 
-    /** POST /api/auth/logout - Refresh Token 폐기 */
+    /** POST /api/auth/logout - Refresh Token 폐기 (모바일/API용) */
     @PostMapping("/logout")
     public MessageResponse logout(@Valid @RequestBody TokenRefreshRequest request) {
         authService.logout(request);
+        return new MessageResponse("로그아웃되었습니다");
+    }
+
+    /**
+     * POST /api/auth/logout-web - 웹 로그아웃
+     * 브라우저는 refreshToken을 갖고 있지 않으므로(쿠키 기반) ACCESS_TOKEN 쿠키만 제거한다.
+     * 이후 프론트에서 "/"로 이동.
+     */
+    @PostMapping("/logout-web")
+    public MessageResponse logoutWeb(HttpServletResponse response) {
+        CookieUtil.clearAccessTokenCookie(response);
         return new MessageResponse("로그아웃되었습니다");
     }
 
