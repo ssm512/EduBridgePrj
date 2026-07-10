@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  출석기록 매퍼 (틀). map-underscore-to-camel-case=true 설정이라 컬럼→카멜 자동 매핑.
+  담당자는 필요에 따라 컬럼/조건을 확장하면 된다.
+-->
+<mapper namespace="com.edu.domain.attendance.mapper.AttendanceMapper">
+
+    <insert id="insert" parameterType="AttendanceRecord"
+            useGeneratedKeys="true" keyProperty="attendanceId" keyColumn="attendance_id">
+        INSERT INTO attendance_records
+            (student_id, class_id, attendance_date, status_code, check_type,
+             checked_at, gps_latitude, gps_longitude, beacon_uuid, rssi_value,
+             failure_reason, created_by)
+        VALUES
+            (#{studentId}, #{classId}, #{attendanceDate}, #{statusCode}, #{checkType},
+             #{checkedAt}, #{gpsLatitude}, #{gpsLongitude}, #{beaconUuid}, #{rssiValue},
+             #{failureReason}, #{createdBy})
+    </insert>
+
+    <select id="findById" resultType="AttendanceRecord">
+        SELECT * FROM attendance_records
+        WHERE attendance_id = #{attendanceId}
+    </select>
+
+    <select id="findList" resultType="AttendanceRecord">
+        SELECT * FROM attendance_records
+        <where>
+            <if test="studentId != null"> AND student_id = #{studentId} </if>
+            <if test="classId  != null"> AND class_id   = #{classId}   </if>
+            <if test="fromDate != null"> AND attendance_date &gt;= #{fromDate} </if>
+            <if test="toDate   != null"> AND attendance_date &lt;= #{toDate}   </if>
+        </where>
+        ORDER BY attendance_date DESC, attendance_id DESC
+    </select>
+
+    <update id="updateStatus">
+        UPDATE attendance_records
+        SET status_code    = #{statusCode},
+            failure_reason = #{failureReason}
+        WHERE attendance_id = #{attendanceId}
+    </update>
+
+    <select id="countByStudentClassDate" resultType="int">
+        SELECT COUNT(*) FROM attendance_records
+        WHERE student_id = #{studentId}
+          AND class_id   = #{classId}
+          AND attendance_date = #{attendanceDate}
+    </select>
+
+</mapper>
