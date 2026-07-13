@@ -36,6 +36,13 @@ public interface AttendanceMapper {
     /** 출석기록 삭제 (ATT-04 삭제) */
     int deleteById(@Param("attendanceId") Long attendanceId);
 
+    /** 상태/사유/입실/퇴실 시각 수정 (null인 항목은 변경 안 함) */
+    int updateDetail(@Param("attendanceId") Long attendanceId,
+                     @Param("statusCode") String statusCode,
+                     @Param("failureReason") String failureReason,
+                     @Param("checkedAt") LocalDateTime checkedAt,
+                     @Param("checkOutAt") LocalDateTime checkOutAt);
+
     /** 같은 날 같은 반 중복 출석 방지용 카운트 (ATT-13) */
     int countByStudentClassDate(@Param("studentId") Long studentId,
                                 @Param("classId") Long classId,

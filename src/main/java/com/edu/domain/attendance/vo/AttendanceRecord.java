@@ -63,4 +63,11 @@ public class AttendanceRecord {
 
     /** 생성 시각 */
     private LocalDateTime createdAt;
+
+    // ── 조회 표시용(비영속) : findList/findById의 조인 결과 ──
+    /** 학생 이름 (users.name) */
+    private String studentName;
+
+    /** 반 이름 (classes.class_name) */
+    private String className;
 }

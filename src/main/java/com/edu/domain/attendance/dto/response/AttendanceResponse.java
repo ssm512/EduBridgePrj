@@ -13,7 +13,9 @@ import java.time.LocalDateTime;
 public record AttendanceResponse(
         Long attendanceId,
         Long studentId,
+        String studentName,
         Long classId,
+        String className,
         LocalDate attendanceDate,
         String statusCode,
         String checkType,
@@ -25,7 +27,9 @@ public record AttendanceResponse(
         return new AttendanceResponse(
                 r.getAttendanceId(),
                 r.getStudentId(),
+                r.getStudentName(),
                 r.getClassId(),
+                r.getClassName(),
                 r.getAttendanceDate(),
                 r.getStatusCode(),
                 r.getCheckType(),

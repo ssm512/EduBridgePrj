@@ -20,20 +20,29 @@
              #{failureReason}, #{createdBy})
     </insert>
 
+    <!-- 학생/반 이름 조인 공통 SELECT -->
+    <sql id="selectWithNames">
+        SELECT ar.*, u.name AS student_name, c.class_name AS class_name
+        FROM attendance_records ar
+        LEFT JOIN students s ON ar.student_id = s.student_id
+        LEFT JOIN users    u ON s.user_id     = u.user_id
+        LEFT JOIN classes  c ON ar.class_id   = c.class_id
+    </sql>
+
     <select id="findById" resultType="AttendanceRecord">
-        SELECT * FROM attendance_records
-        WHERE attendance_id = #{attendanceId}
+        <include refid="selectWithNames"/>
+        WHERE ar.attendance_id = #{attendanceId}
     </select>
 
     <select id="findList" resultType="AttendanceRecord">
-        SELECT * FROM attendance_records
+        <include refid="selectWithNames"/>
         <where>
-            <if test="studentId != null"> AND student_id = #{studentId} </if>
-            <if test="classId  != null"> AND class_id   = #{classId}   </if>
-            <if test="fromDate != null"> AND attendance_date &gt;= #{fromDate} </if>
-            <if test="toDate   != null"> AND attendance_date &lt;= #{toDate}   </if>
+            <if test="studentId != null"> AND ar.student_id = #{studentId} </if>
+            <if test="classId  != null"> AND ar.class_id   = #{classId}   </if>
+            <if test="fromDate != null"> AND ar.attendance_date &gt;= #{fromDate} </if>
+            <if test="toDate   != null"> AND ar.attendance_date &lt;= #{toDate}   </if>
         </where>
-        ORDER BY attendance_date DESC, attendance_id DESC
+        ORDER BY ar.attendance_date DESC, ar.attendance_id DESC
     </select>
 
     <update id="updateStatus">
@@ -53,6 +62,17 @@
     <delete id="deleteById">
         DELETE FROM attendance_records WHERE attendance_id = #{attendanceId}
     </delete>
+
+    <update id="updateDetail">
+        UPDATE attendance_records
+        <set>
+            <if test="statusCode    != null"> status_code    = #{statusCode},    </if>
+            <if test="failureReason != null"> failure_reason = #{failureReason}, </if>
+            <if test="checkedAt     != null"> checked_at     = #{checkedAt},     </if>
+            <if test="checkOutAt    != null"> check_out_at   = #{checkOutAt},    </if>
+        </set>
+        WHERE attendance_id = #{attendanceId}
+    </update>
 
     <select id="findByStudentClassDate" resultType="AttendanceRecord">
         SELECT * FROM attendance_records

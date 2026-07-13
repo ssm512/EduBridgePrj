@@ -119,7 +119,8 @@ public class AttendanceServiceImpl implements AttendanceService {
                 .attendanceDate(date)
                 .statusCode(request.statusCode())
                 .checkType("MANUAL")
-                .checkedAt(LocalDateTime.now())
+                .checkedAt(request.checkInAt() != null ? request.checkInAt() : LocalDateTime.now())
+                .checkOutAt(request.checkOutAt())
                 .failureReason(request.reason())
                 .createdBy(createdBy)
                 .build();
@@ -145,7 +146,8 @@ public class AttendanceServiceImpl implements AttendanceService {
         if (existing == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "출석기록을 찾을 수 없습니다: " + attendanceId);
         }
-        attendanceMapper.updateStatus(attendanceId, request.statusCode(), request.failureReason());
+        attendanceMapper.updateDetail(attendanceId, request.statusCode(), request.failureReason(),
+                request.checkInAt(), request.checkOutAt());
         return AttendanceResponse.from(attendanceMapper.findById(attendanceId));
     }
 
