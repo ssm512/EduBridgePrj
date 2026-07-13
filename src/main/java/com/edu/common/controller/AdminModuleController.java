@@ -22,14 +22,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/admin")
 public class AdminModuleController {
 
-    @GetMapping("/members")       // 담당 도메인: member
-    public String members(Model model)       { return placeholder(model, "회원관리", "com.edu.domain.member"); }
+    // [제거] /members → com.edu.domain.member.controller.MemberPageController로 이동 (실제 화면 구현됨)
 
-    @GetMapping("/classes")       // 담당 도메인: classroom
-    public String classes(Model model)        { return placeholder(model, "반관리", "com.edu.domain.classroom"); }
+    // [제거] /classes → com.edu.domain.classroom.controller.ClassPageController로 이동 (실제 화면 구현됨)
 
-    @GetMapping("/enrollments")   // 담당 도메인: classroom(enrollment)
-    public String enrollments(Model model)    { return placeholder(model, "수강관리", "com.edu.domain.classroom"); }
+    // [제거] /enrollments → com.edu.domain.classroom.controller.EnrollmentPageController로 이동 (실제 화면 구현됨)
 
     @GetMapping("/attendance")    // 담당 도메인: attendance
     public String attendance(Model model)     { return placeholder(model, "출석관리", "com.edu.domain.attendance"); }

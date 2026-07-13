@@ -65,6 +65,43 @@ public class SecurityConfig {
 
                         // 회원가입과 로그인/재발급은 토큰 없이 접근 가능
                         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
+
+                        // [추가] 회원관리 API (명세서 USER-01~03) - /users, /users/{userId}
+                        // 명세서 URL 그대로 /users로 매핑하기로 결정 (기존 /api/users 규칙은 회원가입용으로 유지)
+                        // 컨트롤러의 @PreAuthorize("hasRole('ADMIN')")와 이중 방어
+                        .requestMatchers("/users", "/users/**").hasRole("ADMIN")
+
+                        // [추가] 강사관리 API (명세서 TEA-01~03) - /teachers, /teachers/{teacherId}
+                        // 회원관리와 동일하게 명세서 URL 그대로 매핑, ADMIN 전용
+                        .requestMatchers("/teachers", "/teachers/**").hasRole("ADMIN")
+
+                        // [추가] 학생관리 API (명세서 STU-01~04) - API마다 허용 롤이 다름
+                        // 등록/수정: ADMIN / 목록: ADMIN,TEACHER / 상세: 4개 롤(본인/자녀 검증은 서비스에서)
+                        .requestMatchers(HttpMethod.POST, "/students").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/students/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/students").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/students/*")
+                            .hasAnyRole("ADMIN", "TEACHER", "STUDENT", "PARENT")
+
+                        // [추가] 반관리 API (명세서 CLS-01~04)
+                        // 등록/수정: ADMIN / 목록/상세: ADMIN,TEACHER
+                        .requestMatchers(HttpMethod.POST, "/classes").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/classes/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/classes", "/classes/*")
+                            .hasAnyRole("ADMIN", "TEACHER")
+
+                        // [추가] 수강관리 API (명세서 ENR-01~02 + 목록)
+                        // 등록/해제: ADMIN / 목록: ADMIN,TEACHER
+                        .requestMatchers(HttpMethod.POST, "/enrollments").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/enrollments/*/end").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/enrollments").hasAnyRole("ADMIN", "TEACHER")
+
+                        // [추가] 학부모관리 API (명세서 PAR-01~03) - ADMIN 전용
+                        // PAR-03(학생-학부모 연결)은 POST /students/{id}/parents
+                        .requestMatchers("/parents", "/parents/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/students/*/parents").hasRole("ADMIN")
+                        // 연결 내역 수정 (명세서 외 추가 API)
+                        .requestMatchers(HttpMethod.PUT, "/students/*/parents/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/signup",
                                 "/api/auth/login",
@@ -78,6 +115,7 @@ public class SecurityConfig {
                         .requestMatchers("/home").authenticated()
                         // 각 역할 전용 화면 (JWT roles 클레임의 ROLE_XXX 권한으로 검사)
                         .requestMatchers("/adminPage/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/teacherPage/**").hasRole("TEACHER")
                         .requestMatchers("/studentPage/**").hasRole("STUDENT")
                         .requestMatchers("/parentPage/**").hasRole("PARENT")
