@@ -1,6 +1,7 @@
 package com.edu.domain.attendance.controller;
 
 import com.edu.domain.attendance.dto.request.AttendanceCheckRequest;
+import com.edu.domain.attendance.dto.request.AttendanceCheckoutRequest;
 import com.edu.domain.attendance.dto.request.AttendanceUpdateRequest;
 import com.edu.domain.attendance.dto.request.ManualAttendanceRequest;
 import com.edu.domain.attendance.dto.response.AttendanceResponse;
@@ -10,6 +11,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,11 +43,18 @@ public class AttendanceController {
         this.attendanceService = attendanceService;
     }
 
-    /** ATT-01 자동 출석 (학생 앱) */
+    /** ATT-01 자동 출석 - 등원 (학생 앱) */
     @PostMapping("/check")
     @PreAuthorize("hasRole('STUDENT')")
     public AttendanceResponse check(@RequestBody AttendanceCheckRequest request) {
         return attendanceService.checkIn(request);
+    }
+
+    /** 퇴실 (학생 앱): 오늘 등원 기록에 퇴실시각 기록 + 조퇴 판정 */
+    @PostMapping("/checkout")
+    @PreAuthorize("hasRole('STUDENT')")
+    public AttendanceResponse checkout(@RequestBody AttendanceCheckoutRequest request) {
+        return attendanceService.checkOut(request);
     }
 
     /** ATT-02 수동 출석 등록 (관리자/강사) */
@@ -76,6 +85,14 @@ public class AttendanceController {
     public AttendanceResponse update(@PathVariable Long attendanceId,
                                      @RequestBody AttendanceUpdateRequest request) {
         return attendanceService.update(attendanceId, request);
+    }
+
+    /** ATT-04 출석 삭제 (관리자/강사) */
+    @DeleteMapping("/{attendanceId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    public void delete(@PathVariable Long attendanceId) {
+        attendanceService.delete(attendanceId);
     }
 
     /** ATT-05 출석 통계 (관리자/강사) */

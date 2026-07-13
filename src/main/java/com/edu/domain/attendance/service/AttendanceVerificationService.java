@@ -28,4 +28,7 @@ public interface AttendanceVerificationService {
 
     /** ATT-12 출석 가능 시간 검증: 수업 시작 기준 허용 분 안이면 PRESENT, 이후면 LATE 등 */
     String resolveStatusByTime(LocalTime classStartTime, LocalTime checkedTime, long allowMinutes);
+
+    /** 조퇴 판정: 퇴실시각이 수업 종료시각보다 이르면 true (LEAVE) */
+    boolean isEarlyLeave(LocalTime classEndTime, LocalTime checkOutTime);
 }

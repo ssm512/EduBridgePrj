@@ -1,6 +1,7 @@
 package com.edu.domain.attendance.service;
 
 import com.edu.domain.attendance.dto.request.AttendanceCheckRequest;
+import com.edu.domain.attendance.dto.request.AttendanceCheckoutRequest;
 import com.edu.domain.attendance.dto.request.AttendanceUpdateRequest;
 import com.edu.domain.attendance.dto.request.ManualAttendanceRequest;
 import com.edu.domain.attendance.dto.response.AttendanceResponse;
@@ -15,8 +16,11 @@ import java.util.List;
  */
 public interface AttendanceService {
 
-    /** ATT-01 자동 출석 (GPS/BLE 검증 → 상태 판정 → 저장) */
+    /** ATT-01 자동 출석 (등원): 반 시작시간 대비 PRESENT/LATE 판정 후 저장 */
     AttendanceResponse checkIn(AttendanceCheckRequest request);
+
+    /** 퇴실: 오늘 등원 기록에 퇴실시각 기록 + 종료시간보다 이르면 LEAVE(조퇴) */
+    AttendanceResponse checkOut(AttendanceCheckoutRequest request);
 
     /** ATT-02 수동 출석 등록 */
     AttendanceResponse registerManual(ManualAttendanceRequest request, Long createdBy);
@@ -26,6 +30,9 @@ public interface AttendanceService {
 
     /** ATT-04 출석 수정 */
     AttendanceResponse update(Long attendanceId, AttendanceUpdateRequest request);
+
+    /** ATT-04 출석 삭제 */
+    void delete(Long attendanceId);
 
     /** ATT-05 출석 통계 */
     AttendanceStatisticsResponse getStatistics(Long classId, Long studentId, LocalDate fromDate, LocalDate toDate);

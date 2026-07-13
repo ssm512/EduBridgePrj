@@ -1,10 +1,12 @@
 package com.edu.domain.attendance.mapper;
 
 import com.edu.domain.attendance.vo.AttendanceRecord;
+import com.edu.domain.attendance.vo.ClassScheduleView;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -31,8 +33,24 @@ public interface AttendanceMapper {
                      @Param("statusCode") String statusCode,
                      @Param("failureReason") String failureReason);
 
+    /** 출석기록 삭제 (ATT-04 삭제) */
+    int deleteById(@Param("attendanceId") Long attendanceId);
+
     /** 같은 날 같은 반 중복 출석 방지용 카운트 (ATT-13) */
     int countByStudentClassDate(@Param("studentId") Long studentId,
                                 @Param("classId") Long classId,
                                 @Param("attendanceDate") LocalDate attendanceDate);
+
+    /** 퇴실 처리를 위해 오늘 등원 기록 단건 조회 */
+    AttendanceRecord findByStudentClassDate(@Param("studentId") Long studentId,
+                                            @Param("classId") Long classId,
+                                            @Param("attendanceDate") LocalDate attendanceDate);
+
+    /** 퇴실 시각 + 상태 갱신 (조퇴 처리) */
+    int updateCheckOut(@Param("attendanceId") Long attendanceId,
+                       @Param("checkOutAt") LocalDateTime checkOutAt,
+                       @Param("statusCode") String statusCode);
+
+    /** 반 시간표(시작/종료) 조회 — 지각/조퇴 자동 판정용 (classes 읽기 전용) */
+    ClassScheduleView findClassSchedule(@Param("classId") Long classId);
 }

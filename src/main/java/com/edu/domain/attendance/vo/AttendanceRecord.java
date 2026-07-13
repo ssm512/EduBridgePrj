@@ -37,8 +37,11 @@ public class AttendanceRecord {
     /** 체크 유형 (AUTO/MANUAL) */
     private String checkType;
 
-    /** 체크 시각 */
+    /** 등원(체크인) 시각 */
     private LocalDateTime checkedAt;
+
+    /** 퇴실(체크아웃) 시각 — 조퇴 판정용 (V3에서 추가) */
+    private LocalDateTime checkOutAt;
 
     /** GPS 위도 */
     private BigDecimal gpsLatitude;

@@ -50,4 +50,30 @@
           AND attendance_date = #{attendanceDate}
     </select>
 
+    <delete id="deleteById">
+        DELETE FROM attendance_records WHERE attendance_id = #{attendanceId}
+    </delete>
+
+    <select id="findByStudentClassDate" resultType="AttendanceRecord">
+        SELECT * FROM attendance_records
+        WHERE student_id = #{studentId}
+          AND class_id   = #{classId}
+          AND attendance_date = #{attendanceDate}
+        LIMIT 1
+    </select>
+
+    <update id="updateCheckOut">
+        UPDATE attendance_records
+        SET check_out_at = #{checkOutAt},
+            status_code  = #{statusCode}
+        WHERE attendance_id = #{attendanceId}
+    </update>
+
+    <!-- 반 시간표 조회 (classes 읽기 전용) -->
+    <select id="findClassSchedule" resultType="com.edu.domain.attendance.vo.ClassScheduleView">
+        SELECT start_time AS startTime, end_time AS endTime
+        FROM classes
+        WHERE class_id = #{classId}
+    </select>
+
 </mapper>
