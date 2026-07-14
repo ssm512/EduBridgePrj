@@ -163,13 +163,13 @@ public class SecurityConfig {
 
     // 로그인할 때 사용하는 인증 관리자입니다.
     // AuthService
-        //→ AuthenticationManager
-        //→ DaoAuthenticationProvider
-        //→ CustomUserDetailsService
-        //→ UserRepository
-        //→ PasswordEncoder.matches()
-        //→ 인증 성공 또는 실패
-        // 로그인 성공 후에야 JwtService가 Access Token을 발급
+    //→ AuthenticationManager
+    //→ DaoAuthenticationProvider
+    //→ CustomUserDetailsService
+    //→ UserRepository
+    //→ PasswordEncoder.matches()
+    //→ 인증 성공 또는 실패
+    // 로그인 성공 후에야 JwtService가 Access Token을 발급
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
@@ -189,9 +189,9 @@ public class SecurityConfig {
     // JWT Access Token을 검증할 때 사용합니다. 요청이 들어올 때 Spring Security가 이 Decoder를 사용
 
     //검증하는 내용은 다음입니다.
-        // JWT 서명이 올바른가?
-        // 만료 시간이 지나지 않았는가?
-        // 토큰 구조가 정상인가?
+    // JWT 서명이 올바른가?
+    // 만료 시간이 지나지 않았는가?
+    // 토큰 구조가 정상인가?
 
     // 현재 예제는 HS256 방식입니다.
     //  HS256 = 하나의 secret key로 서명도 하고 검증도 하는 방식
@@ -207,8 +207,8 @@ public class SecurityConfig {
 
     // JWT 안의 권한 정보를 Spring Security 권한으로 바꿔주는 설정
     //  JWT 안의 roles claim을 권한 목록으로 사용하라
-      // 기본적으로 Spring Security는 권한 ROLE_ JWT 권한 앞에 SCOPE_
-      // JWT 권한 앞에 SCOPE_이므로 .setAuthorityPrefix("");
+    // 기본적으로 Spring Security는 권한 ROLE_ JWT 권한 앞에 SCOPE_
+    // JWT 권한 앞에 SCOPE_이므로 .setAuthorityPrefix("");
     //  JWT roles: ["ROLE_ADMIN"]  → Spring Security 권한: ROLE_ADMIN
     //  만약 prefix를 비우지 않으면 의도와 다른 권한명이 될 수 있습니다.
     // JWT SCOPE_ADMIN -> spring security의 ROLE_ADMIN으로 변환해줌
@@ -227,8 +227,8 @@ public class SecurityConfig {
     // application.yml에 있는 secret 문자열을 바이트 배열로 바꾼 뒤, HMAC SHA-256용 SecretKey로 만듭니다.
     // HMAC SHA-256 용으로 SecreyKey로 만드다.
     // 이 SecretKey는 두 곳에서 사용됩니다.
-     // JwtEncoder → JWT 생성
-     // JwtDecoder → JWT 검증
+    // JwtEncoder → JWT 생성
+    // JwtDecoder → JWT 검증
     private SecretKey secretKey(JwtProperties jwtProperties) {
         byte[] secretBytes = jwtProperties.secret().getBytes(java.nio.charset.StandardCharsets.UTF_8);
         return new SecretKeySpec(secretBytes, "HmacSHA256");

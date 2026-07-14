@@ -28,18 +28,16 @@ public class AdminModuleController {
 
     // [제거] /enrollments → com.edu.domain.classroom.controller.EnrollmentPageController로 이동 (실제 화면 구현됨)
 
-    @GetMapping("/grades")        // 담당 도메인: grade
-    public String grades(Model model)         { return placeholder(model, "성적관리", "com.edu.domain.grade"); }
-
     // [제거] /notices → com.edu.domain.notice.controller.NoticePageController로 이동 (실제 화면 구현됨)
 
-    @GetMapping("/counseling")    // 담당 도메인: counseling
-    public String counseling(Model model)     { return placeholder(model, "상담관리", "com.edu.domain.counseling"); }
+    @GetMapping("/attendance")    // 담당 도메인: attendance
+    public String attendance(Model model)     { return placeholder(model, "출석관리", "com.edu.domain.attendance"); }
+
+    @GetMapping("/fees")          // 담당 도메인: fee
+    public String fees(Model model)           { return placeholder(model, "회비관리", "com.edu.domain.fee"); }
 
     @GetMapping("/dashboard")     // 담당 도메인: dashboard
     public String dashboard(Model model)      { return placeholder(model, "대시보드", "com.edu.domain.dashboard"); }
-
-    // /notifications 는 domain.notification.controller.NotificationPageController 로 이관 (윤동재)
 
     @GetMapping("/logs")          // 담당 도메인: log
     public String logs(Model model)           { return placeholder(model, "활동로그", "com.edu.domain.log"); }
