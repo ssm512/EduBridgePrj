@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.domain.fee.mapper.FeeMapper">
+
+    <!-- 목록/건수에서 공통으로 쓰는 검색 조건 -->
+    <sql id="feeSearchCondition">
+        <where>
+            <if test="studentId != null">
+                AND f.student_id = #{studentId}
+            </if>
+            <if test="billingMonth != null and billingMonth != ''">
+                AND f.billing_month = #{billingMonth}
+            </if>
+            <if test="statusCode != null and statusCode != ''">
+                AND f.status_code = #{statusCode}
+            </if>
+        </where>
+    </sql>
+
+    <!-- 학생 이름은 students -> users JOIN 으로 가져온다 -->
+    <select id="selectFeeList" resultType="com.edu.domain.fee.dto.response.FeeListResponse">
+        SELECT f.fee_id,
+               f.student_id,
+               u.name                              AS student_name,
+               f.class_id,
+               c.class_name,
+               f.billing_month,
+               f.fee_amount,
+               f.discount_amount,
+               f.fee_amount - f.discount_amount    AS billable_amount,
+               f.due_date,
+               f.status_code,
+               f.description,
+               p.last_payment_id,
+               COALESCE(p.paid_sum, 0)             AS paid_sum
+          FROM fees f
+          JOIN students s  ON s.student_id = f.student_id
+          JOIN users u     ON u.user_id    = s.user_id
+          LEFT JOIN classes c ON c.class_id = f.class_id
+          <!-- 유효 납부 이력을 fee 단위로 집계: 최근 이력 PK(취소 버튼용) + 납부 합계(잔액 표시용) -->
+          LEFT JOIN (SELECT fee_id,
+                            MAX(payment_id)  AS last_payment_id,
+                            SUM(paid_amount) AS paid_sum
+                       FROM fee_payments
+                      WHERE cancel_yn = 'N'
+                      GROUP BY fee_id) p ON p.fee_id = f.fee_id
+        <include refid="feeSearchCondition"/>
+         ORDER BY f.billing_month DESC, f.due_date ASC, f.fee_id ASC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countFeeList" resultType="long">
+        SELECT COUNT(*)
+          FROM fees f
+        <include refid="feeSearchCondition"/>
+    </select>
+
+    <insert id="insertFee" useGeneratedKeys="true" keyProperty="feeId" keyColumn="fee_id">
+        INSERT INTO fees (student_id, class_id, billing_month, fee_amount,
+                          discount_amount, due_date, status_code, description)
+        VALUES (#{studentId}, #{classId}, #{billingMonth}, #{feeAmount},
+                #{discountAmount}, #{dueDate}, #{statusCode}, #{description})
+    </insert>
+
+    <!-- IS NOT DISTINCT FROM : class_id 가 양쪽 다 NULL 이어도 같다고 판단 (PostgreSQL) -->
+    <select id="existsFee" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fees
+             WHERE student_id    = #{studentId}
+               AND billing_month = #{billingMonth}
+               AND class_id IS NOT DISTINCT FROM #{classId}
+        )
+    </select>
+
+    <select id="selectByFeeId" resultType="com.edu.domain.fee.vo.FeeVo">
+        SELECT fee_id, student_id, class_id, billing_month, fee_amount,
+               discount_amount, due_date, status_code, description, created_at
+          FROM fees
+         WHERE fee_id = #{feeId}
+    </select>
+
+    <update id="updateFee">
+        UPDATE fees
+           SET fee_amount      = #{feeAmount},
+               discount_amount = #{discountAmount},
+               due_date        = #{dueDate},
+               description     = #{description},
+               status_code     = #{statusCode}
+         WHERE fee_id = #{feeId}
+    </update>
+
+    <update id="updateFeeStatus">
+        UPDATE fees
+           SET status_code = #{statusCode}
+         WHERE fee_id = #{feeId}
+    </update>
+
+    <insert id="insertPayment" useGeneratedKeys="true" keyProperty="paymentId" keyColumn="payment_id">
+        INSERT INTO fee_payments (fee_id, paid_amount, paid_at, payment_method, cancel_yn)
+        VALUES (#{feeId}, #{paidAmount}, #{paidAt}, #{paymentMethod}, 'N')
+    </insert>
+
+    <select id="selectPaymentByPaymentId" resultType="com.edu.domain.fee.vo.FeePaymentVo">
+        SELECT payment_id, fee_id, paid_amount, paid_at, payment_method,
+               receipt_no, cancel_yn, created_at
+          FROM fee_payments
+         WHERE payment_id = #{paymentId}
+    </select>
+
+    <!-- 취소분 제외한 유효 납부 합계. 납부 이력이 없으면 0 -->
+    <select id="sumPaidAmountByFeeId" resultType="long">
+        SELECT COALESCE(SUM(paid_amount), 0)
+          FROM fee_payments
+         WHERE fee_id    = #{feeId}
+           AND cancel_yn = 'N'
+    </select>
+
+    <update id="cancelPayment">
+        UPDATE fee_payments
+           SET cancel_yn = 'Y'
+         WHERE payment_id = #{paymentId}
+    </update>
+
+    <!-- 월별 통계 (FEE-06)
+         - billing_month 가 CHAR(7) 'YYYY-MM' 이라 BETWEEN 문자열 비교로 월 범위 조회 가능
+         - COUNT(*) FILTER (...) : PostgreSQL 조건부 집계. CASE WHEN SUM 보다 의도가 명확
+         - 데이터 없는 달은 행 자체가 없음 -> Service 에서 0 으로 채움 -->
+    <select id="selectMonthlyStats" resultType="com.edu.domain.fee.dto.response.FeeMonthlyStatResponse">
+        SELECT f.billing_month,
+               COALESCE(SUM(f.fee_amount - f.discount_amount), 0)  AS total_amount,
+               COALESCE(SUM(COALESCE(p.paid_sum, 0)), 0)           AS paid_amount,
+               COUNT(*) FILTER (WHERE f.status_code = 'PAID')      AS paid_count,
+               COUNT(*) FILTER (WHERE f.status_code = 'UNPAID')    AS unpaid_count,
+               COUNT(*) FILTER (WHERE f.status_code = 'SCHEDULED') AS scheduled_count
+          FROM fees f
+          LEFT JOIN (SELECT fee_id, SUM(paid_amount) AS paid_sum
+                       FROM fee_payments
+                      WHERE cancel_yn = 'N'
+                      GROUP BY fee_id) p ON p.fee_id = f.fee_id
+         WHERE f.billing_month BETWEEN #{fromMonth} AND #{toMonth}
+        <if test="classId != null">
+           AND f.class_id = #{classId}
+        </if>
+         GROUP BY f.billing_month
+         ORDER BY f.billing_month ASC
+    </select>
+
+</mapper>
