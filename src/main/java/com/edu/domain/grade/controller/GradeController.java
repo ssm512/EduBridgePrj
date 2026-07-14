@@ -105,6 +105,15 @@ public class GradeController {
         return gradeMapper.selectGradeTrend(studentId, subject);
     }
 
+    // 반별 성적 추이 조회
+    // 선택한 반의 시험별 평균 점수 변화를 차트 화면에서 사용한다.
+    @GetMapping("/grades/class-trends")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    public List<Map<String, Object>> classGradeTrend(@RequestParam Long classId,
+                                                     @RequestParam(required = false) String subject) {
+        return gradeMapper.selectClassGradeTrend(classId, subject);
+    }
+
     // 반 평균 조회
     // classId를 비우면 전체 반 평균을 조회하고, subject를 입력하면 해당 과목만 평균에 포함한다.
     @GetMapping("/grades/class-averages")

@@ -26,11 +26,11 @@
         }
 
         .exam-form-panel .form-row {
-            margin-bottom: 22px;
+            margin-bottom: 32px;
         }
 
         .exam-form-panel .button-row {
-            margin-top: 6px;
+            margin-top: 10px;
             padding-top: 0;
         }
 
@@ -166,6 +166,128 @@
             background: #fff;
         }
 
+        .datetime-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .datetime-row input {
+            flex: 1;
+        }
+
+        .datetime-row .grade-btn {
+            flex: 0 0 auto;
+            padding: 8px 10px;
+        }
+
+        .date-picker-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 30;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, .28);
+        }
+
+        .date-picker-overlay.show {
+            display: flex;
+        }
+
+        .date-picker-modal {
+            width: min(360px, calc(100vw - 32px));
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, .22);
+            padding: 18px;
+        }
+
+        .date-picker-modal h3 {
+            margin: 0 0 14px;
+            font-size: 16px;
+        }
+
+        .date-picker-fields {
+            display: grid;
+            gap: 12px;
+        }
+
+        .date-picker-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .class-picker {
+            position: relative;
+        }
+
+        .class-picker input {
+            padding-right: 38px;
+        }
+
+        .class-picker-toggle {
+            position: absolute;
+            right: 1px;
+            top: 1px;
+            bottom: 1px;
+            width: 34px;
+            border: 0;
+            border-left: 1px solid #cbd5e1;
+            border-radius: 0 6px 6px 0;
+            background: #f8fafc;
+            color: #111827;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .class-picker-toggle:hover {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .class-picker-menu {
+            display: none;
+            position: absolute;
+            top: 40px;
+            left: 0;
+            z-index: 12;
+            min-width: 230px;
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .12);
+        }
+
+        .class-picker-menu.show {
+            display: block;
+        }
+
+        .class-picker-menu button {
+            display: block;
+            width: 100%;
+            border: 0;
+            border-radius: 5px;
+            padding: 8px 9px;
+            background: #fff;
+            color: #111827;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .class-picker-menu button:hover {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .class-picker-menu .empty-row {
+            padding: 12px 8px;
+        }
+
         .button-row {
             display: flex;
             gap: 8px;
@@ -222,8 +344,12 @@
         }
 
         .sort-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
             border: 0;
-            padding: 0;
+            border-radius: 4px;
+            padding: 4px 6px;
             background: transparent;
             color: inherit;
             font: inherit;
@@ -232,6 +358,18 @@
         }
 
         .sort-btn:hover {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .sort-indicator {
+            min-width: 10px;
+            color: #94a3b8;
+            font-size: 10px;
+        }
+
+        .sort-btn:hover .sort-indicator,
+        .sort-indicator.active {
             color: #2563eb;
         }
 
@@ -263,6 +401,51 @@
             margin: 0 0 12px;
             color: #1e3a8a;
             font-weight: 600;
+        }
+
+        .trend-info {
+            margin: 12px 0 0;
+            padding: 10px 12px;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #1e3a8a;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .trend-chart {
+            min-height: 260px;
+            margin: 14px 0 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .trend-chart canvas {
+            display: block;
+            width: 100%;
+            height: 260px;
+        }
+
+        .trend-chart .empty-row {
+            padding: 110px 8px;
+        }
+
+        .trend-mode-row {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .trend-mode-row label {
+            display: inline-flex;
+            gap: 5px;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
         }
 
         .status {
@@ -366,8 +549,11 @@
 
                 <div class="form-row">
                     <label for="classId">반</label>
-                    <input id="classId" list="classOptions" placeholder="반 이름 선택 또는 반 ID 입력">
-                    <datalist id="classOptions"></datalist>
+                    <div class="class-picker">
+                        <input id="classId" placeholder="반 이름 선택 또는 반 ID 입력" autocomplete="off">
+                        <button type="button" class="class-picker-toggle" onclick="toggleClassMenu('classIdMenu')">▼</button>
+                        <div id="classIdMenu" class="class-picker-menu"></div>
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -382,7 +568,11 @@
 
                 <div class="form-row">
                     <label for="examDate">시험일시</label>
-                    <input id="examDate" type="datetime-local">
+                    <div class="datetime-row">
+                        <input id="examDateDisplay" placeholder="시험일시를 선택하세요" readonly>
+                        <input id="examDate" type="hidden">
+                        <button type="button" class="grade-btn secondary" onclick="openExamDatePicker()">선택</button>
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -424,11 +614,11 @@
                     <table class="grade-table exam-table">
                         <thead>
                         <tr>
-                            <th><button type="button" class="sort-btn" onclick="setExamSort('exam_id')">시험ID <span id="sort_exam_id"></span></button></th>
-                            <th><button type="button" class="sort-btn" onclick="setExamSort('class_name')">반 <span id="sort_class_name"></span></button></th>
-                            <th><button type="button" class="sort-btn" onclick="setExamSort('exam_name')">시험명 <span id="sort_exam_name"></span></button></th>
-                            <th><button type="button" class="sort-btn" onclick="setExamSort('subject')">과목 <span id="sort_subject"></span></button></th>
-                            <th><button type="button" class="sort-btn" onclick="setExamSort('exam_date')">시험일시 <span id="sort_exam_date"></span></button></th>
+                            <th><button type="button" class="sort-btn" title="시험ID 정렬" onclick="setExamSort('exam_id')">시험ID <span id="sort_exam_id" class="sort-indicator">↕</span></button></th>
+                            <th><button type="button" class="sort-btn" title="반 정렬" onclick="setExamSort('class_name')">반 <span id="sort_class_name" class="sort-indicator">↕</span></button></th>
+                            <th><button type="button" class="sort-btn" title="시험명 정렬" onclick="setExamSort('exam_name')">시험명 <span id="sort_exam_name" class="sort-indicator">↕</span></button></th>
+                            <th><button type="button" class="sort-btn" title="과목 정렬" onclick="setExamSort('subject')">과목 <span id="sort_subject" class="sort-indicator">↕</span></button></th>
+                            <th><button type="button" class="sort-btn" title="시험일시 정렬" onclick="setExamSort('exam_date')">시험일시 <span id="sort_exam_date" class="sort-indicator">↕</span></button></th>
                             <th>만점</th>
                         </tr>
                         </thead>
@@ -495,7 +685,11 @@
                 <div>
                     <div class="form-row">
                         <label for="subjectGradeClassId">반</label>
-                        <input id="subjectGradeClassId" list="classOptions" placeholder="비워두면 전체 반">
+                        <div class="class-picker">
+                            <input id="subjectGradeClassId" placeholder="비워두면 전체 반" autocomplete="off">
+                            <button type="button" class="class-picker-toggle" onclick="toggleClassMenu('subjectGradeClassIdMenu')">▼</button>
+                            <div id="subjectGradeClassIdMenu" class="class-picker-menu"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -530,7 +724,11 @@
                 <div>
                     <div class="form-row">
                         <label for="classAverageClassId">반</label>
-                        <input id="classAverageClassId" list="classOptions" placeholder="비워두면 전체 반">
+                        <div class="class-picker">
+                            <input id="classAverageClassId" placeholder="비워두면 전체 반" autocomplete="off">
+                            <button type="button" class="class-picker-toggle" onclick="toggleClassMenu('classAverageClassIdMenu')">▼</button>
+                            <div id="classAverageClassIdMenu" class="class-picker-menu"></div>
+                        </div>
                     </div>
                 </div>
                 <div>
@@ -566,11 +764,32 @@
         <section class="grade-panel">
             <h2>성적 추이 조회</h2>
 
+            <div class="trend-mode-row">
+                <label>
+                    <input type="radio" name="trendMode" value="student" checked onchange="changeTrendMode()">
+                    학생별
+                </label>
+                <label>
+                    <input type="radio" name="trendMode" value="class" onchange="changeTrendMode()">
+                    반별
+                </label>
+            </div>
+
             <div class="grade-layout">
-                <div>
+                <div id="trendStudentField">
                     <div class="form-row">
                         <label for="trendStudentId">학생 ID</label>
-                        <input id="trendStudentId" placeholder="students.student_id">
+                        <input id="trendStudentId" placeholder="학생 ID 숫자를 입력하세요">
+                    </div>
+                </div>
+                <div id="trendClassField" style="display:none;">
+                    <div class="form-row">
+                        <label for="trendClassId">반</label>
+                        <div class="class-picker">
+                            <input id="trendClassId" placeholder="반 이름 선택 또는 반 ID 입력" autocomplete="off">
+                            <button type="button" class="class-picker-toggle" onclick="toggleClassMenu('trendClassIdMenu')">▼</button>
+                            <div id="trendClassIdMenu" class="class-picker-menu"></div>
+                        </div>
                     </div>
                 </div>
                 <div>
@@ -583,6 +802,12 @@
 
             <div class="button-row">
                 <button class="grade-btn" onclick="loadGradeTrend()">추이 조회</button>
+            </div>
+
+            <div id="trendInfo" class="trend-info" style="display:none;"></div>
+
+            <div id="trendChart" class="trend-chart">
+                <div class="empty-row">성적 추이를 조회하면 차트가 표시됩니다.</div>
             </div>
 
             <div class="table-wrap">
@@ -604,7 +829,28 @@
     </main>
 </div>
 
+<div id="examDatePickerOverlay" class="date-picker-overlay">
+    <div class="date-picker-modal">
+        <h3>시험일시 선택</h3>
+        <div class="date-picker-fields">
+            <div class="form-row">
+                <label for="examDatePickerDate">시험일</label>
+                <input id="examDatePickerDate" type="date">
+            </div>
+            <div class="form-row">
+                <label for="examDatePickerTime">시험시간</label>
+                <input id="examDatePickerTime" type="time">
+            </div>
+        </div>
+        <div class="date-picker-actions">
+            <button type="button" class="grade-btn secondary" onclick="closeExamDatePicker()">취소</button>
+            <button type="button" class="grade-btn" onclick="applyExamDateSelection()">확인</button>
+        </div>
+    </div>
+</div>
+
 <script th:replace="~{fragments/common :: logoutScript}"></script>
+<script src="/js/chart.umd.min.js"></script>
 <script>
     // 현재 선택된 시험 ID
     // 시험 행을 클릭하면 이 값에 exam_id를 저장하고, 성적 입력/조회 시 내부적으로 사용한다.
@@ -632,6 +878,7 @@
     let examSearchType = 'all';
     let examSortKey = null;
     let examSortDirection = 'asc';
+    let gradeTrendChart = null;
     const examSearchLabels = {
         all: '전체검색',
         examId: '시험ID',
@@ -707,8 +954,60 @@
         })[ch]);
     }
 
-    // 시험 목록에 포함된 반 정보를 중복 없이 뽑아 자동완성 목록에 채운다.
-    // 목록에 없는 반은 기존처럼 class_id를 직접 입력할 수 있다.
+    // 시험일시 선택 팝업을 연다.
+    // 기존 선택값이 있으면 팝업 입력값에 먼저 채워 넣는다.
+    function openExamDatePicker() {
+        const examDate = document.getElementById('examDate').value;
+        const [dateValue, timeValue] = examDate ? examDate.split('T') : ['', ''];
+
+        document.getElementById('examDatePickerDate').value = dateValue || '';
+        document.getElementById('examDatePickerTime').value = timeValue || '';
+        document.getElementById('examDatePickerOverlay').classList.add('show');
+    }
+
+    // 시험일시 선택 팝업을 닫는다.
+    function closeExamDatePicker() {
+        document.getElementById('examDatePickerOverlay').classList.remove('show');
+    }
+
+    // 팝업에서 고른 날짜와 시간을 시험일시 입력값에 반영한다.
+    function applyExamDateSelection() {
+        const dateValue = document.getElementById('examDatePickerDate').value;
+        const timeValue = document.getElementById('examDatePickerTime').value;
+
+        if (!dateValue || !timeValue) {
+            setStatus('시험일과 시험시간을 모두 선택하세요.', true);
+            return;
+        }
+
+        setExamDateValue(dateValue + 'T' + timeValue);
+        closeExamDatePicker();
+        setStatus('시험일시를 선택했습니다: ' + document.getElementById('examDateDisplay').value);
+    }
+
+    // 서버 전송용 시험일시 값과 화면 표시값을 함께 갱신한다.
+    function setExamDateValue(value) {
+        document.getElementById('examDate').value = value || '';
+        document.getElementById('examDateDisplay').value = value ? formatKoreanDateTime(value) : '';
+    }
+
+    // 서버에서 내려온 시험일시를 사람이 읽기 쉬운 한국어 형식으로 바꾼다.
+    function formatKoreanDateTime(value) {
+        if (!value) {
+            return '';
+        }
+
+        const normalizedValue = String(value).replace(' ', 'T');
+        const date = new Date(normalizedValue);
+        if (Number.isNaN(date.getTime())) {
+            return value;
+        }
+
+        return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${date.getHours()}시 ${String(date.getMinutes()).padStart(2, '0')}분`;
+    }
+
+    // 시험 목록에 포함된 반 정보를 중복 없이 뽑아 직접 만든 선택 메뉴에 채운다.
+    // 입력값이 이미 있어도 토글을 누르면 전체 반 목록을 다시 선택할 수 있다.
     function renderClassOptions() {
         const classMap = new Map();
 
@@ -721,11 +1020,52 @@
         const classOptions = Array.from(classMap.entries())
             .sort((a, b) => a[1].localeCompare(b[1], 'ko'));
 
-        const datalist = document.getElementById('classOptions');
-        datalist.innerHTML = '';
+        renderClassMenu('classIdMenu', 'classId', classOptions, false);
+        renderClassMenu('subjectGradeClassIdMenu', 'subjectGradeClassId', classOptions, true);
+        renderClassMenu('classAverageClassIdMenu', 'classAverageClassId', classOptions, true);
+        renderClassMenu('trendClassIdMenu', 'trendClassId', classOptions, false);
+    }
+
+    // 반 선택 메뉴를 그린다.
+    // includeEmpty가 true면 조회 조건에서 전체 반을 선택할 수 있게 빈 값 버튼을 추가한다.
+    function renderClassMenu(menuId, inputId, classOptions, includeEmpty) {
+        const menu = document.getElementById(menuId);
+        menu.innerHTML = '';
+
+        if (includeEmpty) {
+            menu.innerHTML += `<button type="button" onclick="selectClassOption('${inputId}', '')">전체 반</button>`;
+        }
+
+        if (classOptions.length === 0) {
+            menu.innerHTML += '<div class="empty-row">시험 목록에 등록된 반이 없습니다.</div>';
+            return;
+        }
+
         classOptions.forEach(([classId, className]) => {
-            datalist.innerHTML += `<option value="${classId}">${escapeHtml(className)} (${classId})</option>`;
+            menu.innerHTML += `
+                <button type="button" onclick="selectClassOption('${inputId}', '${classId}')">
+                    ${escapeHtml(className)} (${classId})
+                </button>
+            `;
         });
+    }
+
+    // 반 선택 메뉴를 열고 닫는다.
+    function toggleClassMenu(menuId) {
+        document.querySelectorAll('.class-picker-menu').forEach(menu => {
+            if (menu.id !== menuId) {
+                menu.classList.remove('show');
+            }
+        });
+
+        document.getElementById(menuId).classList.toggle('show');
+    }
+
+    // 반 선택 메뉴에서 고른 class_id를 입력칸에 넣는다.
+    // 직접 입력도 가능하므로 실제 서버 전송값은 기존처럼 숫자 class_id이다.
+    function selectClassOption(inputId, classId) {
+        document.getElementById(inputId).value = classId;
+        document.querySelectorAll('.class-picker-menu').forEach(menu => menu.classList.remove('show'));
     }
 
     // 시험 등록 또는 수정 요청
@@ -796,7 +1136,7 @@
         document.getElementById('classId').value = '';
         document.getElementById('examName').value = '';
         document.getElementById('subject').value = '';
-        document.getElementById('examDate').value = '';
+        setExamDateValue('');
         document.getElementById('totalScore').value = '100';
         document.getElementById('saveExamButton').innerText = '시험 등록';
         document.getElementById('deleteExamButton').disabled = true;
@@ -932,7 +1272,8 @@
                 return;
             }
 
-            indicator.innerText = examSortKey === key ? (examSortDirection === 'asc' ? '▲' : '▼') : '';
+            indicator.innerText = examSortKey === key ? (examSortDirection === 'asc' ? '▲' : '▼') : '↕';
+            indicator.classList.toggle('active', examSortKey === key);
         });
     }
 
@@ -971,7 +1312,7 @@
                     <td>${escapeHtml(row.class_name)}</td>
                     <td>${escapeHtml(row.exam_name)}</td>
                     <td>${escapeHtml(row.subject || '')}</td>
-                    <td>${row.exam_date}</td>
+                    <td>${formatKoreanDateTime(row.exam_date)}</td>
                     <td>${row.total_score}</td>
                 </tr>
             `;
@@ -1031,13 +1372,14 @@
             document.getElementById('classId').value = selectedExam.class_id;
             document.getElementById('examName').value = selectedExam.exam_name;
             document.getElementById('subject').value = selectedExam.subject || '';
-            document.getElementById('examDate').value = formatExamDateForInput(selectedExam.exam_date);
+            setExamDateValue(formatExamDateForInput(selectedExam.exam_date));
             document.getElementById('totalScore').value = selectedExam.total_score;
             document.getElementById('saveExamButton').innerText = '시험 수정';
             document.getElementById('deleteExamButton').disabled = false;
             document.getElementById('selectedExamInfo').innerText =
                 '선택한 시험: ' + selectedExam.class_name + ' / ' +
-                selectedExam.exam_name + ' / 시험ID ' + selectedExam.exam_id;
+                selectedExam.exam_name + ' / ' + formatKoreanDateTime(selectedExam.exam_date) +
+                ' / 시험ID ' + selectedExam.exam_id;
         }
 
         renderExamRows();
@@ -1234,7 +1576,7 @@
                     <td>${row.score}</td>
                     <td>${row.total_score}</td>
                     <td>${row.rank_no || ''}</td>
-                    <td>${row.exam_date}</td>
+                    <td>${formatKoreanDateTime(row.exam_date)}</td>
                 </tr>
             `;
         });
@@ -1287,17 +1629,43 @@
         });
     }
 
-    // 학생별 성적 추이 조회
-    async function loadGradeTrend() {
-        const studentId = document.getElementById('trendStudentId').value;
-        const subject = document.getElementById('trendSubject').value;
+    // 성적 추이 조회 모드를 학생별/반별로 전환한다.
+    function changeTrendMode() {
+        const mode = getTrendMode();
+        document.getElementById('trendStudentField').style.display = mode === 'student' ? 'block' : 'none';
+        document.getElementById('trendClassField').style.display = mode === 'class' ? 'block' : 'none';
+        document.getElementById('trendInfo').style.display = 'none';
+        document.getElementById('trendInfo').innerText = '';
+        showTrendChartMessage('성적 추이를 조회하면 차트가 표시됩니다.');
+        document.getElementById('trendList').innerHTML = '';
+    }
 
-        if (!studentId) {
+    // 현재 선택된 성적 추이 조회 기준을 반환한다.
+    function getTrendMode() {
+        return document.querySelector('input[name="trendMode"]:checked').value;
+    }
+
+    // 학생별 또는 반별 성적 추이 조회
+    async function loadGradeTrend() {
+        const mode = getTrendMode();
+        const studentId = document.getElementById('trendStudentId').value;
+        const classId = document.getElementById('trendClassId').value;
+        const subject = document.getElementById('trendSubject').value;
+        const chart = document.getElementById('trendChart');
+
+        if (mode === 'student' && !studentId) {
             setStatus('성적 추이를 조회할 학생 ID를 입력하세요.', true);
             return;
         }
 
-        let url = '/api/grades/trends?studentId=' + studentId;
+        if (mode === 'class' && !classId) {
+            setStatus('성적 추이를 조회할 반을 선택하거나 반 ID를 입력하세요.', true);
+            return;
+        }
+
+        let url = mode === 'student'
+            ? '/api/grades/trends?studentId=' + encodeURIComponent(studentId)
+            : '/api/grades/class-trends?classId=' + encodeURIComponent(classId);
 
         // 과목을 입력한 경우에만 subject 검색 조건 추가
         if (subject) {
@@ -1317,8 +1685,14 @@
 
         if (data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" class="empty-row">조회된 성적 추이가 없습니다.</td></tr>';
+            document.getElementById('trendInfo').style.display = 'none';
+            document.getElementById('trendInfo').innerText = '';
+            showTrendChartMessage('조회된 성적 추이가 없습니다.');
             return;
         }
+
+        renderTrendInfo(data[0], mode);
+        renderGradeTrendChart(data, mode);
 
         data.forEach(row => {
             tbody.innerHTML += `
@@ -1326,12 +1700,154 @@
                     <td>${row.exam_id}</td>
                     <td>${escapeHtml(row.exam_name)}</td>
                     <td>${escapeHtml(row.subject || '')}</td>
-                    <td>${row.exam_date}</td>
-                    <td>${row.score}</td>
+                    <td>${formatKoreanDateTime(row.exam_date)}</td>
+                    <td>${mode === 'class' ? '평균 ' : ''}${row.score}</td>
                     <td>${row.total_score}</td>
                 </tr>
             `;
         });
+    }
+
+    // 성적 추이 조회 대상의 기본 정보를 출력한다.
+    function renderTrendInfo(row, mode) {
+        const trendInfo = document.getElementById('trendInfo');
+
+        if (mode === 'student') {
+            trendInfo.innerText =
+                `학생: ${row.student_name || '-'} / 학생ID ${row.student_id || '-'} / 학생번호 ${row.student_no || '-'}`;
+        } else {
+            trendInfo.innerText =
+                `반: ${row.class_name || '-'} / 반ID ${row.class_id || '-'} / 기준: 시험별 평균`;
+        }
+
+        trendInfo.style.display = 'block';
+    }
+
+    // 기존 Chart.js 인스턴스를 정리한다.
+    // 새 조회 결과를 그리거나 안내 문구를 보여줄 때 이전 차트가 남지 않도록 한다.
+    function destroyGradeTrendChart() {
+        if (gradeTrendChart) {
+            gradeTrendChart.destroy();
+            gradeTrendChart = null;
+        }
+    }
+
+    // 차트 영역에 안내 문구를 표시한다.
+    function showTrendChartMessage(message) {
+        destroyGradeTrendChart();
+        document.getElementById('trendChart').innerHTML = `<div class="empty-row">${message}</div>`;
+    }
+
+    // 성적 추이 데이터를 Chart.js 선형 차트로 표시한다.
+    // 시험 만점이 다를 수 있으므로 y축은 만점 대비 비율로 그리고, 점 라벨에는 실제 점수를 보여준다.
+    function renderGradeTrendChart(data, mode) {
+        const chart = document.getElementById('trendChart');
+        destroyGradeTrendChart();
+        chart.innerHTML = '<canvas id="trendChartCanvas"></canvas>';
+
+        const labels = data.map(row => formatTrendChartLabel(row));
+        const rates = data.map(row => Number(row.score) / Number(row.total_score || 100) * 100);
+        const scoreLabels = data.map(row => `${mode === 'class' ? '평균 ' : ''}${Number(row.score).toFixed(1)}`);
+        const titleText = mode === 'class' ? '반별 시험 평균 추이' : '학생별 성적 추이';
+        const ctx = document.getElementById('trendChartCanvas');
+
+        const pointLabelPlugin = {
+            id: 'gradePointLabel',
+            afterDatasetsDraw(chartInstance) {
+                const {ctx} = chartInstance;
+                const meta = chartInstance.getDatasetMeta(0);
+
+                ctx.save();
+                ctx.font = '11px sans-serif';
+                ctx.fillStyle = '#1e3a8a';
+                ctx.textAlign = 'center';
+                meta.data.forEach((point, index) => {
+                    ctx.fillText(scoreLabels[index], point.x, point.y - 10);
+                });
+                ctx.restore();
+            }
+        };
+
+        gradeTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: titleText,
+                    data: rates,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, .12)',
+                    pointBackgroundColor: '#2563eb',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 6,
+                    borderWidth: 3,
+                    tension: .25,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 24,
+                        right: 18,
+                        bottom: 4,
+                        left: 8
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        align: 'start',
+                        labels: {
+                            boxWidth: 12,
+                            color: '#1e3a8a',
+                            font: {
+                                weight: '700'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const row = data[context.dataIndex];
+                                const prefix = mode === 'class' ? '평균 점수' : '점수';
+                                return `${prefix}: ${row.score} / ${row.total_score} (${Number(context.raw).toFixed(1)}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            callback(value) {
+                                return value + '%';
+                            }
+                        },
+                        grid: {
+                            color: '#e5e7eb'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            },
+            plugins: [pointLabelPlugin]
+        });
+    }
+
+    // 차트 하단 라벨은 시험일 기준으로 짧게 표시한다.
+    function formatTrendChartLabel(row) {
+        const dateText = String(row.exam_date || '').substring(5, 10);
+        return dateText || row.exam_name || '';
     }
 
     // 페이지 진입 시 기본 목록을 조회한다.
@@ -1344,6 +1860,14 @@
     document.addEventListener('click', event => {
         if (!event.target.closest('.exam-search')) {
             document.getElementById('examSearchMenu').classList.remove('show');
+        }
+
+        if (!event.target.closest('.class-picker')) {
+            document.querySelectorAll('.class-picker-menu').forEach(menu => menu.classList.remove('show'));
+        }
+
+        if (event.target.id === 'examDatePickerOverlay') {
+            closeExamDatePicker();
         }
     });
 </script>

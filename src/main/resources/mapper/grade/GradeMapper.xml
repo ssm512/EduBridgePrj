@@ -127,18 +127,48 @@
         성적 차트나 변화 추이 화면에서 사용
     -->
     <select id="selectGradeTrend" resultType="hashmap">
-        SELECT e.exam_id, -- 시험 ID
-        e.exam_name,      -- 시험명
-        e.subject,        -- 과목명
-        e.exam_date,      -- 시험일
-        g.score,          -- 점수
-        e.total_score     -- 만점
+        SELECT e.exam_id,       -- 시험 ID
+        e.exam_name,            -- 시험명
+        e.subject,              -- 과목명
+        e.exam_date,            -- 시험일
+        g.student_id,           -- 학생 ID
+        u.name AS student_name, -- 학생 이름
+        s.student_no,           -- 학생 관리번호
+        g.score,                -- 점수
+        e.total_score           -- 만점
         FROM grades g
         JOIN exams e ON e.exam_id = g.exam_id
+        JOIN students s ON s.student_id = g.student_id
+        JOIN users u ON u.user_id = s.user_id
         WHERE g.student_id = #{studentId}
         <if test="subject != null and subject != ''">
             AND e.subject = #{subject}
         </if>
+        ORDER BY e.exam_date
+    </select>
+
+    <!--
+        반별 성적 추이 조회
+        선택한 반의 시험별 평균 점수 변화를 차트에 표시할 때 사용
+    -->
+    <select id="selectClassGradeTrend" resultType="hashmap">
+        SELECT e.exam_id,                    -- 시험 ID
+        e.exam_name,                         -- 시험명
+        e.subject,                           -- 과목명
+        e.exam_date,                         -- 시험일시
+        c.class_id,                          -- 반 ID
+        c.class_name,                        -- 반 이름
+        ROUND(AVG(g.score), 1) AS score,     -- 시험별 반 평균 점수
+        e.total_score,                       -- 만점
+        COUNT(g.grade_id) AS grade_count     -- 입력된 성적 수
+        FROM exams e
+        JOIN classes c ON c.class_id = e.class_id
+        JOIN grades g ON g.exam_id = e.exam_id
+        WHERE e.class_id = #{classId}
+        <if test="subject != null and subject != ''">
+            AND e.subject ILIKE CONCAT('%', #{subject}, '%')
+        </if>
+        GROUP BY e.exam_id, e.exam_name, e.subject, e.exam_date, c.class_id, c.class_name, e.total_score
         ORDER BY e.exam_date
     </select>
 

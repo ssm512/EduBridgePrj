@@ -52,6 +52,11 @@ public interface GradeMapper {
     List<Map<String, Object>> selectGradeTrend(@Param("studentId") Long studentId,
                                                @Param("subject") String subject);
 
+    // 반별 성적 추이 조회
+    // classId 기준으로 시험별 평균 점수 변화를 조회한다.
+    List<Map<String, Object>> selectClassGradeTrend(@Param("classId") Long classId,
+                                                    @Param("subject") String subject);
+
     // 반 평균 조회
     // classId가 있으면 특정 반만 조회하고, subject가 있으면 해당 과목 시험만 평균에 포함한다.
     List<Map<String, Object>> selectClassAverageStats(@Param("classId") Long classId,
