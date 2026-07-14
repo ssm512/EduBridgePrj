@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.domain.member.mapper.TeacherMapper">
+
+    <!-- teachers + users 조인 공통 SELECT -->
+    <sql id="selectJoin">
+        SELECT t.teacher_id, t.user_id, t.subject, t.hire_date, t.created_at,
+               u.login_id, u.name, u.email, u.phone, u.status_code
+          FROM teachers t
+          JOIN users u ON u.user_id = t.user_id
+    </sql>
+
+    <!-- 목록/카운트 공용 검색 조건 -->
+    <sql id="searchCondition">
+        <where>
+            <if test="cond.keyword != null and cond.keyword != ''">
+                AND (u.name     ILIKE '%' || #{cond.keyword} || '%'
+                  OR u.login_id ILIKE '%' || #{cond.keyword} || '%'
+                  OR t.subject  ILIKE '%' || #{cond.keyword} || '%')
+            </if>
+        </where>
+    </sql>
+
+    <!-- TEA-01 강사 등록 (users INSERT 후 user_id를 받아 호출) -->
+    <insert id="insertTeacher" useGeneratedKeys="true" keyProperty="teacherId" keyColumn="teacher_id">
+        INSERT INTO teachers (user_id, subject, hire_date)
+        VALUES (#{userId}, #{subject}, #{hireDate})
+    </insert>
+
+    <!-- TEA-02 강사 목록 조회 (키워드 + 페이징) -->
+    <select id="selectTeachers" resultType="com.edu.domain.member.dto.teacher.TeacherDto">
+        <include refid="selectJoin"/>
+        <include refid="searchCondition"/>
+         ORDER BY t.teacher_id DESC
+         LIMIT #{cond.size} OFFSET #{cond.offset}
+    </select>
+
+    <!-- TEA-02 전체 건수 (페이징용) -->
+    <select id="countTeachers" resultType="long">
+        SELECT COUNT(*)
+          FROM teachers t
+          JOIN users u ON u.user_id = t.user_id
+        <include refid="searchCondition"/>
+    </select>
+
+    <!-- 강사 단건 조회 -->
+    <select id="selectByTeacherId" resultType="com.edu.domain.member.dto.teacher.TeacherDto">
+        <include refid="selectJoin"/>
+         WHERE t.teacher_id = #{teacherId}
+    </select>
+
+    <!-- TEA-03 강사 상세 수정 (담당과목/입사일) -->
+    <update id="updateTeacher">
+        UPDATE teachers
+           SET subject   = #{subject},
+               hire_date = #{hireDate}
+         WHERE teacher_id = #{teacherId}
+    </update>
+
+</mapper>

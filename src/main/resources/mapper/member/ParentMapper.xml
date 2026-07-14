@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.domain.member.mapper.ParentMapper">
+
+    <!-- parents + users 조인 공통 SELECT -->
+    <sql id="selectJoin">
+        SELECT p.parent_id, p.user_id, p.address, p.created_at,
+               u.login_id, u.name, u.email, u.phone, u.status_code
+          FROM parents p
+          JOIN users u ON u.user_id = p.user_id
+    </sql>
+
+    <!-- 목록/카운트 공용 검색 조건 -->
+    <sql id="searchCondition">
+        <where>
+            <if test="cond.keyword != null and cond.keyword != ''">
+                AND (u.name     ILIKE '%' || #{cond.keyword} || '%'
+                  OR u.login_id ILIKE '%' || #{cond.keyword} || '%'
+                  OR u.phone    ILIKE '%' || #{cond.keyword} || '%')
+            </if>
+        </where>
+    </sql>
+
+    <!-- PAR-01 학부모 등록 (users INSERT 후 user_id를 받아 호출) -->
+    <insert id="insertParent" useGeneratedKeys="true" keyProperty="parentId" keyColumn="parent_id">
+        INSERT INTO parents (user_id, address)
+        VALUES (#{userId}, #{address})
+    </insert>
+
+    <!-- PAR-02 학부모 목록 조회 (키워드 + 페이징) -->
+    <select id="selectParents" resultType="com.edu.domain.member.dto.parent.ParentDto">
+        <include refid="selectJoin"/>
+        <include refid="searchCondition"/>
+         ORDER BY p.parent_id DESC
+         LIMIT #{cond.size} OFFSET #{cond.offset}
+    </select>
+
+    <!-- PAR-02 전체 건수 (페이징용) -->
+    <select id="countParents" resultType="long">
+        SELECT COUNT(*)
+          FROM parents p
+          JOIN users u ON u.user_id = p.user_id
+        <include refid="searchCondition"/>
+    </select>
+
+    <!-- 학부모 단건 조회 -->
+    <select id="selectByParentId" resultType="com.edu.domain.member.dto.parent.ParentDto">
+        <include refid="selectJoin"/>
+         WHERE p.parent_id = #{parentId}
+    </select>
+
+    <!-- 로그인ID로 학부모 조회 (PAR-03 연결 시 사용) -->
+    <select id="selectByLoginId" resultType="com.edu.domain.member.dto.parent.ParentDto">
+        <include refid="selectJoin"/>
+         WHERE u.login_id = #{loginId}
+    </select>
+
+    <!-- 학부모 상세 수정 (주소) - 명세서 외 추가 API -->
+    <update id="updateParent">
+        UPDATE parents
+           SET address = #{address}
+         WHERE parent_id = #{parentId}
+    </update>
+
+    <!-- PAR-03 학생-학부모 연결 -->
+    <insert id="insertStudentParent">
+        INSERT INTO student_parents (student_id, parent_id, relation_code, primary_yn)
+        VALUES (#{studentId}, #{parentId}, #{relationCode}, #{primaryYn})
+    </insert>
+
+    <!-- PAR-03 중복 연결 체크 -->
+    <select id="existsStudentParent" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM student_parents
+             WHERE student_id = #{studentId}
+               AND parent_id  = #{parentId}
+        )
+    </select>
+
+    <!-- PAR-03 연결 PK 조회 -->
+    <select id="selectStudentParentId" resultType="long">
+        SELECT student_parent_id
+          FROM student_parents
+         WHERE student_id = #{studentId}
+           AND parent_id  = #{parentId}
+    </select>
+
+    <!-- 연결 내역 존재 확인 (학생 소속 검증 포함) -->
+    <select id="existsStudentParentById" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM student_parents
+             WHERE student_parent_id = #{studentParentId}
+               AND student_id = #{studentId}
+        )
+    </select>
+
+    <!-- 연결 내역 수정 (관계코드/주보호자) - 명세서 외 추가 API -->
+    <update id="updateStudentParent">
+        UPDATE student_parents
+           SET relation_code = #{relationCode},
+               primary_yn    = #{primaryYn}
+         WHERE student_parent_id = #{studentParentId}
+    </update>
+
+</mapper>

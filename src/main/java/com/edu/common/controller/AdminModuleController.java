@@ -22,14 +22,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/admin")
 public class AdminModuleController {
 
-    @GetMapping("/members")       // 담당 도메인: member
-    public String members(Model model)       { return placeholder(model, "회원관리", "com.edu.domain.member"); }
+    // [제거] /members → com.edu.domain.member.controller.MemberPageController로 이동 (실제 화면 구현됨)
 
-    @GetMapping("/classes")       // 담당 도메인: classroom
-    public String classes(Model model)        { return placeholder(model, "반관리", "com.edu.domain.classroom"); }
+    // [제거] /classes → com.edu.domain.classroom.controller.ClassPageController로 이동 (실제 화면 구현됨)
 
-    @GetMapping("/enrollments")   // 담당 도메인: classroom(enrollment)
-    public String enrollments(Model model)    { return placeholder(model, "수강관리", "com.edu.domain.classroom"); }
+    // [제거] /enrollments → com.edu.domain.classroom.controller.EnrollmentPageController로 이동 (실제 화면 구현됨)
 
     @GetMapping("/fees")          // 담당 도메인: fee
     public String fees(Model model)           { return placeholder(model, "회비관리", "com.edu.domain.fee"); }
@@ -37,8 +34,7 @@ public class AdminModuleController {
     @GetMapping("/grades")        // 담당 도메인: grade
     public String grades(Model model)         { return placeholder(model, "성적관리", "com.edu.domain.grade"); }
 
-    @GetMapping("/notices")       // 담당 도메인: notice
-    public String notices(Model model)        { return placeholder(model, "공지관리", "com.edu.domain.notice"); }
+    // [제거] /notices → com.edu.domain.notice.controller.NoticePageController로 이동 (실제 화면 구현됨)
 
     @GetMapping("/counseling")    // 담당 도메인: counseling
     public String counseling(Model model)     { return placeholder(model, "상담관리", "com.edu.domain.counseling"); }
