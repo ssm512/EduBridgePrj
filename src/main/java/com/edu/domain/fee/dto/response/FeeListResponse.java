@@ -1,0 +1,55 @@
+package com.edu.domain.fee.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
+
+/**
+ * 회비 목록 조회 응답 (FEE-02)
+ * fees + students(users) + classes JOIN 결과 - 화면 SCR-W-11 목록용
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class FeeListResponse {
+
+    /** 회비 PK */
+    private Long feeId;
+
+    /** 학생 PK */
+    private Long studentId;
+
+    /** 학생 이름 (users.name) */
+    private String studentName;
+
+    /** 반 PK */
+    private Long classId;
+
+    /** 반 이름 (classes.class_name) */
+    private String className;
+
+    /** 청구 월 (YYYY-MM) */
+    private String billingMonth;
+
+    /** 청구 금액 */
+    private Long feeAmount;
+
+    /** 할인 금액 */
+    private Long discountAmount;
+
+    /** 실 청구액 (SQL에서 fee_amount - discount_amount 계산) */
+    private Long billableAmount;
+
+    /** 납부 기한 */
+    private LocalDate dueDate;
+
+    /** 상태 (PAID / UNPAID / SCHEDULED) */
+    private String statusCode;
+
+    /** 비고 */
+    private String description;
+}

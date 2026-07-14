@@ -34,9 +34,6 @@ public class AdminModuleController {
     @GetMapping("/attendance")    // 담당 도메인: attendance
     public String attendance(Model model)     { return placeholder(model, "출석관리", "com.edu.domain.attendance"); }
 
-    @GetMapping("/fees")          // 담당 도메인: fee
-    public String fees(Model model)           { return placeholder(model, "회비관리", "com.edu.domain.fee"); }
-
     @GetMapping("/grades")        // 담당 도메인: grade
     public String grades(Model model)         { return placeholder(model, "성적관리", "com.edu.domain.grade"); }
 

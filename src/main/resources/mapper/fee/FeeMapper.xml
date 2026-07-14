@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.domain.fee.mapper.FeeMapper">
+
+    <!-- 목록/건수에서 공통으로 쓰는 검색 조건 -->
+    <sql id="feeSearchCondition">
+        <where>
+            <if test="studentId != null">
+                AND f.student_id = #{studentId}
+            </if>
+            <if test="billingMonth != null and billingMonth != ''">
+                AND f.billing_month = #{billingMonth}
+            </if>
+            <if test="statusCode != null and statusCode != ''">
+                AND f.status_code = #{statusCode}
+            </if>
+        </where>
+    </sql>
+
+    <!-- 학생 이름은 students -> users JOIN 으로 가져온다 -->
+    <select id="selectFeeList" resultType="com.edu.domain.fee.dto.response.FeeListResponse">
+        SELECT f.fee_id,
+               f.student_id,
+               u.name                              AS student_name,
+               f.class_id,
+               c.class_name,
+               f.billing_month,
+               f.fee_amount,
+               f.discount_amount,
+               f.fee_amount - f.discount_amount    AS billable_amount,
+               f.due_date,
+               f.status_code,
+               f.description
+          FROM fees f
+          JOIN students s  ON s.student_id = f.student_id
+          JOIN users u     ON u.user_id    = s.user_id
+          LEFT JOIN classes c ON c.class_id = f.class_id
+        <include refid="feeSearchCondition"/>
+         ORDER BY f.billing_month DESC, f.due_date ASC, f.fee_id ASC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countFeeList" resultType="long">
+        SELECT COUNT(*)
+          FROM fees f
+        <include refid="feeSearchCondition"/>
+    </select>
+
+    <select id="selectByFeeId" resultType="com.edu.domain.fee.vo.FeeVo">
+        SELECT fee_id, student_id, class_id, billing_month, fee_amount,
+               discount_amount, due_date, status_code, description, created_at
+          FROM fees
+         WHERE fee_id = #{feeId}
+    </select>
+
+</mapper>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="'EduBridge · ' + ${title}">EduBridge</title>
+  <link rel="stylesheet" href="/css/common.css">
+
+  <!-- 회비관리 페이지 전용 스타일 (팀 규칙: 개인 구간은 html 내 style 태그)
+       사용 중인 클래스:
+       .fee-toolbar   : 필터 폼 + 등록 버튼 영역
+       .fee-filter    : 검색 필터 폼
+       .fee-table     : 회비 목록 테이블
+       .status-badge  : 상태 뱃지 공통
+       .status-paid / .status-unpaid / .status-scheduled : 상태별 색상
+       .fee-actions   : 행 우측 관리 버튼 영역
+       .fee-paging    : 페이지네이션
+       .empty-row     : 데이터 없음 표시 행
+  -->
+  <style>
+    /* TODO(윤동재): 페이지 스타일 작성 */
+  </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/common :: topbar(${title})}"></div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <a href="/admin/dashboard">대시보드</a>
+    <a href="/admin/members">회원관리</a>
+    <div class="group-label">반 / 수강</div>
+    <a href="/admin/classes">반관리</a>
+    <a href="/admin/enrollments">수강관리</a>
+    <div class="group-label">학생</div>
+    <a href="/admin/attendance">출석관리</a>
+    <a href="/admin/fees">회비관리</a>
+    <a href="/admin/grades">성적관리</a>
+    <div class="group-label">소통</div>
+    <a href="/admin/notices">공지관리</a>
+    <a href="/admin/counseling">상담관리</a>
+    <div class="group-label">운영</div>
+    <a href="/admin/ai">AI 리포트</a>
+    <a href="/admin/notifications">알림이력</a>
+    <a href="/admin/logs">활동로그</a>
+    <a href="/admin/settings">시스템설정</a>
+  </nav>
+
+  <main class="content">
+    <h1>회비 목록</h1>
+    <p class="sub">학생·반별 월 회비 청구/납부 현황 (SCR-W-11)</p>
+
+    <!-- 필터 + 등록 버튼 -->
+    <div class="fee-toolbar">
+      <form class="fee-filter" th:action="@{/admin/fees}" method="get">
+        <input type="month" name="billingMonth" th:value="${search.billingMonth}">
+        <select name="statusCode">
+          <option value=""          th:selected="${search.statusCode == null or search.statusCode == ''}">전체 상태</option>
+          <option value="PAID"      th:selected="${search.statusCode == 'PAID'}">납부완료</option>
+          <option value="UNPAID"    th:selected="${search.statusCode == 'UNPAID'}">미납</option>
+          <option value="SCHEDULED" th:selected="${search.statusCode == 'SCHEDULED'}">예정</option>
+        </select>
+        <button type="submit">조회</button>
+      </form>
+      <!-- TODO: 회비 등록 모달 (FEE-01) -->
+      <button type="button" disabled title="다음 작업에서 구현 (FEE-01)">+ 회비 등록</button>
+    </div>
+
+    <!-- 회비 목록 테이블 -->
+    <table class="fee-table">
+      <thead>
+      <tr>
+        <th>월</th>
+        <th>학생</th>
+        <th>반</th>
+        <th>금액</th>
+        <th>납부기한</th>
+        <th>상태</th>
+        <th>관리</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="fee : ${feePage.content}">
+        <td th:text="${fee.billingMonth}">2026-07</td>
+        <td th:text="${fee.studentName}">홍길동</td>
+        <td th:text="${fee.className} ?: '-'">수학A반</td>
+        <td th:text="${#numbers.formatInteger(fee.billableAmount, 1, 'COMMA')} + '원'">300,000원</td>
+        <td th:text="${fee.dueDate}">2026-07-25</td>
+        <td>
+          <span class="status-badge"
+                th:classappend="${fee.statusCode == 'PAID'} ? 'status-paid' : (${fee.statusCode == 'UNPAID'} ? 'status-unpaid' : 'status-scheduled')"
+                th:text="${fee.statusCode == 'PAID'} ? '납부완료' : (${fee.statusCode == 'UNPAID'} ? '미납' : '예정')">상태</span>
+        </td>
+        <td class="fee-actions">
+          <!-- TODO: 납부 처리(FEE-04) / 수정(FEE-03) / 삭제 - fetch 로 API 호출 예정 -->
+          <button type="button" disabled>납부</button>
+          <button type="button" disabled>수정</button>
+          <button type="button" disabled>삭제</button>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(feePage.content)}" class="empty-row">
+        <td colspan="7">조회된 회비 내역이 없습니다.</td>
+      </tr>
+      </tbody>
+    </table>
+
+    <!-- 페이지네이션: 필터 조건 유지한 채 page 만 변경 -->
+    <div class="fee-paging" th:if="${feePage.totalPages > 1}">
+      <a th:if="${feePage.page > 1}"
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, page=${feePage.page - 1})}">이전</a>
+
+      <a th:each="i : ${#numbers.sequence(1, feePage.totalPages)}"
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, page=${i})}"
+         th:text="${i}"
+         th:classappend="${i == feePage.page} ? 'now-page'">1</a>
+
+      <a th:if="${feePage.page < feePage.totalPages}"
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, page=${feePage.page + 1})}">다음</a>
+    </div>
+  </main>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+</body>
+</html>
