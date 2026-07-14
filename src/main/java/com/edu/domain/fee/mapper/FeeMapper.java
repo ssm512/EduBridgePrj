@@ -19,4 +19,12 @@ public interface FeeMapper {
 
     /** 회비 단건 조회 */
     FeeVo selectByFeeId(@Param("feeId") Long feeId);
+
+    /** 회비 등록 (FEE-01) */
+    int insertFee(FeeVo fee);
+
+    /** 중복 청구 확인 - 같은 학생/월/반 조합 존재 여부 */
+    boolean existsFee(@Param("studentId") Long studentId,
+                      @Param("billingMonth") String billingMonth,
+                      @Param("classId") Long classId);
 }

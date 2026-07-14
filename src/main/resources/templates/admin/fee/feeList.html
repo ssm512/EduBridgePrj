@@ -15,6 +15,8 @@
        .fee-actions   : 행 우측 관리 버튼 영역
        .fee-paging    : 페이지네이션
        .empty-row     : 데이터 없음 표시 행
+       .fee-modal     : 회비 등록 모달 (dialog)
+       .fee-modal-buttons : 모달 하단 버튼 영역
   -->
   <style>
     /* TODO(윤동재): 페이지 스타일 작성 */
@@ -61,9 +63,43 @@
         </select>
         <button type="submit">조회</button>
       </form>
-      <!-- TODO: 회비 등록 모달 (FEE-01) -->
-      <button type="button" disabled title="다음 작업에서 구현 (FEE-01)">+ 회비 등록</button>
+      <button type="button" onclick="openFeeCreateModal()">+ 회비 등록</button>
     </div>
+
+    <!-- 회비 등록 모달 (FEE-01) -->
+    <dialog id="feeCreateModal" class="fee-modal">
+      <form id="feeCreateForm">
+        <h2>회비 등록</h2>
+
+        <!-- TODO: 학생/반 선택은 member, classroom 파트 목록 API 완성 후 select 로 교체 -->
+        <label>학생 ID
+          <input type="number" name="studentId" required min="1">
+        </label>
+        <label>반 ID (개인 청구 시 비워두기)
+          <input type="number" name="classId" min="1">
+        </label>
+        <label>청구 월
+          <input type="month" name="billingMonth" required>
+        </label>
+        <label>청구 금액
+          <input type="number" name="feeAmount" required min="0" step="1000">
+        </label>
+        <label>할인 금액
+          <input type="number" name="discountAmount" min="0" step="1000" placeholder="0">
+        </label>
+        <label>납부 기한
+          <input type="date" name="dueDate" required>
+        </label>
+        <label>비고
+          <input type="text" name="description" maxlength="255">
+        </label>
+
+        <div class="fee-modal-buttons">
+          <button type="submit">등록</button>
+          <button type="button" onclick="closeFeeCreateModal()">취소</button>
+        </div>
+      </form>
+    </dialog>
 
     <!-- 회비 목록 테이블 -->
     <table class="fee-table">
@@ -120,5 +156,54 @@
 </div>
 
 <script th:replace="~{fragments/common :: logoutScript}"></script>
+
+<script>
+  // ===== 회비 등록 (FEE-01) =====
+  // getCsrfCookie() 는 fragments/common :: logoutScript 에 정의된 것을 재사용
+
+  function openFeeCreateModal() {
+    document.getElementById('feeCreateModal').showModal();
+  }
+
+  function closeFeeCreateModal() {
+    document.getElementById('feeCreateForm').reset();
+    document.getElementById('feeCreateModal').close();
+  }
+
+  document.getElementById('feeCreateForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const form = new FormData(this);
+    const body = {
+      studentId:      Number(form.get('studentId')),
+      classId:        form.get('classId') ? Number(form.get('classId')) : null,
+      billingMonth:   form.get('billingMonth'),
+      feeAmount:      Number(form.get('feeAmount')),
+      discountAmount: form.get('discountAmount') ? Number(form.get('discountAmount')) : 0,
+      dueDate:        form.get('dueDate'),
+      description:    form.get('description') || null
+    };
+
+    // CSRF 쿠키 확보 후 등록 요청
+    if (!getCsrfCookie()) { await fetch('/api/auth/csrf'); }
+    const res = await fetch('/api/v1/fees', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': getCsrfCookie()
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (res.ok) {
+      // 등록 성공: 목록 갱신 (현재 필터 유지한 채 새로고침)
+      closeFeeCreateModal();
+      window.location.reload();
+    } else {
+      const error = await res.json();
+      alert('등록 실패: ' + (error.message || res.status));
+    }
+  });
+</script>
 </body>
 </html>

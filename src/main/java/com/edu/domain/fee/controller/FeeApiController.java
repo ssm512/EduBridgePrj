@@ -1,13 +1,20 @@
 package com.edu.domain.fee.controller;
 
 import com.edu.common.dto.PageResponse;
+import com.edu.domain.fee.dto.request.FeeCreateRequest;
 import com.edu.domain.fee.dto.request.FeeSearchRequest;
+import com.edu.domain.fee.dto.response.FeeCreateResponse;
 import com.edu.domain.fee.dto.response.FeeListResponse;
 import com.edu.domain.fee.service.FeeService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -33,5 +40,13 @@ public class FeeApiController {
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT')")
     public PageResponse<FeeListResponse> getFeeList(@ModelAttribute FeeSearchRequest search) {
         return feeService.getFeeList(search);
+    }
+
+    /** POST /api/v1/fees - 회비 등록 (FEE-01) */
+    @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @ResponseStatus(HttpStatus.CREATED)
+    public FeeCreateResponse createFee(@Valid @RequestBody FeeCreateRequest request) {
+        return feeService.createFee(request);
     }
 }

@@ -47,6 +47,24 @@
         <include refid="feeSearchCondition"/>
     </select>
 
+    <insert id="insertFee" useGeneratedKeys="true" keyProperty="feeId" keyColumn="fee_id">
+        INSERT INTO fees (student_id, class_id, billing_month, fee_amount,
+                          discount_amount, due_date, status_code, description)
+        VALUES (#{studentId}, #{classId}, #{billingMonth}, #{feeAmount},
+                #{discountAmount}, #{dueDate}, #{statusCode}, #{description})
+    </insert>
+
+    <!-- IS NOT DISTINCT FROM : class_id 가 양쪽 다 NULL 이어도 같다고 판단 (PostgreSQL) -->
+    <select id="existsFee" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fees
+             WHERE student_id    = #{studentId}
+               AND billing_month = #{billingMonth}
+               AND class_id IS NOT DISTINCT FROM #{classId}
+        )
+    </select>
+
     <select id="selectByFeeId" resultType="com.edu.domain.fee.vo.FeeVo">
         SELECT fee_id, student_id, class_id, billing_month, fee_amount,
                discount_amount, due_date, status_code, description, created_at
