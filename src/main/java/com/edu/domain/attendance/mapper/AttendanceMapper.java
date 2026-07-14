@@ -1,6 +1,7 @@
 package com.edu.domain.attendance.mapper;
 
 import com.edu.domain.attendance.vo.AttendanceRecord;
+import com.edu.domain.attendance.vo.BeaconView;
 import com.edu.domain.attendance.vo.ClassScheduleView;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -60,4 +61,7 @@ public interface AttendanceMapper {
 
     /** 반 시간표(시작/종료) 조회 — 지각/조퇴 자동 판정용 (classes 읽기 전용) */
     ClassScheduleView findClassSchedule(@Param("classId") Long classId);
+
+    /** 반의 활성 등록 비콘 조회 — 비콘 검증용 (없으면 null → 검증 생략) */
+    BeaconView findActiveBeaconByClass(@Param("classId") Long classId);
 }

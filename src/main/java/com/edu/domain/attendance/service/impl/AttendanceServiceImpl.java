@@ -11,6 +11,7 @@ import com.edu.domain.attendance.mapper.AttendanceMapper;
 import com.edu.domain.attendance.service.AttendanceService;
 import com.edu.domain.attendance.service.AttendanceVerificationService;
 import com.edu.domain.attendance.vo.AttendanceRecord;
+import com.edu.domain.attendance.vo.BeaconView;
 import com.edu.domain.attendance.vo.ClassScheduleView;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -57,6 +58,9 @@ public class AttendanceServiceImpl implements AttendanceService {
         LocalDate today = LocalDate.now();
         guardDuplicate(request.studentId(), request.classId(), today);
 
+        // ATT-10/11 비콘(UUID)·RSSI 검증 (반에 등록 비콘이 있을 때만)
+        guardBeacon(request.classId(), request.beaconUuid(), request.rssiValue());
+
         LocalDateTime now = LocalDateTime.now();
 
         // 반 시작시간 대비 지각 판정 (반 정보 없으면 PRESENT로 처리 → resolveStatusByTime이 null-safe)
@@ -92,6 +96,9 @@ public class AttendanceServiceImpl implements AttendanceService {
         if (record == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "오늘 등원 기록이 없어 퇴실할 수 없습니다");
         }
+
+        // 등원과 동일하게 비콘 검증
+        guardBeacon(request.classId(), request.beaconUuid(), request.rssiValue());
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -186,6 +193,25 @@ public class AttendanceServiceImpl implements AttendanceService {
     private void guardDuplicate(Long studentId, Long classId, LocalDate date) {
         if (attendanceMapper.countByStudentClassDate(studentId, classId, date) > 0) {
             throw new ApiException(HttpStatus.CONFLICT, "이미 해당 날짜에 출석 기록이 있습니다");
+        }
+    }
+
+    /**
+     * 비콘 검증 — 반에 등록된 활성 비콘이 있을 때만 수행.
+     * 감지 UUID가 등록 UUID와 일치하고, RSSI가 기준 이상이어야 통과.
+     * 등록 비콘이 없으면 검증을 생략(통과)한다.
+     */
+    private void guardBeacon(Long classId, String detectedUuid, Integer detectedRssi) {
+        BeaconView beacon = attendanceMapper.findActiveBeaconByClass(classId);
+        if (beacon == null) {
+            return; // 등록 비콘 없음 → 검증 생략
+        }
+        int threshold = beacon.getRssiThreshold() != null ? beacon.getRssiThreshold() : -75;
+        boolean uuidOk = verificationService.verifyBeaconUuid(detectedUuid, beacon.getBeaconUuid());
+        boolean rssiOk = detectedRssi != null && verificationService.verifyRssi(detectedRssi, threshold);
+        if (!uuidOk || !rssiOk) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "비콘 인증 실패 — 강의실 비콘 근처에서 다시 시도하세요");
         }
     }
 

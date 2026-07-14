@@ -96,4 +96,13 @@
         WHERE class_id = #{classId}
     </select>
 
+    <!-- 반의 활성 비콘 조회 (UUID/RSSI 기준) -->
+    <select id="findActiveBeaconByClass" resultType="com.edu.domain.attendance.vo.BeaconView">
+        SELECT beacon_uuid AS beaconUuid, rssi_threshold AS rssiThreshold
+        FROM beacons
+        WHERE class_id = #{classId} AND active_yn = 'Y'
+        ORDER BY beacon_id
+        LIMIT 1
+    </select>
+
 </mapper>
