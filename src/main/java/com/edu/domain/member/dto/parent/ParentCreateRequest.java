@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 
 /**
  * PAR-01 학부모 등록 요청
- * POST /parents
+ * POST /api/parents
  * users(계정) + parents(상세) 두 테이블에 함께 INSERT 된다.
  */
 public record ParentCreateRequest(

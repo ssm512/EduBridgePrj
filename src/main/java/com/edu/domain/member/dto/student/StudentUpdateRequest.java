@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Size;
 
 /**
  * STU-04 학생 수정 요청
- * PUT /students/{studentId}
+ * PUT /api/students/{studentId}
  * 명세서 파라미터: studentNo, schoolName, gradeLevel, memo
  */
 public record StudentUpdateRequest(

@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern;
 
 /**
  * PAR-03 학생-학부모 연결 요청
- * POST /students/{studentId}/parents
+ * POST /api/students/{studentId}/parents
  * 학부모는 PK 대신 로그인ID로 지정한다 (화면에서 확인하기 쉬운 값)
  */
 public record StudentParentLinkRequest(

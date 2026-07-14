@@ -449,7 +449,7 @@
     if (status) params.set('statusCode', status);
     if (keyword) params.set('keyword', keyword);
 
-    const res = await fetch('/users?' + params);               // USER-01
+    const res = await fetch('/api/users?' + params);               // USER-01
     if (!res.ok) { renderError('목록 조회 실패 (' + res.status + ')', 8); return; }
     const data = await res.json();
     renderUserTable(data.items);
@@ -476,7 +476,7 @@
   }
 
   async function openUserModal(userId) {
-    const res = await fetch('/users/' + userId);               // USER-02
+    const res = await fetch('/api/users/' + userId);               // USER-02
     if (!res.ok) { alert('상세 조회 실패 (' + res.status + ')'); return; }
     const u = await res.json();
     editingUserId = u.userId;
@@ -496,7 +496,7 @@
       phone: document.getElementById('mPhone').value.trim() || null,
       statusCode: document.getElementById('mStatus').value
     };
-    const res = await writeFetch('/users/' + editingUserId, 'PUT', body);   // USER-03
+    const res = await writeFetch('/api/users/' + editingUserId, 'PUT', body);   // USER-03
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       document.getElementById('mErr').textContent = err.message || '수정 실패 (' + res.status + ')';
@@ -518,7 +518,7 @@
     const keyword = document.getElementById('tKeyword').value.trim();
     if (keyword) params.set('keyword', keyword);
 
-    const res = await fetch('/teachers?' + params);            // TEA-02
+    const res = await fetch('/api/teachers?' + params);            // TEA-02
     if (!res.ok) { renderError('목록 조회 실패 (' + res.status + ')', 7); return; }
     const data = await res.json();
     renderTeacherTable(data.items);
@@ -565,7 +565,7 @@
       subject: document.getElementById('cSubject').value.trim() || null,
       hireDate: document.getElementById('cHireDate').value || null
     };
-    const res = await writeFetch('/teachers', 'POST', body);   // TEA-01
+    const res = await writeFetch('/api/teachers', 'POST', body);   // TEA-01
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       document.getElementById('cErr').textContent = err.message || '등록 실패 (' + res.status + ')';
@@ -598,7 +598,7 @@
       subject: document.getElementById('eSubject').value.trim() || null,
       hireDate: document.getElementById('eHireDate').value || null
     };
-    const res = await writeFetch('/teachers/' + editingTeacherId, 'PUT', body);  // TEA-03
+    const res = await writeFetch('/api/teachers/' + editingTeacherId, 'PUT', body);  // TEA-03
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       document.getElementById('eErr').textContent = err.message || '수정 실패 (' + res.status + ')';
@@ -620,7 +620,7 @@
     const keyword = document.getElementById('sKeyword').value.trim();
     if (keyword) params.set('keyword', keyword);
 
-    const res = await fetch('/students?' + params);            // STU-02
+    const res = await fetch('/api/students?' + params);            // STU-02
     if (!res.ok) { renderError('목록 조회 실패 (' + res.status + ')', 8); return; }
     const data = await res.json();
     renderStudentTable(data.items);
@@ -669,7 +669,7 @@
       schoolName: document.getElementById('scSchoolName').value.trim() || null,
       gradeLevel: document.getElementById('scGradeLevel').value.trim() || null
     };
-    const res = await writeFetch('/students', 'POST', body);   // STU-01
+    const res = await writeFetch('/api/students', 'POST', body);   // STU-01
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       document.getElementById('scErr').textContent = err.message || '등록 실패 (' + res.status + ')';
@@ -684,7 +684,7 @@
   let editingStudentId = null;
 
   async function openStudentDetailModal(studentId) {
-    const res = await fetch('/students/' + studentId);         // STU-03
+    const res = await fetch('/api/students/' + studentId);         // STU-03
     if (!res.ok) { alert('상세 조회 실패 (' + res.status + ')'); return; }
     const d = await res.json();
     const s = d.student;
@@ -730,7 +730,7 @@
       gradeLevel: document.getElementById('sdGradeLevel').value.trim() || null,
       memo: document.getElementById('sdMemo').value.trim() || null
     };
-    const res = await writeFetch('/students/' + editingStudentId, 'PUT', body);  // STU-04
+    const res = await writeFetch('/api/students/' + editingStudentId, 'PUT', body);  // STU-04
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       document.getElementById('sdErr').textContent = err.message || '수정 실패 (' + res.status + ')';
@@ -752,7 +752,7 @@
     const keyword = document.getElementById('pKeyword').value.trim();
     if (keyword) params.set('keyword', keyword);
 
-    const res = await fetch('/parents?' + params);             // PAR-02
+    const res = await fetch('/api/parents?' + params);             // PAR-02
     if (!res.ok) { renderError('목록 조회 실패 (' + res.status + ')', 7); return; }
     const data = await res.json();
     renderParentTable(data.items);
@@ -803,7 +803,7 @@
       phone: document.getElementById('pePhone').value.trim() || null,
       address: document.getElementById('peAddress').value.trim() || null
     };
-    const res = await writeFetch('/parents/' + editingParentId, 'PUT', body);
+    const res = await writeFetch('/api/parents/' + editingParentId, 'PUT', body);
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       document.getElementById('peErr').textContent = err.message || '수정 실패 (' + res.status + ')';
@@ -832,7 +832,7 @@
       },
       address: document.getElementById('pcAddress').value.trim() || null
     };
-    const res = await writeFetch('/parents', 'POST', body);    // PAR-01
+    const res = await writeFetch('/api/parents', 'POST', body);    // PAR-01
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       document.getElementById('pcErr').textContent = err.message || '등록 실패 (' + res.status + ')';
@@ -879,7 +879,7 @@
     if (editingStudentParentId) {
       // 수정 모드: PUT /students/{id}/parents/{studentParentId}
       res = await writeFetch(
-        '/students/' + editingStudentId + '/parents/' + editingStudentParentId,
+        '/api/students/' + editingStudentId + '/api/parents/' + editingStudentParentId,
         'PUT', { relationCode, primaryYn });
     } else {
       // 신규 연결: POST /students/{id}/parents (PAR-03, 로그인ID로 지정)
@@ -888,7 +888,7 @@
         document.getElementById('sdErr').textContent = '연결할 학부모의 로그인 ID를 입력하세요';
         return;
       }
-      res = await writeFetch('/students/' + editingStudentId + '/parents',
+      res = await writeFetch('/api/students/' + editingStudentId + '/api/parents',
         'POST', { parentLoginId, relationCode, primaryYn });
     }
 

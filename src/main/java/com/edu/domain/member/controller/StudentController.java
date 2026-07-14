@@ -28,11 +28,11 @@ import java.util.Map;
 
 /**
  * 학생관리 API (명세서 STU-01 ~ STU-04)
- * 명세서 URL 그대로 /students 매핑
+ * /api/students 매핑 (2026-07-14 API URL /api 프리픽스 통일)
  * 권한: 등록/수정 ADMIN, 목록 ADMIN·TEACHER, 상세 4개 롤(본인/자녀 검증은 서비스에서)
  */
 @RestController
-@RequestMapping("/students")
+@RequestMapping("/api/students")
 public class StudentController {
 
     private final StudentService studentService;
@@ -44,7 +44,7 @@ public class StudentController {
     }
 
     /**
-     * STU-01 POST /students - 학생 등록
+     * STU-01 POST /api/students - 학생 등록
      * 계정(users) + 학생 상세(students) 동시 등록
      */
     @PostMapping
@@ -55,7 +55,7 @@ public class StudentController {
     }
 
     /**
-     * STU-02 GET /students - 학생 목록 조회
+     * STU-02 GET /api/students - 학생 목록 조회
      * 반(classId)/키워드(이름/로그인ID/학번) + 페이징
      */
     @GetMapping
@@ -65,7 +65,7 @@ public class StudentController {
     }
 
     /**
-     * STU-03 GET /students/{studentId} - 학생 상세 조회 (보호자/수강반 포함)
+     * STU-03 GET /api/students/{studentId} - 학생 상세 조회 (보호자/수강반 포함)
      * STUDENT는 본인, PARENT는 자녀만 조회 가능 (서비스에서 검증)
      */
     @GetMapping("/{studentId}")
@@ -76,7 +76,7 @@ public class StudentController {
     }
 
     /**
-     * STU-04 PUT /students/{studentId} - 학생 수정
+     * STU-04 PUT /api/students/{studentId} - 학생 수정
      * 학번/학교/학년/메모
      */
     @PutMapping("/{studentId}")
@@ -87,7 +87,7 @@ public class StudentController {
     }
 
     /**
-     * PAR-03 POST /students/{studentId}/parents - 학생-학부모 연결
+     * PAR-03 POST /api/students/{studentId}/parents - 학생-학부모 연결
      * (URL이 /students 하위라 이 컨트롤러에 위치, 로직은 ParentService)
      */
     @PostMapping("/{studentId}/parents")
@@ -100,7 +100,7 @@ public class StudentController {
     }
 
     /**
-     * PUT /students/{studentId}/parents/{studentParentId} - 연결 내역 수정 (명세서 외 추가)
+     * PUT /api/students/{studentId}/parents/{studentParentId} - 연결 내역 수정 (명세서 외 추가)
      * 관계코드/주보호자 여부 변경
      */
     @PutMapping("/{studentId}/parents/{studentParentId}")

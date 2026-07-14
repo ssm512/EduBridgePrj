@@ -10,7 +10,7 @@ import java.time.LocalDate;
 
 /**
  * TEA-01 강사 등록 요청
- * POST /teachers
+ * POST /api/teachers
  * users(계정) + teachers(상세) 두 테이블에 함께 INSERT 된다.
  */
 public record TeacherCreateRequest(

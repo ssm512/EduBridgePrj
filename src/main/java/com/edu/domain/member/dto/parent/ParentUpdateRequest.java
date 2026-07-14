@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 
 /**
  * 학부모 수정 요청 (명세서 외 추가 API)
- * PUT /parents/{parentId}
+ * PUT /api/parents/{parentId}
  * 기본정보(users)와 주소(parents)를 함께 수정한다.
  */
 public record ParentUpdateRequest(

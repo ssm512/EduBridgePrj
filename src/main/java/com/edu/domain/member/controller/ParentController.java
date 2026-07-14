@@ -22,10 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 학부모관리 API (명세서 PAR-01 ~ PAR-02)
  * PAR-03(학생-학부모 연결)은 URL이 /students/{id}/parents 이므로 StudentController에 있다.
- * 명세서 URL 그대로 /parents 매핑, 전체 ADMIN 전용
+ * /api/parents 매핑 (2026-07-14 API URL /api 프리픽스 통일), 전체 ADMIN 전용
  */
 @RestController
-@RequestMapping("/parents")
+@RequestMapping("/api/parents")
 public class ParentController {
 
     private final ParentService parentService;
@@ -36,7 +36,7 @@ public class ParentController {
     }
 
     /**
-     * PAR-01 POST /parents - 학부모 등록
+     * PAR-01 POST /api/parents - 학부모 등록
      * 계정(users) + 학부모 상세(parents) 동시 등록
      */
     @PostMapping
@@ -47,7 +47,7 @@ public class ParentController {
     }
 
     /**
-     * PAR-02 GET /parents - 학부모 목록 조회
+     * PAR-02 GET /api/parents - 학부모 목록 조회
      * 키워드(이름/로그인ID/연락처) + 페이징
      */
     @GetMapping
@@ -57,7 +57,7 @@ public class ParentController {
     }
 
     /**
-     * PUT /parents/{parentId} - 학부모 수정 (명세서 외 추가 API)
+     * PUT /api/parents/{parentId} - 학부모 수정 (명세서 외 추가 API)
      * 기본정보(users) + 주소(parents)
      */
     @PutMapping("/{parentId}")

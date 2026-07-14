@@ -43,4 +43,13 @@ public interface EnrollmentMapper {
      */
     int endEnrollment(@Param("enrollmentId") Long enrollmentId,
                       @Param("endDate") LocalDate endDate);
+
+    /**
+     * 반 종료(ACTIVE→CLOSED) 시 해당 반의 수강중(ACTIVE) 수강 전체를 일괄 종료.
+     * ClassServiceImpl.updateClass()에서 같은 트랜잭션으로 호출된다.
+     *
+     * @return 종료 처리된 수강 건수
+     */
+    int endAllActiveByClassId(@Param("classId") Long classId,
+                              @Param("endDate") LocalDate endDate);
 }

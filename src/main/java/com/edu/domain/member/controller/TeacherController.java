@@ -21,10 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 강사관리 API (명세서 TEA-01 ~ TEA-03)
- * 명세서 URL 그대로 /teachers 매핑, 전체 ADMIN 전용
+ * /api/teachers 매핑 (2026-07-14 API URL /api 프리픽스 통일), 전체 ADMIN 전용
  */
 @RestController
-@RequestMapping("/teachers")
+@RequestMapping("/api/teachers")
 public class TeacherController {
 
     private final TeacherService teacherService;
@@ -34,7 +34,7 @@ public class TeacherController {
     }
 
     /**
-     * TEA-01 POST /teachers - 강사 등록
+     * TEA-01 POST /api/teachers - 강사 등록
      * 계정(users) + 강사 상세(teachers) 동시 등록
      */
     @PostMapping
@@ -45,7 +45,7 @@ public class TeacherController {
     }
 
     /**
-     * TEA-02 GET /teachers - 강사 목록 조회
+     * TEA-02 GET /api/teachers - 강사 목록 조회
      * 키워드(이름/로그인ID/과목) + 페이징
      */
     @GetMapping
@@ -55,7 +55,7 @@ public class TeacherController {
     }
 
     /**
-     * TEA-03 PUT /teachers/{teacherId} - 강사 수정
+     * TEA-03 PUT /api/teachers/{teacherId} - 강사 수정
      * 기본정보(users) + 담당과목/입사일(teachers)
      */
     @PutMapping("/{teacherId}")

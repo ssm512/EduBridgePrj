@@ -7,7 +7,7 @@ import java.time.LocalTime;
 
 /**
  * CLS-01 반 등록 요청
- * POST /classes
+ * POST /api/classes
  */
 public record ClassCreateRequest(
 

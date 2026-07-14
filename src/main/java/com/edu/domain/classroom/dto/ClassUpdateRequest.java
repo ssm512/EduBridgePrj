@@ -8,7 +8,7 @@ import java.time.LocalTime;
 
 /**
  * CLS-04 반 수정 요청
- * PUT /classes/{classId}
+ * PUT /api/classes/{classId}
  * 명세서 파라미터(className, teacherId, startTime, endTime, statusCode)
  * + 화면 편의상 subject/classroom도 함께 수정 가능
  */

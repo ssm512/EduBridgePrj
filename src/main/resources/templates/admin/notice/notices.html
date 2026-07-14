@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>EduBridge · 공지관리</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    /* ===== 공지관리 전용 스타일 (enrollments.html과 동일 패턴) ===== */
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+    .toolbar select, .toolbar input {
+      height: 36px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; background: #fff;
+    }
+    .toolbar input[type="text"] { width: 220px; }
+    .toolbar .spacer { flex: 1; }
+    .btn {
+      height: 36px; padding: 0 16px; border: none; border-radius: 6px;
+      font-size: 14px; cursor: pointer; background: #1e3a8a; color: #fff;
+    }
+    .btn:hover { background: #1d4ed8; }
+    .btn.secondary { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+    .btn.secondary:hover { background: #f3f4f6; }
+    .btn.danger { background: #dc2626; }
+    .btn.danger:hover { background: #b91c1c; }
+
+    .table-wrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead th {
+      text-align: left; background: #f9fafb; color: #6b7280; font-weight: 600;
+      padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 13px;
+    }
+    tbody td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; }
+    tbody tr:last-child td { border-bottom: none; }
+    .empty { text-align: center; color: #9ca3af; padding: 32px !important; }
+    .title-link { color: #1e3a8a; cursor: pointer; font-weight: 500; }
+    .title-link:hover { text-decoration: underline; }
+    .clip { color: #6b7280; font-size: 12px; margin-left: 4px; }
+
+    .chip { display: inline-block; font-size: 12px; padding: 2px 10px; border-radius: 999px; }
+    .tt-ALL     { background: #dbeafe; color: #1e40af; }
+    .tt-CLASS   { background: #dcfce7; color: #166534; }
+    .tt-STUDENT { background: #fef9c3; color: #854d0e; }
+    .tt-PARENT  { background: #fce7f3; color: #9d174d; }
+    .tt-TEACHER { background: #ede9fe; color: #5b21b6; }
+    .st-PUBLISHED { background: #dcfce7; color: #166534; }
+    .st-DELETED   { background: #fee2e2; color: #991b1b; }
+    .row-actions span { color: #1e3a8a; font-size: 13px; cursor: pointer; margin-right: 10px; }
+    .row-actions .del { color: #dc2626; }
+
+    .pager { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 16px; }
+    .pager button {
+      min-width: 34px; height: 34px; border: 1px solid #d1d5db; background: #fff;
+      border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    .pager button.on { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+    .pager button:disabled { color: #d1d5db; cursor: default; }
+    .pager .total { font-size: 13px; color: #6b7280; margin-left: 10px; }
+
+    .modal-back {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4);
+      align-items: center; justify-content: center; z-index: 50;
+    }
+    .modal-back.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 12px; width: 560px; max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 60px); overflow-y: auto; padding: 24px;
+    }
+    .modal h2 { margin: 0 0 18px; font-size: 17px; }
+    .modal .row { margin-bottom: 12px; }
+    .modal label { display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px; }
+    .modal input[type="text"], .modal select, .modal textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid #d1d5db;
+      border-radius: 6px; font-size: 14px; box-sizing: border-box;
+    }
+    .modal select[multiple] { height: 140px; }
+    .modal textarea { height: 140px; resize: vertical; }
+    .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+    .modal .err { color: #dc2626; font-size: 13px; min-height: 18px; margin-top: 8px; }
+    .modal .hint { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+
+    /* 상세 모달 */
+    .detail-meta { font-size: 13px; color: #6b7280; margin-bottom: 12px; line-height: 1.8; }
+    .detail-content {
+      background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: 14px; font-size: 14px; line-height: 1.7; white-space: pre-wrap;
+      margin-bottom: 14px;
+    }
+    .target-chips { margin-bottom: 14px; }
+    .file-list { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 10px; }
+    .file-item {
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      border-bottom: 1px solid #f3f4f6; font-size: 13px;
+    }
+    .file-item:last-child { border-bottom: none; }
+    .file-item a { color: #1e3a8a; text-decoration: none; flex: 1; }
+    .file-item a:hover { text-decoration: underline; }
+    .file-item .size { color: #9ca3af; }
+    .file-item .del { color: #dc2626; cursor: pointer; }
+    .file-empty { padding: 12px; font-size: 13px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/common :: topbar('공지관리')}"></div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <a href="/admin/dashboard">대시보드</a>
+    <a href="/admin/members">회원관리</a>
+    <div class="group-label">반 / 수강</div>
+    <a href="/admin/classes">반관리</a>
+    <a href="/admin/enrollments">수강관리</a>
+    <div class="group-label">학생</div>
+    <a href="/admin/attendance">출석관리</a>
+    <a href="/admin/fees">회비관리</a>
+    <a href="/admin/grades">성적관리</a>
+    <div class="group-label">소통</div>
+    <a href="/admin/notices">공지관리</a>
+    <a href="/admin/counseling">상담관리</a>
+    <div class="group-label">운영</div>
+    <a href="/admin/ai">AI 리포트</a>
+    <a href="/admin/notifications">알림이력</a>
+    <a href="/admin/logs">활동로그</a>
+    <a href="/admin/settings">시스템설정</a>
+  </nav>
+
+  <main class="content">
+    <h1>공지관리</h1>
+    <p class="sub">공지사항을 등록하고 대상을 지정합니다. 첨부파일과 읽음 현황을 관리합니다. (NOT-01 ~ NOT-08)</p>
+
+    <!-- 검색 툴바 : GET /notices 파라미터와 1:1 대응 -->
+    <div class="toolbar">
+      <select id="fTargetType">
+        <option value="">대상 전체</option>
+        <option value="ALL">전체 공지</option>
+        <option value="CLASS">반별</option>
+        <option value="STUDENT">학생별</option>
+        <option value="PARENT">학부모별</option>
+        <option value="TEACHER">강사별</option>
+      </select>
+      <select id="fStatus">
+        <option value="PUBLISHED">게시중</option>
+        <option value="DELETED">삭제됨</option>
+      </select>
+      <input type="text" id="fKeyword" placeholder="제목 / 내용 / 작성자 검색">
+      <button class="btn" id="btnSearch">검색</button>
+      <button class="btn secondary" id="btnReset">초기화</button>
+      <div class="spacer"></div>
+      <button class="btn" id="btnCreate">+ 공지 등록</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+        <tr>
+          <th>ID</th><th>제목</th><th>대상</th><th>작성자</th>
+          <th>읽음</th><th>등록일</th><th>상태</th><th></th>
+        </tr>
+        </thead>
+        <tbody id="tbody">
+        <tr><td class="empty" colspan="8">불러오는 중…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+</div>
+
+<!-- 공지 등록/수정 모달 : POST /notices (NOT-01) / PUT /notices/{id} (NOT-04) -->
+<div class="modal-back" id="editModalBack">
+  <div class="modal">
+    <h2 id="editTitle">공지 등록</h2>
+    <div class="row"><label>제목 *</label><input type="text" id="eTitle" maxlength="200"></div>
+    <div class="row"><label>내용 *</label><textarea id="eContent"></textarea></div>
+    <div class="row">
+      <label>공지 대상 *</label>
+      <select id="eTargetType">
+        <option value="ALL">전체 공지</option>
+        <option value="CLASS">반별 공지</option>
+        <option value="STUDENT">학생별 공지</option>
+        <option value="PARENT">학부모별 공지</option>
+        <option value="TEACHER">강사별 공지</option>
+      </select>
+    </div>
+    <div class="row" id="targetRow" style="display:none">
+      <label id="targetLabel">대상 선택 *</label>
+      <select id="eTargets" multiple></select>
+      <div class="hint">Ctrl(⌘) 클릭으로 여러 대상을 선택할 수 있습니다.</div>
+    </div>
+    <div class="err" id="eErr"></div>
+    <div class="actions">
+      <button class="btn secondary" onclick="closeModal('editModalBack')">취소</button>
+      <button class="btn" id="btnEditSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공지 상세 모달 : GET /notices/{id} (NOT-03) + 첨부 관리 (NOT-06/07) -->
+<div class="modal-back" id="detailModalBack">
+  <div class="modal">
+    <h2 id="dTitle"></h2>
+    <div class="detail-meta" id="dMeta"></div>
+    <div class="target-chips" id="dTargets"></div>
+    <div class="detail-content" id="dContent"></div>
+
+    <label style="font-size:13px;color:#6b7280">첨부파일</label>
+    <div class="file-list" id="dFiles"></div>
+    <div class="row" style="display:flex;gap:8px;align-items:center">
+      <input type="file" id="dFileInput" multiple style="font-size:13px">
+      <button class="btn secondary" id="btnUpload" style="white-space:nowrap">업로드</button>
+    </div>
+    <div class="err" id="dErr"></div>
+    <div class="actions">
+      <button class="btn secondary" onclick="closeModal('detailModalBack')">닫기</button>
+      <button class="btn" id="btnDetailEdit">수정</button>
+      <button class="btn danger" id="btnDetailDelete">삭제</button>
+    </div>
+  </div>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script>
+  /* ===== 공지관리 화면 로직 =====
+     - 목록: GET /notices?targetType=&statusCode=&keyword=&page=&size=   (NOT-02)
+     - 등록: POST /notices                                               (NOT-01)
+     - 상세: GET /notices/{noticeId}                                     (NOT-03)
+     - 수정: PUT /notices/{noticeId}                                     (NOT-04)
+     - 삭제: DELETE /notices/{noticeId}  (소프트 삭제)                    (NOT-05)
+     - 첨부: POST /notices/{id}/files, GET /notice-files/{id}/download   (NOT-06/07)
+     대상 선택 드롭다운은 GET /classes·/students·/parents·/teachers 목록으로 구성 */
+
+  const TARGET_LABEL = { ALL: '전체', CLASS: '반별', STUDENT: '학생별', PARENT: '학부모별', TEACHER: '강사별' };
+  const STATUS_LABEL = { PUBLISHED: '게시중', DELETED: '삭제됨' };
+  const PAGE_SIZE = 10;
+
+  let currentPage = 1;
+  let editingNoticeId = null;    // null이면 등록, 값이 있으면 수정
+  let detailNoticeId = null;
+
+  /* ---------- 공통 유틸 ---------- */
+  function esc(s) {
+    return s == null ? '' : String(s).replace(/[&<>"']/g,
+      c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+  function fmtDate(dt) { return dt ? dt.substring(0, 10) : ''; }
+  function fmtSize(n) {
+    if (n == null) return '';
+    if (n < 1024) return n + 'B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + 'KB';
+    return (n / 1024 / 1024).toFixed(1) + 'MB';
+  }
+  async function writeFetch(url, method, body) {
+    if (!getCsrfCookie()) { await fetch('/api/auth/csrf'); }
+    return fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': getCsrfCookie() },
+      body: body != null ? JSON.stringify(body) : undefined
+    });
+  }
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+  function openModalById(id) { document.getElementById(id).classList.add('show'); }
+
+  /* ---------- 대상 선택 드롭다운 (등록/수정 모달) ---------- */
+  const TARGET_SOURCES = {
+    CLASS:   { url: '/api/classes?page=1&size=100',  id: 'classId',   name: c => `${c.className} (${c.subject || '-'})` },
+    STUDENT: { url: '/api/students?page=1&size=100', id: 'studentId', name: s => `${s.name} (${s.studentNo || '학번없음'})` },
+    PARENT:  { url: '/api/parents?page=1&size=100',  id: 'parentId',  name: p => `${p.name}` },
+    TEACHER: { url: '/api/teachers?page=1&size=100', id: 'teacherId', name: t => `${t.name} (${t.subject || '-'})` }
+  };
+
+  async function loadTargetOptions(targetType, selectedIds = []) {
+    const row = document.getElementById('targetRow');
+    if (targetType === 'ALL') { row.style.display = 'none'; return; }
+    row.style.display = '';
+    document.getElementById('targetLabel').textContent = TARGET_LABEL[targetType] + ' 대상 선택 *';
+
+    const src = TARGET_SOURCES[targetType];
+    const sel = document.getElementById('eTargets');
+    sel.innerHTML = '<option disabled>불러오는 중…</option>';
+    const res = await fetch(src.url);
+    if (!res.ok) { sel.innerHTML = '<option disabled>목록 조회 실패</option>'; return; }
+    const data = await res.json();
+    sel.innerHTML = data.items.map(item => {
+      const id = item[src.id];
+      const on = selectedIds.includes(id) ? 'selected' : '';
+      return `<option value="${id}" ${on}>${esc(src.name(item))}</option>`;
+    }).join('');
+  }
+
+  /* ---------- 목록 조회 (NOT-02) ---------- */
+  async function loadNotices(page = 1) {
+    currentPage = page;
+    const params = new URLSearchParams({ page, size: PAGE_SIZE });
+    const targetType = document.getElementById('fTargetType').value;
+    const status = document.getElementById('fStatus').value;
+    const keyword = document.getElementById('fKeyword').value.trim();
+    if (targetType) params.set('targetType', targetType);
+    if (status) params.set('statusCode', status);
+    if (keyword) params.set('keyword', keyword);
+
+    const res = await fetch('/api/notices?' + params);
+    if (!res.ok) {
+      document.getElementById('tbody').innerHTML =
+        '<tr><td class="empty" colspan="8">목록 조회 실패 (' + res.status + ')</td></tr>';
+      document.getElementById('pager').innerHTML = '';
+      return;
+    }
+    const data = await res.json();
+    renderTable(data.items);
+    renderPager(data);
+  }
+
+  function renderTable(items) {
+    const tbody = document.getElementById('tbody');
+    if (!items || items.length === 0) {
+      tbody.innerHTML = '<tr><td class="empty" colspan="8">조회 결과가 없습니다.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(n => `
+      <tr>
+        <td>${n.noticeId}</td>
+        <td><span class="title-link" onclick="openDetail(${n.noticeId})">${esc(n.title)}</span>
+            ${n.fileCount > 0 ? `<span class="clip">📎${n.fileCount}</span>` : ''}</td>
+        <td><span class="chip tt-${n.targetType}">${TARGET_LABEL[n.targetType] || n.targetType}</span></td>
+        <td>${esc(n.writerName)}</td>
+        <td>${n.readCount}명</td>
+        <td>${fmtDate(n.createdAt)}</td>
+        <td><span class="chip st-${n.noticeStatus}">${STATUS_LABEL[n.noticeStatus] || n.noticeStatus}</span></td>
+        <td class="row-actions">
+          ${n.noticeStatus === 'PUBLISHED'
+            ? `<span onclick="openEdit(${n.noticeId})">수정</span>
+               <span class="del" onclick="deleteNotice(${n.noticeId})">삭제</span>`
+            : ''}
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderPager({ page, totalPages, totalCount }) {
+    const pager = document.getElementById('pager');
+    if (totalPages <= 0) { pager.innerHTML = ''; return; }
+    let html = `<button ${page <= 1 ? 'disabled' : ''} onclick="loadNotices(${page - 1})">‹</button>`;
+    const start = Math.max(1, page - 2), end = Math.min(totalPages, start + 4);
+    for (let p = start; p <= end; p++) {
+      html += `<button class="${p === page ? 'on' : ''}" onclick="loadNotices(${p})">${p}</button>`;
+    }
+    html += `<button ${page >= totalPages ? 'disabled' : ''} onclick="loadNotices(${page + 1})">›</button>`;
+    html += `<span class="total">총 ${totalCount}건</span>`;
+    pager.innerHTML = html;
+  }
+
+  /* ---------- 등록/수정 모달 (NOT-01 / NOT-04) ---------- */
+  function openCreate() {
+    editingNoticeId = null;
+    document.getElementById('editTitle').textContent = '공지 등록';
+    document.getElementById('eTitle').value = '';
+    document.getElementById('eContent').value = '';
+    document.getElementById('eTargetType').value = 'ALL';
+    document.getElementById('targetRow').style.display = 'none';
+    document.getElementById('eErr').textContent = '';
+    openModalById('editModalBack');
+  }
+
+  async function openEdit(noticeId) {
+    const res = await fetch('/api/notices/' + noticeId);   // NOT-03로 기존 값 로드
+    if (!res.ok) return;
+    const n = await res.json();
+
+    editingNoticeId = noticeId;
+    document.getElementById('editTitle').textContent = '공지 수정 (#' + noticeId + ')';
+    document.getElementById('eTitle').value = n.title;
+    document.getElementById('eContent').value = n.content;
+    document.getElementById('eTargetType').value = n.targetType;
+    document.getElementById('eErr').textContent = '';
+    await loadTargetOptions(n.targetType, n.targets.map(t => t.targetRefId));
+    closeModal('detailModalBack');
+    openModalById('editModalBack');
+  }
+
+  async function saveEdit() {
+    const title = document.getElementById('eTitle').value.trim();
+    const content = document.getElementById('eContent').value.trim();
+    const targetType = document.getElementById('eTargetType').value;
+    const targetIds = [...document.getElementById('eTargets').selectedOptions].map(o => Number(o.value));
+
+    if (!title || !content) {
+      document.getElementById('eErr').textContent = '제목과 내용을 입력하세요';
+      return;
+    }
+    if (targetType !== 'ALL' && targetIds.length === 0) {
+      document.getElementById('eErr').textContent = '공지 대상을 1개 이상 선택하세요';
+      return;
+    }
+    const body = { title, content, targetType, targetIds: targetType === 'ALL' ? [] : targetIds };
+    const res = editingNoticeId
+      ? await writeFetch('/api/notices/' + editingNoticeId, 'PUT', body)   // NOT-04
+      : await writeFetch('/api/notices', 'POST', body);                    // NOT-01
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      document.getElementById('eErr').textContent = err.message || '저장 실패 (' + res.status + ')';
+      return;
+    }
+    closeModal('editModalBack');
+    loadNotices(editingNoticeId ? currentPage : 1);
+  }
+
+  /* ---------- 상세 모달 (NOT-03) + 첨부 (NOT-06/07) ---------- */
+  async function openDetail(noticeId) {
+    const res = await fetch('/api/notices/' + noticeId);
+    if (!res.ok) return;
+    const n = await res.json();
+    detailNoticeId = noticeId;
+
+    document.getElementById('dTitle').textContent = n.title;
+    document.getElementById('dMeta').innerHTML =
+      `작성자 ${esc(n.writerName)} · 등록 ${fmtDate(n.createdAt)}` +
+      (n.updatedAt ? ` · 수정 ${fmtDate(n.updatedAt)}` : '') +
+      ` · 읽음 ${n.readCount}명 · 상태 ${STATUS_LABEL[n.noticeStatus] || n.noticeStatus}`;
+    document.getElementById('dTargets').innerHTML =
+      `<span class="chip tt-${n.targetType}">${TARGET_LABEL[n.targetType]}</span> ` +
+      n.targets.map(t => `<span class="chip tt-${t.targetType}">${esc(t.targetName) || t.targetRefId}</span>`).join(' ');
+    document.getElementById('dContent').textContent = n.content;
+    renderFiles(n.files);
+
+    const editable = n.noticeStatus === 'PUBLISHED';
+    document.getElementById('btnDetailEdit').style.display = editable ? '' : 'none';
+    document.getElementById('btnDetailDelete').style.display = editable ? '' : 'none';
+    document.getElementById('dFileInput').value = '';
+    document.getElementById('dErr').textContent = '';
+    openModalById('detailModalBack');
+  }
+
+  function renderFiles(files) {
+    const box = document.getElementById('dFiles');
+    if (!files || files.length === 0) {
+      box.innerHTML = '<div class="file-empty">첨부파일 없음</div>';
+      return;
+    }
+    box.innerHTML = files.map(f => `
+      <div class="file-item">
+        <a href="/api/notice-files/${f.fileId}/download">📎 ${esc(f.originalName)}</a>
+        <span class="size">${fmtSize(f.fileSize)}</span>
+        <span class="del" onclick="deleteFile(${f.fileId})">삭제</span>
+      </div>`).join('');
+  }
+
+  async function uploadFiles() {
+    const input = document.getElementById('dFileInput');
+    if (!input.files.length) {
+      document.getElementById('dErr').textContent = '업로드할 파일을 선택하세요';
+      return;
+    }
+    const form = new FormData();
+    [...input.files].forEach(f => form.append('files', f));
+    if (!getCsrfCookie()) { await fetch('/api/auth/csrf'); }
+    const res = await fetch('/api/notices/' + detailNoticeId + '/files', {   // NOT-06
+      method: 'POST',
+      headers: { 'X-XSRF-TOKEN': getCsrfCookie() },
+      body: form
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      document.getElementById('dErr').textContent = err.message || '업로드 실패 (' + res.status + ')';
+      return;
+    }
+    openDetail(detailNoticeId);   // 상세 다시 로드
+    loadNotices(currentPage);     // 목록 첨부 개수 갱신
+  }
+
+  async function deleteFile(fileId) {
+    if (!confirm('이 첨부파일을 삭제할까요?')) return;
+    const res = await writeFetch('/api/notice-files/' + fileId, 'DELETE');
+    if (!res.ok) {
+      document.getElementById('dErr').textContent = '첨부 삭제 실패 (' + res.status + ')';
+      return;
+    }
+    openDetail(detailNoticeId);
+    loadNotices(currentPage);
+  }
+
+  /* ---------- 삭제 (NOT-05, 소프트 삭제) ---------- */
+  async function deleteNotice(noticeId) {
+    if (!confirm('이 공지를 삭제할까요? (삭제됨 상태로 변경되며 이력은 보존됩니다)')) return;
+    const res = await writeFetch('/api/notices/' + noticeId, 'DELETE');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.message || '삭제 실패 (' + res.status + ')');
+      return;
+    }
+    closeModal('detailModalBack');
+    loadNotices(currentPage);
+  }
+
+  /* ---------- 이벤트 바인딩 ---------- */
+  document.getElementById('btnSearch').onclick = () => loadNotices(1);
+  document.getElementById('btnReset').onclick = () => {
+    fTargetType.value = ''; fStatus.value = 'PUBLISHED'; fKeyword.value = '';
+    loadNotices(1);
+  };
+  document.getElementById('fKeyword').addEventListener('keydown',
+    e => { if (e.key === 'Enter') loadNotices(1); });
+  document.getElementById('fTargetType').onchange = () => loadNotices(1);
+  document.getElementById('fStatus').onchange = () => loadNotices(1);
+  document.getElementById('btnCreate').onclick = openCreate;
+  document.getElementById('btnEditSave').onclick = saveEdit;
+  document.getElementById('eTargetType').onchange =
+    e => loadTargetOptions(e.target.value);
+  document.getElementById('btnUpload').onclick = uploadFiles;
+  document.getElementById('btnDetailEdit').onclick = () => openEdit(detailNoticeId);
+  document.getElementById('btnDetailDelete').onclick = () => deleteNotice(detailNoticeId);
+
+  ['editModalBack', 'detailModalBack'].forEach(id => {
+    document.getElementById(id).addEventListener('click',
+      e => { if (e.target.id === id) closeModal(id); });
+  });
+
+  loadNotices(1);
+</script>
+</body>
+</html>

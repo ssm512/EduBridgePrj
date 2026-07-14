@@ -4,7 +4,7 @@ import lombok.Data;
 
 /**
  * CLS-02 반 목록 조회 검색 조건
- * GET /classes?statusCode=&keyword=&page=&size=
+ * GET /api/classes?statusCode=&keyword=&page=&size=
  */
 @Data
 public class ClassSearchRequest {

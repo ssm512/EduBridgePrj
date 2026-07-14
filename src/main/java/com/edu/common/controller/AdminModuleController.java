@@ -37,8 +37,7 @@ public class AdminModuleController {
     @GetMapping("/grades")        // 담당 도메인: grade
     public String grades(Model model)         { return placeholder(model, "성적관리", "com.edu.domain.grade"); }
 
-    @GetMapping("/notices")       // 담당 도메인: notice
-    public String notices(Model model)        { return placeholder(model, "공지관리", "com.edu.domain.notice"); }
+    // [제거] /notices → com.edu.domain.notice.controller.NoticePageController로 이동 (실제 화면 구현됨)
 
     @GetMapping("/counseling")    // 담당 도메인: counseling
     public String counseling(Model model)     { return placeholder(model, "상담관리", "com.edu.domain.counseling"); }

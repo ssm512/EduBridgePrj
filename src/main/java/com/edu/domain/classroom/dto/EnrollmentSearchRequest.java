@@ -4,7 +4,7 @@ import lombok.Data;
 
 /**
  * 수강 목록 조회 검색 조건 (명세서 외 추가 API - 수강관리 화면용)
- * GET /enrollments?classId=&statusCode=&keyword=&page=&size=
+ * GET /api/enrollments?classId=&statusCode=&keyword=&page=&size=
  */
 @Data
 public class EnrollmentSearchRequest {

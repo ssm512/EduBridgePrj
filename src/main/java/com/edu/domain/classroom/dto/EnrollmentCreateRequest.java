@@ -6,7 +6,7 @@ import java.time.LocalDate;
 
 /**
  * ENR-01 수강 등록 요청
- * POST /enrollments
+ * POST /api/enrollments
  */
 public record EnrollmentCreateRequest(
 

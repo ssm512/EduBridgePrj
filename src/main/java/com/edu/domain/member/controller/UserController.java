@@ -17,11 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 회원관리 API (명세서 USER-01 ~ USER-03)
- * 명세서 URL 그대로 /users 매핑 (SecurityConfig에 /users/** ADMIN 규칙 추가)
+ * /api/users 매핑 (2026-07-14 API URL /api 프리픽스 통일, SecurityConfig에 /api/users/** ADMIN 규칙)
  * 전체 ADMIN 전용
  */
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/users")
 public class UserController {
 
     private final UserService userService;
@@ -31,7 +31,7 @@ public class UserController {
     }
 
     /**
-     * USER-01 GET /users - 회원 목록 조회
+     * USER-01 GET /api/users - 회원 목록 조회
      * 권한/상태/키워드 필터 + 페이징
      */
     @GetMapping
@@ -41,7 +41,7 @@ public class UserController {
     }
 
     /**
-     * USER-02 GET /users/{userId} - 회원 상세 조회
+     * USER-02 GET /api/users/{userId} - 회원 상세 조회
      */
     @GetMapping("/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -50,7 +50,7 @@ public class UserController {
     }
 
     /**
-     * USER-03 PUT /users/{userId} - 회원 수정
+     * USER-03 PUT /api/users/{userId} - 회원 수정
      * 이름/이메일/연락처/상태 수정
      */
     @PutMapping("/{userId}")

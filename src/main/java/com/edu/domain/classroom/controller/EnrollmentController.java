@@ -21,10 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 수강관리 API (명세서 ENR-01 ~ ENR-02 + 목록 조회)
- * 명세서 URL 그대로 /enrollments 매핑
+ * /api/enrollments 매핑 (2026-07-14 API URL /api 프리픽스 통일)
  */
 @RestController
-@RequestMapping("/enrollments")
+@RequestMapping("/api/enrollments")
 public class EnrollmentController {
 
     private final EnrollmentService enrollmentService;
@@ -34,7 +34,7 @@ public class EnrollmentController {
     }
 
     /**
-     * ENR-01 POST /enrollments - 수강 등록
+     * ENR-01 POST /api/enrollments - 수강 등록
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -44,7 +44,7 @@ public class EnrollmentController {
     }
 
     /**
-     * GET /enrollments - 수강 목록 조회 (명세서 외 추가 - 수강관리 화면용)
+     * GET /api/enrollments - 수강 목록 조회 (명세서 외 추가 - 수강관리 화면용)
      * 반/상태/키워드(학생명·학번) + 페이징
      */
     @GetMapping
@@ -54,7 +54,7 @@ public class EnrollmentController {
     }
 
     /**
-     * ENR-02 PUT /enrollments/{enrollmentId}/end - 수강 해제
+     * ENR-02 PUT /api/enrollments/{enrollmentId}/end - 수강 해제
      * 상태(ENDED) + 종료일 기록 방식
      */
     @PutMapping("/{enrollmentId}/end")

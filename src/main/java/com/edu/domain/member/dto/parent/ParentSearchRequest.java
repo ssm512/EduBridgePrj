@@ -4,7 +4,7 @@ import lombok.Data;
 
 /**
  * PAR-02 학부모 목록 조회 검색 조건
- * GET /parents?keyword=&page=&size=
+ * GET /api/parents?keyword=&page=&size=
  */
 @Data
 public class ParentSearchRequest {

@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Pattern;
 
 /**
  * 학생-학부모 연결 내역 수정 요청 (명세서 외 추가 API)
- * PUT /students/{studentId}/parents/{studentParentId}
+ * PUT /api/students/{studentId}/parents/{studentParentId}
  * 관계코드와 주 보호자 여부만 변경할 수 있다
  */
 public record StudentParentUpdateRequest(

@@ -79,4 +79,13 @@
          WHERE enrollment_id = #{enrollmentId}
     </update>
 
+    <!-- 반 종료 시 수강중(ACTIVE) 수강 일괄 종료 (ClassServiceImpl.updateClass) -->
+    <update id="endAllActiveByClassId">
+        UPDATE enrollments
+           SET status_code = 'ENDED',
+               end_date    = #{endDate}
+         WHERE class_id    = #{classId}
+           AND status_code = 'ACTIVE'
+    </update>
+
 </mapper>

@@ -22,11 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 반관리 API (명세서 CLS-01 ~ CLS-04)
- * 명세서 URL 그대로 /classes 매핑
+ * /api/classes 매핑 (2026-07-14 API URL /api 프리픽스 통일)
  * 권한: 등록/수정 ADMIN, 목록/상세 ADMIN·TEACHER
  */
 @RestController
-@RequestMapping("/classes")
+@RequestMapping("/api/classes")
 public class ClassController {
 
     private final ClassService classService;
@@ -36,7 +36,7 @@ public class ClassController {
     }
 
     /**
-     * CLS-01 POST /classes - 반 등록
+     * CLS-01 POST /api/classes - 반 등록
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -46,7 +46,7 @@ public class ClassController {
     }
 
     /**
-     * CLS-02 GET /classes - 반 목록 조회
+     * CLS-02 GET /api/classes - 반 목록 조회
      * 상태/키워드(반이름·과목·강사명) + 페이징
      */
     @GetMapping
@@ -56,7 +56,7 @@ public class ClassController {
     }
 
     /**
-     * CLS-03 GET /classes/{classId} - 반 상세 조회 (수강 학생 목록 포함)
+     * CLS-03 GET /api/classes/{classId} - 반 상세 조회 (수강 학생 목록 포함)
      */
     @GetMapping("/{classId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
@@ -65,7 +65,7 @@ public class ClassController {
     }
 
     /**
-     * CLS-04 PUT /classes/{classId} - 반 수정
+     * CLS-04 PUT /api/classes/{classId} - 반 수정
      */
     @PutMapping("/{classId}")
     @PreAuthorize("hasRole('ADMIN')")

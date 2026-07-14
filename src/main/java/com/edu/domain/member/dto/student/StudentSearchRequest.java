@@ -4,7 +4,7 @@ import lombok.Data;
 
 /**
  * STU-02 학생 목록 조회 검색 조건
- * GET /students?classId=&keyword=&page=&size=
+ * GET /api/students?classId=&keyword=&page=&size=
  */
 @Data
 public class StudentSearchRequest {

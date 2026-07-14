@@ -10,7 +10,7 @@ import java.time.LocalDate;
 
 /**
  * STU-01 학생 등록 요청
- * POST /students
+ * POST /api/students
  * users(계정) + students(상세) 두 테이블에 함께 INSERT 된다.
  */
 public record StudentCreateRequest(

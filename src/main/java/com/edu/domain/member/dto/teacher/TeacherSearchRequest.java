@@ -4,7 +4,7 @@ import lombok.Data;
 
 /**
  * TEA-02 강사 목록 조회 검색 조건
- * GET /teachers?keyword=&page=&size=
+ * GET /api/teachers?keyword=&page=&size=
  */
 @Data
 public class TeacherSearchRequest {

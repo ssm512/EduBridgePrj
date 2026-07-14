@@ -191,7 +191,7 @@
 
   /* ---------- 드롭다운 (반 필터/등록 모달 공용) ---------- */
   async function loadClassOptions() {
-    const res = await fetch('/classes?page=1&size=100');
+    const res = await fetch('/api/classes?page=1&size=100');
     if (!res.ok) return;
     const data = await res.json();
     document.getElementById('fClass').innerHTML = '<option value="">반 전체</option>' +
@@ -203,7 +203,7 @@
   }
 
   async function loadStudentOptions() {
-    const res = await fetch('/students?page=1&size=100');
+    const res = await fetch('/api/students?page=1&size=100');
     if (!res.ok) return;
     const data = await res.json();
     document.getElementById('cStudent').innerHTML =
@@ -222,7 +222,7 @@
     if (status) params.set('statusCode', status);
     if (keyword) params.set('keyword', keyword);
 
-    const res = await fetch('/enrollments?' + params);
+    const res = await fetch('/api/enrollments?' + params);
     if (!res.ok) {
       document.getElementById('tbody').innerHTML =
         '<tr><td class="empty" colspan="8">목록 조회 실패 (' + res.status + ')</td></tr>';
@@ -287,7 +287,7 @@
       classId: Number(classId),
       enrollDate: document.getElementById('cEnrollDate').value || null
     };
-    const res = await writeFetch('/enrollments', 'POST', body);   // ENR-01
+    const res = await writeFetch('/api/enrollments', 'POST', body);   // ENR-01
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       document.getElementById('cErr').textContent = err.message || '등록 실패 (' + res.status + ')';
@@ -309,7 +309,7 @@
 
   async function saveEnd() {
     const body = { endDate: document.getElementById('eEndDate').value || null };
-    const res = await writeFetch('/enrollments/' + endingEnrollmentId + '/end', 'PUT', body);  // ENR-02
+    const res = await writeFetch('/api/enrollments/' + endingEnrollmentId + '/end', 'PUT', body);  // ENR-02
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       document.getElementById('eErr').textContent = err.message || '해제 실패 (' + res.status + ')';

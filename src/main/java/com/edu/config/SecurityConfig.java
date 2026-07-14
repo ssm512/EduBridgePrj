@@ -63,45 +63,62 @@ public class SecurityConfig {
                         // CSRF 토큰 발급용 (GET이라 CSRF 검증 대상 아님)
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
 
-                        // 회원가입과 로그인/재발급은 토큰 없이 접근 가능
-                        .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
+                        // [변경 2026-07-14] REST API URL을 /api 프리픽스로 통일 (팀 결정)
+                        // - 기존 "명세서 URL 그대로(프리픽스 없음)" 결정을 폐기
+                        // - 회원가입용으로 남아 있던 POST /api/users permitAll 규칙은
+                        //   회원관리 API(/api/users, ADMIN 전용)와 충돌(보안 구멍)하므로 삭제.
+                        //   실제 회원가입은 POST /api/auth/signup (아래 permitAll 유지)
 
-                        // [추가] 회원관리 API (명세서 USER-01~03) - /users, /users/{userId}
-                        // 명세서 URL 그대로 /users로 매핑하기로 결정 (기존 /api/users 규칙은 회원가입용으로 유지)
+                        // [추가] 회원관리 API (명세서 USER-01~03) - /api/users, /api/users/{userId}
                         // 컨트롤러의 @PreAuthorize("hasRole('ADMIN')")와 이중 방어
-                        .requestMatchers("/users", "/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
 
-                        // [추가] 강사관리 API (명세서 TEA-01~03) - /teachers, /teachers/{teacherId}
-                        // 회원관리와 동일하게 명세서 URL 그대로 매핑, ADMIN 전용
-                        .requestMatchers("/teachers", "/teachers/**").hasRole("ADMIN")
+                        // [추가] 강사관리 API (명세서 TEA-01~03) - ADMIN 전용
+                        .requestMatchers("/api/teachers", "/api/teachers/**").hasRole("ADMIN")
 
                         // [추가] 학생관리 API (명세서 STU-01~04) - API마다 허용 롤이 다름
                         // 등록/수정: ADMIN / 목록: ADMIN,TEACHER / 상세: 4개 롤(본인/자녀 검증은 서비스에서)
-                        .requestMatchers(HttpMethod.POST, "/students").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/students/*").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/students").hasAnyRole("ADMIN", "TEACHER")
-                        .requestMatchers(HttpMethod.GET, "/students/*")
+                        .requestMatchers(HttpMethod.POST, "/api/students").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/students/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/students").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/students/*")
                             .hasAnyRole("ADMIN", "TEACHER", "STUDENT", "PARENT")
 
                         // [추가] 반관리 API (명세서 CLS-01~04)
                         // 등록/수정: ADMIN / 목록/상세: ADMIN,TEACHER
-                        .requestMatchers(HttpMethod.POST, "/classes").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/classes/*").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/classes", "/classes/*")
+                        .requestMatchers(HttpMethod.POST, "/api/classes").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/classes/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/classes", "/api/classes/*")
                             .hasAnyRole("ADMIN", "TEACHER")
 
                         // [추가] 수강관리 API (명세서 ENR-01~02 + 목록)
                         // 등록/해제: ADMIN / 목록: ADMIN,TEACHER
-                        .requestMatchers(HttpMethod.POST, "/enrollments").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/enrollments/*/end").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/enrollments").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.POST, "/api/enrollments").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/enrollments/*/end").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/enrollments").hasAnyRole("ADMIN", "TEACHER")
 
                         // [추가] 학부모관리 API (명세서 PAR-01~03) - ADMIN 전용
-                        // PAR-03(학생-학부모 연결)은 POST /students/{id}/parents
-                        .requestMatchers("/parents", "/parents/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/students/*/parents").hasRole("ADMIN")
+                        // PAR-03(학생-학부모 연결)은 POST /api/students/{id}/parents
+                        .requestMatchers("/api/parents", "/api/parents/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/students/*/parents").hasRole("ADMIN")
                         // 연결 내역 수정 (명세서 외 추가 API)
-                        .requestMatchers(HttpMethod.PUT, "/students/*/parents/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/students/*/parents/*").hasRole("ADMIN")
+
+                        // [추가] 공지사항 API (명세서 NOT-01~08) - API마다 허용 롤이 다름
+                        // 등록/수정/삭제/첨부업로드: ADMIN,TEACHER (TEACHER 본인 공지 검증은 서비스에서)
+                        // 목록/상세/다운로드/읽음처리: 4개 롤 (대상자별 가시성은 서비스+SQL에서)
+                        .requestMatchers(HttpMethod.POST, "/api/notices").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.PUT, "/api/notices/*").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/notices/*").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.POST, "/api/notices/*/files").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.POST, "/api/notices/*/read")
+                            .hasAnyRole("ADMIN", "TEACHER", "STUDENT", "PARENT")
+                        .requestMatchers(HttpMethod.GET, "/api/notices", "/api/notices/*")
+                            .hasAnyRole("ADMIN", "TEACHER", "STUDENT", "PARENT")
+                        .requestMatchers(HttpMethod.GET, "/api/notice-files/*/download")
+                            .hasAnyRole("ADMIN", "TEACHER", "STUDENT", "PARENT")
+                        // 첨부 삭제 (명세서 외 추가 API)
+                        .requestMatchers(HttpMethod.DELETE, "/api/notice-files/*").hasAnyRole("ADMIN", "TEACHER")
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/signup",
                                 "/api/auth/login",

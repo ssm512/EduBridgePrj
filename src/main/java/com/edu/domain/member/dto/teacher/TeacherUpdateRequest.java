@@ -8,7 +8,7 @@ import java.time.LocalDate;
 
 /**
  * TEA-03 강사 수정 요청
- * PUT /teachers/{teacherId}
+ * PUT /api/teachers/{teacherId}
  * 기본정보(users)와 담당과목/입사일(teachers)을 함께 수정한다.
  */
 public record TeacherUpdateRequest(
