@@ -23,11 +23,12 @@ public interface AttendanceMapper {
     /** PK 단건 조회 */
     AttendanceRecord findById(@Param("attendanceId") Long attendanceId);
 
-    /** 학생/반/기간 조건 목록 조회 (ATT-03) */
+    /** 학생/반/기간/이름 조건 목록 조회 (ATT-03). keyword = 학생 이름 부분 일치 */
     List<AttendanceRecord> findList(@Param("studentId") Long studentId,
                                     @Param("classId") Long classId,
                                     @Param("fromDate") LocalDate fromDate,
-                                    @Param("toDate") LocalDate toDate);
+                                    @Param("toDate") LocalDate toDate,
+                                    @Param("keyword") String keyword);
 
     /** 상태/사유 수정 (ATT-04) */
     int updateStatus(@Param("attendanceId") Long attendanceId,

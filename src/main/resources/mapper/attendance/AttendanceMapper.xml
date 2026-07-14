@@ -41,6 +41,7 @@
             <if test="classId  != null"> AND ar.class_id   = #{classId}   </if>
             <if test="fromDate != null"> AND ar.attendance_date &gt;= #{fromDate} </if>
             <if test="toDate   != null"> AND ar.attendance_date &lt;= #{toDate}   </if>
+            <if test="keyword != null and keyword != ''"> AND u.name ILIKE '%' || #{keyword} || '%' </if>
         </where>
         ORDER BY ar.attendance_date DESC, ar.attendance_id DESC
     </select>
@@ -98,7 +99,8 @@
 
     <!-- 반의 활성 비콘 조회 (UUID/RSSI 기준) -->
     <select id="findActiveBeaconByClass" resultType="com.edu.domain.attendance.vo.BeaconView">
-        SELECT beacon_uuid AS beaconUuid, rssi_threshold AS rssiThreshold
+        SELECT beacon_uuid AS beaconUuid, rssi_threshold AS rssiThreshold,
+               gps_latitude AS gpsLatitude, gps_longitude AS gpsLongitude
         FROM beacons
         WHERE class_id = #{classId} AND active_yn = 'Y'
         ORDER BY beacon_id

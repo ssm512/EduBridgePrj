@@ -32,8 +32,9 @@ public interface AttendanceService {
     /** ATT-02 수동 출석 등록 */
     AttendanceResponse registerManual(ManualAttendanceRequest request, Long createdBy);
 
-    /** ATT-03 출석 이력 조회 */
-    List<AttendanceResponse> getHistory(Long studentId, Long classId, LocalDate fromDate, LocalDate toDate);
+    /** ATT-03 출석 이력 조회 (keyword = 학생 이름 부분 일치) */
+    List<AttendanceResponse> getHistory(Long studentId, Long classId,
+                                        LocalDate fromDate, LocalDate toDate, String keyword);
 
     /** ATT-04 출석 수정 */
     AttendanceResponse update(Long attendanceId, AttendanceUpdateRequest request);

@@ -35,6 +35,9 @@ public class AttendanceServiceImpl implements AttendanceService {
     /** 출석 허용시간(분) 기본값. TODO: system_settings(ATTENDANCE_ALLOW_MINUTES)와 연동 */
     private static final long DEFAULT_ALLOW_MINUTES = 10;
 
+    /** GPS 인정 반경(m) 기본값. TODO: system_settings(GPS_RADIUS_METERS)와 연동 */
+    private static final double DEFAULT_GPS_RADIUS_METERS = 70;
+
     private final AttendanceMapper attendanceMapper;
     private final AttendanceVerificationService verificationService;
 
@@ -48,9 +51,9 @@ public class AttendanceServiceImpl implements AttendanceService {
      * ATT-01 자동 출석.
      * 중복 확인 후 AUTO 출석기록으로 저장한다.
      *
-     * TODO(협업): 완전한 검증(GPS 반경/등록 비콘 UUID/RSSI/수업시간)은
-     *   - 반(class)의 기준 좌표와 등록 비콘(beacons) 데이터,
-     *   - system_settings의 GPS_RADIUS_METERS / RSSI_DEFAULT_THRESHOLD / ATTENDANCE_ALLOW_MINUTES
+     * TODO(협업): 완전한 검증(UGPS 반경/등록 비콘 UUID/RSSI/수업시간)은
+     *      *   - 반(class)의 기준 좌표와 등록 비콘(beacons) 데이터,
+     *      *   - system_settings의 GPS_RADIS_METERS / RSSI_DEFAULT_THRESHOLD / ATTENDANCE_ALLOW_MINUTES
      *   가 갖춰지면 verificationService로 연결한다.
      *   (현재 스키마엔 반의 기준 좌표 컬럼이 없어 반/설정 도메인과 합의 필요 → 지금은 PRESENT로 저장)
      */
@@ -60,8 +63,9 @@ public class AttendanceServiceImpl implements AttendanceService {
         LocalDate today = LocalDate.now();
         guardDuplicate(studentId, request.classId(), today);
 
-        // ATT-10/11 비콘(UUID)·RSSI 검증 (반에 등록 비콘이 있을 때만)
-        guardBeacon(request.classId(), request.beaconUuid(), request.rssiValue());
+        // ATT-09/10/11 비콘(UUID)·RSSI·GPS 검증 (반에 등록 비콘이 있을 때만)
+        guardBeacon(request.classId(), request.beaconUuid(), request.rssiValue(),
+                request.gpsLatitude(), request.gpsLongitude());
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -101,8 +105,9 @@ public class AttendanceServiceImpl implements AttendanceService {
             throw new ApiException(HttpStatus.CONFLICT, "이미 퇴실 처리되었습니다");
         }
 
-        // 등원과 동일하게 비콘 검증
-        guardBeacon(request.classId(), request.beaconUuid(), request.rssiValue());
+        // 등원과 동일하게 비콘·GPS 검증
+        guardBeacon(request.classId(), request.beaconUuid(), request.rssiValue(),
+                request.gpsLatitude(), request.gpsLongitude());
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -144,9 +149,9 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     @Transactional(readOnly = true)
     public List<AttendanceResponse> getHistory(Long studentId, Long classId,
-                                               LocalDate fromDate, LocalDate toDate) {
+                                               LocalDate fromDate, LocalDate toDate, String keyword) {
         // TODO: 권한별 조회 범위 제한(본인/자녀 등)은 정책 확정 후 반영
-        return attendanceMapper.findList(studentId, classId, fromDate, toDate)
+        return attendanceMapper.findList(studentId, classId, fromDate, toDate, keyword)
                 .stream().map(AttendanceResponse::from).toList();
     }
 
@@ -177,7 +182,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Transactional(readOnly = true)
     public AttendanceStatisticsResponse getStatistics(Long classId, Long studentId,
                                                       LocalDate fromDate, LocalDate toDate) {
-        List<AttendanceRecord> records = attendanceMapper.findList(studentId, classId, fromDate, toDate);
+        List<AttendanceRecord> records = attendanceMapper.findList(studentId, classId, fromDate, toDate, null);
         int present = 0, late = 0, absent = 0, leave = 0;
         for (AttendanceRecord r : records) {
             switch (r.getStatusCode() == null ? "" : r.getStatusCode()) {
@@ -239,17 +244,31 @@ public class AttendanceServiceImpl implements AttendanceService {
      * 감지 UUID가 등록 UUID와 일치하고, RSSI가 기준 이상이어야 통과.
      * 등록 비콘이 없으면 검증을 생략(통과)한다.
      */
-    private void guardBeacon(Long classId, String detectedUuid, Integer detectedRssi) {
+    private void guardBeacon(Long classId, String detectedUuid, Integer detectedRssi,
+                             Double gpsLat, Double gpsLng) {
         BeaconView beacon = attendanceMapper.findActiveBeaconByClass(classId);
         if (beacon == null) {
             return; // 등록 비콘 없음 → 검증 생략
         }
+        // ATT-10/11 비콘 UUID + RSSI
         int threshold = beacon.getRssiThreshold() != null ? beacon.getRssiThreshold() : -75;
         boolean uuidOk = verificationService.verifyBeaconUuid(detectedUuid, beacon.getBeaconUuid());
         boolean rssiOk = detectedRssi != null && verificationService.verifyRssi(detectedRssi, threshold);
         if (!uuidOk || !rssiOk) {
             throw new ApiException(HttpStatus.BAD_REQUEST,
                     "비콘 인증 실패 — 강의실 비콘 근처에서 다시 시도하세요");
+        }
+        // ATT-09 GPS 위치 (비콘에 기준 좌표가 등록된 경우에만)
+        if (beacon.getGpsLatitude() != null && beacon.getGpsLongitude() != null) {
+            boolean gpsOk = gpsLat != null && gpsLng != null
+                    && verificationService.verifyGps(
+                            BigDecimal.valueOf(gpsLat), BigDecimal.valueOf(gpsLng),
+                            beacon.getGpsLatitude(), beacon.getGpsLongitude(),
+                            DEFAULT_GPS_RADIUS_METERS);
+            if (!gpsOk) {
+                throw new ApiException(HttpStatus.BAD_REQUEST,
+                        "위치 확인 실패 — 강의실 근처에서 다시 시도하세요");
+            }
         }
     }
 

@@ -87,8 +87,9 @@ public class AttendanceController {
             @RequestParam(required = false) Long studentId,
             @RequestParam(required = false) Long classId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
-        return attendanceService.getHistory(studentId, classId, fromDate, toDate);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) String keyword) {
+        return attendanceService.getHistory(studentId, classId, fromDate, toDate, keyword);
     }
 
     /** ATT-04 출석 수정 (관리자/강사) */

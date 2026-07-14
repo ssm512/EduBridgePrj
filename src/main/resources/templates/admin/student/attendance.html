@@ -5,18 +5,21 @@
   <title>EduBridge · 출석관리</title>
   <link rel="stylesheet" href="/css/common.css">
   <style>
+    /* 다크모드에서 폼 컨트롤이 검게 칠해지는 것 방지 (라이트 강제) */
+    :root { color-scheme: light; }
+    input, select, textarea { background:#fff; color:#111827; }
     .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:18px; margin-bottom:20px; }
     .panel h2 { margin:0 0 12px; font-size:16px; }
     .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
     .row .f { display:flex; flex-direction:column; font-size:13px; gap:4px; }
-    .row input, .row select { padding:7px 8px; border:1px solid #cbd5e1; border-radius:6px; }
+    .row input, .row select { padding:7px 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#111827; }
     .btn { padding:8px 14px; border:0; border-radius:6px; background:#1e3a8a; color:#fff; cursor:pointer; }
-    .btn.sub { background:#6b7280; } .btn.danger { background:#b91c1c; }
+    .btn.sub { background:#6b7280; color:#fff; } .btn.danger { background:#b91c1c; color:#fff; }
     .btn.sm { padding:5px 9px; font-size:12.5px; }
     table { width:100%; border-collapse:collapse; font-size:13.5px; }
     th, td { border-bottom:1px solid #eef2f7; padding:8px 10px; text-align:left; vertical-align:middle; }
     th { background:#f8fafc; color:#475569; }
-    td select, td input { padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:12.5px; }
+    td select, td input { padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:12.5px; background:#fff; color:#111827; }
     .tag { padding:2px 8px; border-radius:999px; font-size:12px; }
     .PRESENT{background:#dcfce7;color:#166534;} .LATE{background:#fef9c3;color:#854d0e;}
     .ABSENT{background:#fee2e2;color:#991b1b;} .LEAVE{background:#e0e7ff;color:#3730a3;}
@@ -28,8 +31,27 @@
 <div th:replace="~{fragments/common :: topbar('출석관리')}"></div>
 
 <div class="shell">
+  <nav class="sidebar">
+    <a href="/admin/dashboard">대시보드</a>
+    <a href="/admin/members">회원관리</a>
+    <div class="group-label">반 / 수강</div>
+    <a href="/admin/classes">반관리</a>
+    <a href="/admin/enrollments">수강관리</a>
+    <div class="group-label">학생</div>
+    <a href="/admin/attendance">출석관리</a>
+    <a href="/admin/fees">회비관리</a>
+    <a href="/admin/grades">성적관리</a>
+    <div class="group-label">소통</div>
+    <a href="/admin/notices">공지관리</a>
+    <a href="/admin/counseling">상담관리</a>
+    <div class="group-label">운영</div>
+    <a href="/admin/ai">AI 리포트</a>
+    <a href="/admin/notifications">알림이력</a>
+    <a href="/admin/logs">활동로그</a>
+    <a href="/admin/settings">시스템설정</a>
+  </nav>
+
   <main class="content">
-    <p class="sub"><a href="/adminPage" style="color:#1e3a8a;">← 관리자 홈</a></p>
     <h1>출석관리</h1>
 
     <!-- 반 출석부 (반 선택 → 명단 → 상태/시간 저장) -->
@@ -58,8 +80,12 @@
     <div class="panel">
       <h2>출석 이력</h2>
       <div class="row" style="margin-bottom:12px;">
-        <div class="f"><label>학생ID</label><input id="q_studentId" type="number" placeholder="전체"></div>
-        <div class="f"><label>반ID</label><input id="q_classId" type="number" placeholder="전체"></div>
+        <div class="f"><label>반</label>
+          <select id="q_classSel"><option value="">전체</option></select>
+        </div>
+        <div class="f"><label>학생 이름</label>
+          <input id="q_keyword" placeholder="이름 일부 검색" onkeydown="if(event.key==='Enter')loadHistory()">
+        </div>
         <button class="btn sub" onclick="loadHistory()">조회</button>
       </div>
       <table>
@@ -89,37 +115,42 @@
     return STATUSES.map(([v,l]) => `<option value="${v}" ${v===sel?'selected':''}>${l}</option>`).join('');
   }
 
-  // 반 목록 (신상민님 GET /api/classes 계약). 없으면 반ID 직접 입력 폴백.
+  // 반 목록: GET /api/classes → PageResponse.items (신상민님 API)
   async function loadClasses() {
     try {
-      const res = await fetch('/api/classes');
+      const res = await fetch('/api/classes?size=200');
       if (!res.ok) throw new Error(res.status);
-      const list = await res.json();
-      document.getElementById('classSel').innerHTML =
-        list.map(c => `<option value="${c.classId}">${c.className ?? ('반 '+c.classId)}</option>`).join('')
-        || '<option value="">등록된 반 없음</option>';
+      const data = await res.json();
+      const list = data.items ?? [];
+      const opts = list.map(c => `<option value="${c.classId}">${c.className ?? ('반 '+c.classId)}</option>`).join('');
+      // 출석부 드롭다운
+      document.getElementById('classSel').innerHTML = opts || '<option value="">등록된 반 없음</option>';
+      // 이력 필터 반 드롭다운 (전체 + 반들)
+      document.getElementById('q_classSel').innerHTML = '<option value="">전체</option>' + opts;
     } catch (e) {
+      // API 접근 실패 시 폴백 (권한/네트워크)
       document.getElementById('classPickWrap').innerHTML =
-        '<label>반ID (임시 직접입력)</label><input id="classSel" type="number" placeholder="예: 1">';
+        '<label>반ID (직접입력)</label><input id="classSel" type="number" placeholder="예: 1">';
       document.getElementById('rosterNote').innerHTML =
-        '<div class="note">반 목록 API(신상민님, GET /api/classes)가 아직 없어 반ID를 직접 입력합니다.</div>';
+        `<div class="note">반 목록을 불러오지 못했습니다 (${e}). 반ID를 직접 입력하세요.</div>`;
     }
   }
 
-  // 반 수강생 명단 (신상민님 GET /api/classes/{id}/students 계약)
+  // 반 수강생 명단: GET /api/classes/{id} → { classInfo, students:[...] } 의 students(ACTIVE)
   async function loadRoster() {
     const classId = document.getElementById('classSel').value;
     const tbody = document.getElementById('roster');
     if (!classId) { tbody.innerHTML = `<tr><td colspan="5">반을 먼저 선택/입력하세요.</td></tr>`; return; }
     try {
-      const res = await fetch(`/api/classes/${classId}/students`);
+      const res = await fetch(`/api/classes/${classId}`);
       if (!res.ok) throw new Error(res.status);
-      const students = await res.json();
+      const data = await res.json();
+      const students = (data.students ?? []).filter(s => s.statusCode === 'ACTIVE');
       if (!students.length) { tbody.innerHTML = `<tr><td colspan="5" style="color:#9ca3af;">수강생 없음</td></tr>`; return; }
-      tbody.innerHTML = students.map(s => rosterRow(s.studentId, s.studentName ?? '')).join('');
+      tbody.innerHTML = students.map(s => rosterRow(s.studentId, s.name ?? '')).join('');
     } catch (e) {
       document.getElementById('rosterNote').innerHTML +=
-        '<div class="note">수강 명단 API(신상민님, GET /api/classes/{id}/students)가 아직 없어, 학생ID를 직접 넣어 한 명씩 등록합니다.</div>';
+        `<div class="note">명단을 불러오지 못했습니다 (${e}). 학생ID를 직접 넣어 등록하세요.</div>`;
       tbody.innerHTML = rosterRow('', '');
     }
   }
@@ -183,10 +214,10 @@
   }
 
   async function loadHistory() {
-    const s = document.getElementById('q_studentId').value;
-    const c = document.getElementById('q_classId').value;
+    const kw = document.getElementById('q_keyword').value.trim();
+    const c = document.getElementById('q_classSel').value;
     const qs = new URLSearchParams();
-    if (s) qs.append('studentId', s);
+    if (kw) qs.append('keyword', kw);
     if (c) qs.append('classId', c);
     const res = await fetch('/api/attendance?' + qs.toString());
     const tbody = document.getElementById('tbody');
@@ -234,7 +265,10 @@
     if (res.ok || res.status === 204) loadHistory(); else alert(`삭제 실패 (${res.status})`);
   }
 
+  // 날짜는 기본 오늘 (보통 그대로 두고, 지난 날짜 보정 시에만 변경)
+  document.getElementById('sheetDate').value = new Date().toISOString().slice(0, 10);
   loadClasses();
+  loadHistory();
 </script>
 </body>
 </html>
