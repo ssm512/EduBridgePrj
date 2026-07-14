@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>성적 관리</title>
+</head>
+<body>
+
+<!-- 시험 등록 영역 -->
+<h2>시험 등록</h2>
+
+<!-- 시험이 속한 반 ID -->
+<input id="classId" placeholder="반 ID">
+
+<!-- 시험명 -->
+<input id="examName" placeholder="시험명">
+
+<!-- 과목명 -->
+<input id="subject" placeholder="과목">
+
+<!-- 시험일 -->
+<input id="examDate" type="date">
+
+<!-- 시험 만점 -->
+<input id="totalScore" type="number" value="100">
+
+<!-- 입력한 시험 정보를 서버로 전송 -->
+<button onclick="insertExam()">시험 등록</button>
+
+<!-- 시험 목록 조회 영역 -->
+<h2>시험 목록</h2>
+
+<!-- 서버에서 시험 목록을 다시 조회 -->
+<button onclick="loadExams()">조회</button>
+
+<table border="1">
+    <thead>
+    <tr>
+        <th>시험ID</th>
+        <th>반</th>
+        <th>시험명</th>
+        <th>과목</th>
+        <th>시험일</th>
+        <th>만점</th>
+    </tr>
+    </thead>
+
+    <!-- 조회한 시험 목록이 들어갈 영역 -->
+    <tbody id="examList"></tbody>
+</table>
+
+<hr>
+
+<!-- 현재 선택한 시험 표시 영역 -->
+<p id="selectedExamInfo">선택한 시험이 없습니다.</p>
+
+<!-- 선택한 시험의 수강 학생별 성적 입력 영역 -->
+<h2>학생별 성적 입력</h2>
+
+<table border="1">
+    <thead>
+    <tr>
+        <th>학생ID</th>
+        <th>학생명</th>
+        <th>학생번호</th>
+        <th>점수</th>
+        <th>석차</th>
+        <th>비고</th>
+        <th>관리</th>
+    </tr>
+    </thead>
+
+    <!-- 시험 목록에서 시험을 클릭하면 해당 반의 수강 학생들이 표시된다. -->
+    <tbody id="studentGradeList"></tbody>
+</table>
+
+<hr>
+
+<!-- 성적 입력 영역 -->
+<h2>성적 입력</h2>
+
+<!-- 성적을 입력할 시험 ID -->
+<input id="gradeExamId" placeholder="시험 ID">
+
+<!-- 성적을 입력할 학생 ID -->
+<input id="studentId" placeholder="학생 ID">
+
+<!-- 학생 점수 -->
+<input id="score" type="number" placeholder="점수">
+
+<!-- 학생 석차 -->
+<input id="rankNo" type="number" placeholder="석차">
+
+<!-- 성적 관련 코멘트 -->
+<input id="comment" placeholder="비고">
+
+<!-- 입력한 성적 정보를 서버로 전송 -->
+<button onclick="insertGrade()">성적 등록</button>
+
+<!-- 특정 시험의 성적 목록 조회 -->
+<h2>시험별 성적 조회</h2>
+
+<!-- 조회할 시험 ID -->
+<input id="searchExamId" placeholder="조회할 시험 ID">
+
+<!-- 시험 ID 기준으로 성적 목록 조회 -->
+<button onclick="loadGradesByExam()">성적 조회</button>
+
+<table border="1">
+    <thead>
+    <tr>
+        <th>성적ID</th>
+        <th>시험ID</th>
+        <th>학생ID</th>
+        <th>학생명</th>
+        <th>점수</th>
+        <th>석차</th>
+        <th>비고</th>
+        <th>관리</th>
+    </tr>
+    </thead>
+
+    <!-- 조회한 성적 목록이 들어갈 영역 -->
+    <tbody id="gradeList"></tbody>
+</table>
+
+<hr>
+
+<!-- 성적 추이 조회 영역 -->
+<h2>성적 추이 조회</h2>
+
+<!-- 성적 추이를 조회할 학생 ID -->
+<input id="trendStudentId" placeholder="학생 ID">
+
+<!-- 과목 필터, 비워두면 전체 과목 조회 -->
+<input id="trendSubject" placeholder="과목">
+
+<!-- 학생별 성적 변화 조회 -->
+<button onclick="loadGradeTrend()">추이 조회</button>
+
+<table border="1">
+    <thead>
+    <tr>
+        <th>시험ID</th>
+        <th>시험명</th>
+        <th>과목</th>
+        <th>시험일</th>
+        <th>점수</th>
+        <th>만점</th>
+    </tr>
+    </thead>
+
+    <!-- 성적 추이 결과가 들어갈 영역 -->
+    <tbody id="trendList"></tbody>
+</table>
+
+<script>
+    // 현재 선택된 시험 ID
+    // 시험 행을 클릭하면 이 값에 exam_id를 저장하고, 성적 입력 시 내부적으로 사용한다.
+    let selectedExamId = null;
+
+    // XSRF-TOKEN 쿠키 값을 읽는다.
+    // Spring Security CSRF 설정이 쿠키 방식이므로 POST/PUT/DELETE 요청에 이 값을 헤더로 보내야 한다.
+    function getCsrfCookie() {
+        const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+        return match ? decodeURIComponent(match[1]) : null;
+    }
+
+    // CSRF 쿠키가 없으면 서버에서 먼저 발급받는다.
+    // GET /api/auth/csrf 는 SecurityConfig에서 허용되어 있다.
+    async function ensureCsrf() {
+        if (!getCsrfCookie()) {
+            await fetch('/api/auth/csrf');
+        }
+        return getCsrfCookie();
+    }
+
+    // JSON 요청 공통 함수
+    // 성적관리의 등록/수정 요청에서 CSRF 헤더 누락을 방지하기 위해 사용한다.
+    async function sendJson(url, method, body) {
+        return fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-XSRF-TOKEN': await ensureCsrf()
+            },
+            body: JSON.stringify(body)
+        });
+    }
+
+    // DELETE 요청 공통 함수
+    // 삭제 요청도 CSRF 검증 대상이므로 X-XSRF-TOKEN 헤더가 필요하다.
+    async function sendDelete(url) {
+        return fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'X-XSRF-TOKEN': await ensureCsrf()
+            }
+        });
+    }
+
+    // 시험 등록 요청
+    async function insertExam() {
+        const body = {
+            classId: Number(document.getElementById('classId').value),
+            examName: document.getElementById('examName').value,
+            subject: document.getElementById('subject').value,
+            examDate: document.getElementById('examDate').value,
+            totalScore: Number(document.getElementById('totalScore').value)
+        };
+
+        const res = await sendJson('/api/exams', 'POST', body);
+
+        alert(await res.text());
+
+        // 등록 후 목록 새로고침
+        loadExams();
+    }
+
+    // 시험 목록 조회 요청
+    async function loadExams() {
+        const res = await fetch('/api/exams');
+        const data = await res.json();
+
+        const tbody = document.getElementById('examList');
+        tbody.innerHTML = '';
+
+        // 조회 결과를 테이블 행으로 출력
+        // 사용자는 시험명을 보고 클릭하지만, 실제 처리는 고유값인 exam_id로 진행한다.
+        data.forEach(row => {
+            tbody.innerHTML += `
+        <tr onclick="selectExam(${row.exam_id})">
+            <td>${row.exam_id}</td>
+            <td>${row.class_name}</td>
+            <td>${row.exam_name}</td>
+            <td>${row.subject || ''}</td>
+            <td>${row.exam_date}</td>
+            <td>${row.total_score}</td>
+        </tr>
+           `;
+        });
+    }
+
+    // 시험 목록에서 시험을 클릭했을 때 실행
+    async function selectExam(examId) {
+        selectedExamId = examId;
+
+        // 선택한 시험의 상세 정보는 현재 화면에 조회된 시험 목록에서 찾는다.
+        const res = await fetch('/api/exams');
+        const exams = await res.json();
+        const selectedExam = exams.find(row => Number(row.exam_id) === Number(examId));
+
+        // 선택한 시험 정보를 화면에 표시한다.
+        if (selectedExam) {
+            document.getElementById('selectedExamInfo').innerText =
+                '선택한 시험: ' + selectedExam.class_name + ' / ' +
+                selectedExam.exam_name + ' / 시험ID ' + selectedExam.exam_id;
+
+            // 기존 시험별 조회 영역도 선택한 시험 기준으로 맞춰준다.
+            document.getElementById('searchExamId').value = selectedExam.exam_id;
+            document.getElementById('gradeExamId').value = selectedExam.exam_id;
+        }
+
+        // 선택한 시험의 수강 학생 목록과 기존 성적 입력 상태를 조회한다.
+        loadStudentGradeRows();
+    }
+
+    // 선택한 시험의 수강 학생 목록 + 기존 성적 조회
+    async function loadStudentGradeRows() {
+        if (!selectedExamId) {
+            alert('먼저 시험 목록에서 시험을 선택하세요.');
+            return;
+        }
+
+        const res = await fetch('/api/exams/' + selectedExamId + '/students');
+        const data = await res.json();
+
+        const tbody = document.getElementById('studentGradeList');
+        tbody.innerHTML = '';
+
+        // 성적이 이미 있으면 grade_id가 있고, 없으면 grade_id가 null이다.
+        // grade_id 유무로 신규 등록과 수정 요청을 나눠서 처리한다.
+        data.forEach(row => {
+            tbody.innerHTML += `
+            <tr>
+                <td>${row.student_id}</td>
+                <td>${row.student_name || ''}</td>
+                <td>${row.student_no || ''}</td>
+
+                <!-- 학생 점수 입력/수정 -->
+                <td>
+                    <input id="studentScore_${row.student_id}"
+                           type="number"
+                           value="${row.score || ''}">
+                </td>
+
+                <!-- 학생 석차 입력/수정 -->
+                <td>
+                    <input id="studentRankNo_${row.student_id}"
+                           type="number"
+                           value="${row.rank_no || ''}">
+                </td>
+
+                <!-- 성적 비고 입력/수정 -->
+                <td>
+                    <input id="studentComment_${row.student_id}"
+                           value="${row.comment || ''}">
+                </td>
+
+                <!-- 저장은 grade_id가 있으면 수정, 없으면 등록으로 처리한다. -->
+                <td>
+                    <button onclick="saveStudentGrade(${row.student_id}, ${row.grade_id || 'null'})">
+                        저장
+                    </button>
+                    <button onclick="deleteStudentGrade(${row.grade_id || 'null'})"
+                            ${row.grade_id ? '' : 'disabled'}>
+                        삭제
+                    </button>
+                </td>
+            </tr>
+        `;
+        });
+    }
+
+    // 학생별 성적 저장
+    // gradeId가 있으면 PUT으로 수정하고, 없으면 POST로 신규 등록한다.
+    async function saveStudentGrade(studentId, gradeId) {
+        if (!selectedExamId) {
+            alert('먼저 시험 목록에서 시험을 선택하세요.');
+            return;
+        }
+
+        const body = {
+            examId: selectedExamId,
+            studentId: studentId,
+            score: Number(document.getElementById('studentScore_' + studentId).value),
+            rankNo: Number(document.getElementById('studentRankNo_' + studentId).value),
+            comment: document.getElementById('studentComment_' + studentId).value
+        };
+
+        const url = gradeId ? '/api/grades/' + gradeId : '/api/grades';
+        const method = gradeId ? 'PUT' : 'POST';
+
+        const res = await sendJson(url, method, body);
+
+        alert(
+            '상태코드: ' + res.status + '\n' +
+            '응답내용: ' + await res.text()
+        );
+
+        // 저장 후 다시 조회해서 grade_id와 입력 상태를 최신화한다.
+        if (res.ok) {
+            loadStudentGradeRows();
+            loadGradesByExam();
+        }
+    }
+
+    // 학생별 입력 영역에서 성적 삭제
+    async function deleteStudentGrade(gradeId) {
+        if (!gradeId) {
+            alert('아직 저장된 성적이 없습니다.');
+            return;
+        }
+
+        if (!confirm('이 성적을 삭제할까요?')) {
+            return;
+        }
+
+        const res = await sendDelete('/api/grades/' + gradeId);
+
+        alert(
+            '상태코드: ' + res.status + '\n' +
+            '응답내용: ' + await res.text()
+        );
+
+        // 삭제 후 학생별 입력 행과 기존 성적 조회 목록을 다시 불러온다.
+        if (res.ok) {
+            loadStudentGradeRows();
+            loadGradesByExam();
+        }
+    }
+
+    // 성적 등록 요청
+    async function insertGrade() {
+        const body = {
+            examId: Number(document.getElementById('gradeExamId').value),
+            studentId: Number(document.getElementById('studentId').value),
+            score: Number(document.getElementById('score').value),
+            rankNo: Number(document.getElementById('rankNo').value),
+            comment: document.getElementById('comment').value
+        };
+
+        const res = await sendJson('/api/grades', 'POST', body);
+
+        const text = await res.text();
+
+        alert(
+            '상태코드: ' + res.status + '\n' +
+            '응답내용: ' + text
+        );
+
+        // 등록 성공 시 해당 시험의 성적 목록을 다시 조회
+        if (res.ok) {
+            document.getElementById('searchExamId').value = body.examId;
+            loadGradesByExam();
+        }
+    }
+
+    // 시험 ID 기준 성적 목록 조회
+    async function loadGradesByExam() {
+        const examId = document.getElementById('searchExamId').value;
+
+        const res = await fetch('/api/exams/' + examId + '/grades');
+        const data = await res.json();
+
+        const tbody = document.getElementById('gradeList');
+        tbody.innerHTML = '';
+
+        // 조회된 성적을 수정 가능한 input 형태로 출력
+        data.forEach(row => {
+            tbody.innerHTML += `
+            <tr>
+                <td>${row.grade_id}</td>
+                <td>${row.exam_id}</td>
+                <td>${row.student_id}</td>
+                <td>${row.student_name || ''}</td>
+
+                <!-- 점수 수정용 input -->
+                <td>
+                    <input id="score_${row.grade_id}"
+                           type="number"
+                           value="${row.score}">
+                </td>
+
+                <!-- 석차 수정용 input -->
+                <td>
+                    <input id="rankNo_${row.grade_id}"
+                           type="number"
+                           value="${row.rank_no || ''}">
+                </td>
+
+                <!-- 비고 수정용 input -->
+                <td>
+                    <input id="comment_${row.grade_id}"
+                           value="${row.comment || ''}">
+                </td>
+
+                <!-- 성적 수정/삭제 버튼 -->
+                <td>
+                    <button onclick="updateGrade(${row.grade_id}, ${row.exam_id}, ${row.student_id})">
+                        수정
+                    </button>
+                    <button onclick="deleteGrade(${row.grade_id})">
+                        삭제
+                    </button>
+                </td>
+            </tr>
+        `;
+        });
+    }
+
+    // 성적 수정 요청
+    async function updateGrade(gradeId, examId, studentId) {
+        const body = {
+            examId: examId,
+            studentId: studentId,
+            score: Number(document.getElementById('score_' + gradeId).value),
+            rankNo: Number(document.getElementById('rankNo_' + gradeId).value),
+            comment: document.getElementById('comment_' + gradeId).value
+        };
+
+        const res = await sendJson('/api/grades/' + gradeId, 'PUT', body);
+
+        alert(
+            '상태코드: ' + res.status + '\n' +
+            '응답내용: ' + await res.text()
+        );
+
+        // 수정 후 목록 새로고침
+        if (res.ok) {
+            loadGradesByExam();
+        }
+    }
+
+    // 성적 삭제 요청
+    async function deleteGrade(gradeId) {
+        if (!confirm('이 성적을 삭제할까요?')) {
+            return;
+        }
+
+        const res = await sendDelete('/api/grades/' + gradeId);
+
+        alert(
+            '상태코드: ' + res.status + '\n' +
+            '응답내용: ' + await res.text()
+        );
+
+        // 삭제 후 목록 새로고침
+        if (res.ok) {
+            loadGradesByExam();
+        }
+    }
+
+    // 학생별 성적 추이 조회
+    async function loadGradeTrend() {
+        const studentId = document.getElementById('trendStudentId').value;
+        const subject = document.getElementById('trendSubject').value;
+
+        let url = '/api/grades/trends?studentId=' + studentId;
+
+        // 과목을 입력한 경우에만 subject 검색 조건 추가
+        if (subject) {
+            url += '&subject=' + encodeURIComponent(subject);
+        }
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const tbody = document.getElementById('trendList');
+        tbody.innerHTML = '';
+
+        // 시험일 순서대로 학생 점수 변화 출력
+        data.forEach(row => {
+            tbody.innerHTML += `
+            <tr>
+                <td>${row.exam_id}</td>
+                <td>${row.exam_name}</td>
+                <td>${row.subject || ''}</td>
+                <td>${row.exam_date}</td>
+                <td>${row.score}</td>
+                <td>${row.total_score}</td>
+            </tr>
+        `;
+        });
+    }
+
+</script>
+
+</body>
+</html>

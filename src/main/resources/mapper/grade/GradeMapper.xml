@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.edu.domain.grade.mapper.GradeMapper">
+
+    <!-- 시험 등록 -->
+    <insert id="insertExam" useGeneratedKeys="true" keyProperty="examId" keyColumn="exam_id">
+        INSERT INTO exams (
+        class_id,     -- 반 ID
+        exam_name,    -- 시험명
+        subject,      -- 과목명
+        exam_date,    -- 시험일
+        total_score,  -- 만점
+        created_by    -- 등록자 ID
+        )
+        VALUES (
+        #{classId},
+        #{examName},
+        #{subject},
+        #{examDate},
+        #{totalScore},
+        #{createdBy}
+        )
+    </insert>
+
+    <!--
+        시험 목록 조회
+        classId가 있으면 특정 반만 조회
+        subject가 있으면 과목명으로 부분 검색
+    -->
+    <select id="selectExamList" resultType="hashmap">
+        SELECT e.exam_id,       -- 시험 ID
+        e.class_id,             -- 반 ID
+        c.class_name,           -- 반 이름
+        e.exam_name,            -- 시험명
+        e.subject,              -- 과목명
+        e.exam_date,            -- 시험일
+        e.total_score,          -- 만점
+        e.created_at            -- 등록일시
+        FROM exams e
+        JOIN classes c ON c.class_id = e.class_id
+        <where>
+            <if test="classId != null">
+                e.class_id = #{classId}
+            </if>
+            <if test="subject != null and subject != ''">
+                AND e.subject ILIKE CONCAT('%', #{subject}, '%')
+            </if>
+        </where>
+        ORDER BY e.exam_date DESC, e.exam_id DESC
+    </select>
+
+    <!-- 시험 정보 수정 -->
+    <update id="updateExam">
+        UPDATE exams
+        SET class_id = #{classId},    -- 반 ID 수정
+        exam_name = #{examName},      -- 시험명 수정
+        subject = #{subject},         -- 과목 수정
+        exam_date = #{examDate},      -- 시험일 수정
+        total_score = #{totalScore}   -- 만점 수정
+        WHERE exam_id = #{examId}     -- 수정 대상 시험 ID
+    </update>
+
+    <!-- 시험 삭제 -->
+    <delete id="deleteExam">
+        DELETE FROM exams
+        WHERE exam_id = #{examId}
+    </delete>
+
+    <!-- 성적 등록 -->
+    <insert id="insertGrade" useGeneratedKeys="true" keyProperty="gradeId" keyColumn="grade_id">
+        INSERT INTO grades (
+        exam_id,     -- 시험 ID
+        student_id,  -- 학생 ID
+        score,       -- 점수
+        rank_no,     -- 석차
+        comment      -- 비고
+        )
+        VALUES (
+        #{examId},
+        #{studentId},
+        #{score},
+        #{rankNo},
+        #{comment}
+        )
+    </insert>
+
+    <!-- 성적 수정 -->
+    <update id="updateGrade">
+        UPDATE grades
+        SET score = #{score},             -- 점수 수정
+        rank_no = #{rankNo},              -- 석차 수정
+        comment = #{comment},             -- 비고 수정
+        updated_at = CURRENT_TIMESTAMP    -- 수정일시 갱신
+        WHERE grade_id = #{gradeId}       -- 수정 대상 성적 ID
+    </update>
+
+    <!-- 성적 삭제 -->
+    <delete id="deleteGrade">
+        DELETE FROM grades
+        WHERE grade_id = #{gradeId}
+    </delete>
+
+    <!--
+        특정 시험의 성적 목록 조회
+        시험 선택 시 학생별 점수 목록을 보여줄 때 사용
+    -->
+    <select id="selectGradesByExam" resultType="hashmap">
+        SELECT g.grade_id,      -- 성적 ID
+        g.exam_id,              -- 시험 ID
+        g.student_id,           -- 학생 ID
+        u.name AS student_name, -- 학생 이름
+        s.student_no,           -- 학생 관리번호
+        g.score,                -- 점수
+        g.rank_no,              -- 석차
+        g.comment               -- 비고
+        FROM grades g
+        JOIN students s ON s.student_id = g.student_id
+        JOIN users u ON u.user_id = s.user_id
+        WHERE g.exam_id = #{examId}
+        ORDER BY u.name
+    </select>
+
+    <!--
+        학생별 성적 추이 조회
+        성적 차트나 변화 추이 화면에서 사용
+    -->
+    <select id="selectGradeTrend" resultType="hashmap">
+        SELECT e.exam_id, -- 시험 ID
+        e.exam_name,      -- 시험명
+        e.subject,        -- 과목명
+        e.exam_date,      -- 시험일
+        g.score,          -- 점수
+        e.total_score     -- 만점
+        FROM grades g
+        JOIN exams e ON e.exam_id = g.exam_id
+        WHERE g.student_id = #{studentId}
+        <if test="subject != null and subject != ''">
+            AND e.subject = #{subject}
+        </if>
+        ORDER BY e.exam_date
+    </select>
+
+    <!--
+    선택한 시험의 수강 학생 목록과 기존 성적 조회
+    성적이 아직 없는 학생도 입력할 수 있도록 grades는 LEFT JOIN 처리
+    -->
+    <select id="selectStudentGradeRowsByExam" resultType="hashmap">
+        SELECT e.exam_id,       -- 시험 ID
+        s.student_id,           -- 학생 ID
+        u.name AS student_name, -- 학생 이름
+        s.student_no,           -- 학생 관리번호
+        g.grade_id,             -- 성적 ID, 없으면 NULL
+        g.score,                -- 점수, 없으면 NULL
+        g.rank_no,              -- 석차, 없으면 NULL
+        g.comment               -- 비고, 없으면 NULL
+        FROM exams e
+        JOIN enrollments en ON en.class_id = e.class_id
+        JOIN students s ON s.student_id = en.student_id
+        JOIN users u ON u.user_id = s.user_id
+        LEFT JOIN grades g ON g.exam_id = e.exam_id
+        AND g.student_id = s.student_id
+        WHERE e.exam_id = #{examId}
+        AND en.status_code = 'ACTIVE'
+        ORDER BY u.name, s.student_id
+    </select>
+
+
+</mapper>

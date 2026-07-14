@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="ko">
+<!--
+  공통 조각(fragment) 모음.
+  - topbar(title): 상단바 (브랜드 + 로그인 사용자명 + 로그아웃)
+  - logoutScript : 로그아웃 처리 스크립트 (CSRF 토큰 포함 POST 후 "/"로 이동)
+  각 페이지에서 th:replace 로 가져다 쓴다.
+-->
+<head><meta charset="UTF-8"></head>
+<body>
+
+<div th:fragment="topbar(title)" class="topbar">
+  <div class="brand">EduBridge · <span th:text="${title}">타이틀</span></div>
+  <div class="user">
+    <span><span sec:authentication="name">아이디</span>님</span>
+    <button type="button" onclick="logout()">로그아웃</button>
+  </div>
+</div>
+
+<script th:fragment="logoutScript">
+  function getCsrfCookie() {
+    const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  async function logout() {
+    // CSRF 쿠키 확보
+    if (!getCsrfCookie()) { await fetch('/api/auth/csrf'); }
+    await fetch('/api/auth/logout-web', {
+      method: 'POST',
+      headers: { 'X-XSRF-TOKEN': getCsrfCookie() }
+    });
+    window.location.href = '/';
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>EduBridge 강사</title>
+  <link rel="stylesheet" href="/css/common.css">
+</head>
+<body>
+<div th:replace="~{fragments/common :: topbar('강사')}"></div>
+<div class="shell">
+  <main class="content">
+    <h1>강사 홈</h1>
+    <p class="sub">담당 반·출석·성적·상담 기능이 여기에 붙습니다. (담당자 구현 예정)</p>
+    <div class="cards">
+      <div class="card"><div class="card-title">내 반</div><div class="card-desc">담당 강의반 목록</div></div>
+      <div class="card"><div class="card-title">출석 체크</div><div class="card-desc">수업별 출석 관리</div></div>
+      <div class="card"><div class="card-title">성적 입력</div><div class="card-desc">시험 등록·점수 입력</div></div>
+      <div class="card"><div class="card-title">상담 기록</div><div class="card-desc">학생·학부모 상담</div></div>
+    </div>
+  </main>
+</div>
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+</body>
+</html>
