@@ -8,7 +8,9 @@ import com.edu.domain.fee.dto.request.FeeSearchRequest;
 import com.edu.domain.fee.dto.request.FeeUpdateRequest;
 import com.edu.domain.fee.dto.response.FeeCreateResponse;
 import com.edu.domain.fee.dto.response.FeeListResponse;
+import com.edu.domain.fee.dto.response.FeeMonthlyStatResponse;
 import com.edu.domain.fee.dto.response.FeePaymentResponse;
+import com.edu.domain.fee.dto.response.FeeStatisticsResponse;
 import com.edu.domain.fee.dto.response.FeeUpdateResponse;
 import com.edu.domain.fee.mapper.FeeMapper;
 import com.edu.domain.fee.service.FeeService;
@@ -20,7 +22,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -169,6 +177,47 @@ public class FeeServiceImpl implements FeeService {
         FeeVo fee = feeMapper.selectByFeeId(payment.getFeeId());
         String statusCode = recalculateFeeStatus(fee);
         return new FeePaymentResponse(paymentId, statusCode);
+    }
+
+    /** 통계 추이 차트에 보여줄 개월 수 (기준 월 포함) */
+    private static final int STATS_MONTH_RANGE = 6;
+
+    @Override
+    public FeeStatisticsResponse getStatistics(String billingMonth, Long classId) {
+        // 기준 월: 미지정이면 이번 달, 형식이 틀리면 400
+        YearMonth targetMonth;
+        try {
+            targetMonth = (billingMonth == null || billingMonth.isBlank())
+                    ? YearMonth.now()
+                    : YearMonth.parse(billingMonth);   // "YYYY-MM" 형식 그대로 파싱됨
+        } catch (DateTimeParseException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "조회 월은 YYYY-MM 형식이어야 합니다");
+        }
+
+        // 기준 월 포함 최근 6개월 범위 (billing_month 는 문자열이라 toString 결과로 비교)
+        YearMonth fromMonth = targetMonth.minusMonths(STATS_MONTH_RANGE - 1);
+        List<FeeMonthlyStatResponse> stats =
+                feeMapper.selectMonthlyStats(fromMonth.toString(), targetMonth.toString(), classId);
+
+        // 데이터 없는 달은 SQL 결과에 행이 없으므로 0 값으로 채운다 (차트 X축이 끊기지 않게)
+        Map<String, FeeMonthlyStatResponse> statsByMonth = stats.stream()
+                .collect(Collectors.toMap(FeeMonthlyStatResponse::getBillingMonth, Function.identity()));
+
+        List<FeeMonthlyStatResponse> monthlyStats = new ArrayList<>();
+        for (YearMonth m = fromMonth; !m.isAfter(targetMonth); m = m.plusMonths(1)) {
+            String key = m.toString();
+            monthlyStats.add(statsByMonth.getOrDefault(key, FeeMonthlyStatResponse.empty(key)));
+        }
+
+        // 요약 카드 = 범위의 마지막 요소(기준 월)
+        FeeMonthlyStatResponse summary = monthlyStats.get(monthlyStats.size() - 1);
+
+        return FeeStatisticsResponse.builder()
+                .billingMonth(targetMonth.toString())
+                .classId(classId)
+                .summary(summary)
+                .monthlyStats(monthlyStats)
+                .build();
     }
 
     /**

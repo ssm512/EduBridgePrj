@@ -35,4 +35,15 @@ public class FeePageController {
         model.addAttribute("feePage", feePage);
         return "admin/fee/feeList";
     }
+
+    /**
+     * GET /admin/fees/statistics - 회비 통계/매출 화면 (SCR-W-12)
+     * 데이터는 화면 JS 가 FEE-06 API 를 fetch 해서 차트를 그린다 (서버 렌더링 아님)
+     */
+    @GetMapping("/statistics")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public String feeStatistics(Model model) {
+        model.addAttribute("title", "회비 통계/매출");
+        return "admin/fee/feeStats";
+    }
 }

@@ -8,6 +8,7 @@ import com.edu.domain.fee.dto.request.FeeUpdateRequest;
 import com.edu.domain.fee.dto.response.FeeCreateResponse;
 import com.edu.domain.fee.dto.response.FeeListResponse;
 import com.edu.domain.fee.dto.response.FeePaymentResponse;
+import com.edu.domain.fee.dto.response.FeeStatisticsResponse;
 import com.edu.domain.fee.dto.response.FeeUpdateResponse;
 import com.edu.domain.fee.service.FeeService;
 import jakarta.validation.Valid;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -54,6 +56,19 @@ public class FeeApiController {
     @ResponseStatus(HttpStatus.CREATED)
     public FeeCreateResponse createFee(@Valid @RequestBody FeeCreateRequest request) {
         return feeService.createFee(request);
+    }
+
+    /**
+     * GET /api/v1/fees/statistics - 회비 통계 (FEE-06)
+     * ?billingMonth=YYYY-MM(기본: 이번 달)&classId=
+     * 주의: /{feeId} 같은 경로 변수 매핑이 생기면 /statistics 가 먼저 매칭되는지 확인 필요
+     *      (Spring 은 정확히 일치하는 패턴을 우선하므로 현재는 문제 없음)
+     */
+    @GetMapping("/statistics")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public FeeStatisticsResponse getStatistics(@RequestParam(required = false) String billingMonth,
+                                               @RequestParam(required = false) Long classId) {
+        return feeService.getStatistics(billingMonth, classId);
     }
 
     /** PUT /api/v1/fees/{feeId} - 회비 수정 (FEE-03) */

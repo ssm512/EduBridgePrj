@@ -123,4 +123,28 @@
          WHERE payment_id = #{paymentId}
     </update>
 
+    <!-- 월별 통계 (FEE-06)
+         - billing_month 가 CHAR(7) 'YYYY-MM' 이라 BETWEEN 문자열 비교로 월 범위 조회 가능
+         - COUNT(*) FILTER (...) : PostgreSQL 조건부 집계. CASE WHEN SUM 보다 의도가 명확
+         - 데이터 없는 달은 행 자체가 없음 -> Service 에서 0 으로 채움 -->
+    <select id="selectMonthlyStats" resultType="com.edu.domain.fee.dto.response.FeeMonthlyStatResponse">
+        SELECT f.billing_month,
+               COALESCE(SUM(f.fee_amount - f.discount_amount), 0)  AS total_amount,
+               COALESCE(SUM(COALESCE(p.paid_sum, 0)), 0)           AS paid_amount,
+               COUNT(*) FILTER (WHERE f.status_code = 'PAID')      AS paid_count,
+               COUNT(*) FILTER (WHERE f.status_code = 'UNPAID')    AS unpaid_count,
+               COUNT(*) FILTER (WHERE f.status_code = 'SCHEDULED') AS scheduled_count
+          FROM fees f
+          LEFT JOIN (SELECT fee_id, SUM(paid_amount) AS paid_sum
+                       FROM fee_payments
+                      WHERE cancel_yn = 'N'
+                      GROUP BY fee_id) p ON p.fee_id = f.fee_id
+         WHERE f.billing_month BETWEEN #{fromMonth} AND #{toMonth}
+        <if test="classId != null">
+           AND f.class_id = #{classId}
+        </if>
+         GROUP BY f.billing_month
+         ORDER BY f.billing_month ASC
+    </select>
+
 </mapper>

@@ -2,6 +2,7 @@ package com.edu.domain.fee.mapper;
 
 import com.edu.domain.fee.dto.request.FeeSearchRequest;
 import com.edu.domain.fee.dto.response.FeeListResponse;
+import com.edu.domain.fee.dto.response.FeeMonthlyStatResponse;
 import com.edu.domain.fee.vo.FeePaymentVo;
 import com.edu.domain.fee.vo.FeeVo;
 import org.apache.ibatis.annotations.Mapper;
@@ -46,4 +47,9 @@ public interface FeeMapper {
 
     /** 납부 취소 - cancel_yn = 'Y' (FEE-05, 이력은 삭제하지 않는다) */
     int cancelPayment(@Param("paymentId") Long paymentId);
+
+    /** 월 범위 회비 통계 - 청구/납부 합계 + 상태별 건수, billing_month 로 GROUP BY (FEE-06) */
+    List<FeeMonthlyStatResponse> selectMonthlyStats(@Param("fromMonth") String fromMonth,
+                                                    @Param("toMonth") String toMonth,
+                                                    @Param("classId") Long classId);
 }

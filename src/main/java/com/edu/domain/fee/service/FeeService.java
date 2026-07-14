@@ -8,6 +8,7 @@ import com.edu.domain.fee.dto.request.FeeUpdateRequest;
 import com.edu.domain.fee.dto.response.FeeCreateResponse;
 import com.edu.domain.fee.dto.response.FeeListResponse;
 import com.edu.domain.fee.dto.response.FeePaymentResponse;
+import com.edu.domain.fee.dto.response.FeeStatisticsResponse;
 import com.edu.domain.fee.dto.response.FeeUpdateResponse;
 
 public interface FeeService {
@@ -26,4 +27,7 @@ public interface FeeService {
 
     /** 납부 취소 - cancel_yn 처리 + 상태 재계산 (FEE-05) */
     FeePaymentResponse cancelPayment(Long paymentId);
+
+    /** 회비 통계 - 기준 월 요약 + 최근 6개월 추이 (FEE-06) */
+    FeeStatisticsResponse getStatistics(String billingMonth, Long classId);
 }
