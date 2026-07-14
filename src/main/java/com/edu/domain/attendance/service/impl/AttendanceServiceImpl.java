@@ -194,7 +194,9 @@ public class AttendanceServiceImpl implements AttendanceService {
             }
         }
         int total = records.size();
-        double rate = total == 0 ? 0.0 : Math.round((present * 10000.0) / total) / 100.0; // 소수 둘째자리
+        // 출석률 = 온 사람(정상출석 + 지각 + 조퇴) / 전체. 결석만 제외.
+        int attended = present + late + leave;
+        double rate = total == 0 ? 0.0 : Math.round((attended * 10000.0) / total) / 100.0; // 소수 둘째자리
         return new AttendanceStatisticsResponse(present, late, absent, leave, rate);
     }
 

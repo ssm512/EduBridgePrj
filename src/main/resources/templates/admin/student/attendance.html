@@ -7,24 +7,58 @@
   <style>
     /* 다크모드에서 폼 컨트롤이 검게 칠해지는 것 방지 (라이트 강제) */
     :root { color-scheme: light; }
-    input, select, textarea { background:#fff; color:#111827; }
-    .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:18px; margin-bottom:20px; }
-    .panel h2 { margin:0 0 12px; font-size:16px; }
+    input, select, textarea { background:#fff; color:#111827; font-family:inherit; }
+    .page-sub { color:#6b7280; font-size:13px; margin:-6px 0 16px; }
+
+    .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;
+             margin-bottom:14px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .panel > h2 { margin:0 0 12px; font-size:14px; color:#1e293b; display:flex; align-items:center; gap:7px; }
+    .panel > h2::before { content:""; width:3px; height:14px; background:#1e3a8a; border-radius:2px; }
+
     .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
-    .row .f { display:flex; flex-direction:column; font-size:13px; gap:4px; }
-    .row input, .row select { padding:7px 8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#111827; }
-    .btn { padding:8px 14px; border:0; border-radius:6px; background:#1e3a8a; color:#fff; cursor:pointer; }
-    .btn.sub { background:#6b7280; color:#fff; } .btn.danger { background:#b91c1c; color:#fff; }
-    .btn.sm { padding:5px 9px; font-size:12.5px; }
-    table { width:100%; border-collapse:collapse; font-size:13.5px; }
-    th, td { border-bottom:1px solid #eef2f7; padding:8px 10px; text-align:left; vertical-align:middle; }
-    th { background:#f8fafc; color:#475569; }
-    td select, td input { padding:4px 6px; border:1px solid #cbd5e1; border-radius:5px; font-size:12.5px; background:#fff; color:#111827; }
-    .tag { padding:2px 8px; border-radius:999px; font-size:12px; }
+    .row.quick { gap:6px; }
+    .row .f { display:flex; flex-direction:column; font-size:12px; gap:4px; color:#475569; }
+    .row input, .row select { padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px;
+                              background:#fff; color:#111827; min-width:140px; font-size:13px; }
+    .row input:focus, .row select:focus { outline:2px solid #c7d2fe; border-color:#6366f1; }
+
+    .btn { padding:7px 13px; border:0; border-radius:7px; background:#1e3a8a; color:#fff;
+           cursor:pointer; font-size:13px; font-weight:600; transition:filter .12s; }
+    .btn:hover { filter:brightness(1.12); }
+    .btn.sub { background:#64748b; color:#fff; }
+    .btn.danger { background:#dc2626; color:#fff; }
+    .btn.sm { padding:4px 9px; font-size:11.5px; font-weight:500; }
+
+    .tbl-wrap { border:1px solid #eef2f7; border-radius:8px; overflow:hidden; margin-top:2px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { padding:7px 10px; text-align:left; vertical-align:middle; }
+    thead th { background:#f8fafc; color:#64748b; font-size:11.5px; font-weight:600;
+               letter-spacing:.02em; border-bottom:1px solid #e5e7eb; }
+    tbody tr { border-bottom:1px solid #f1f5f9; }
+    tbody tr:last-child { border-bottom:0; }
+    tbody tr:nth-child(even) { background:#fcfcfd; }
+    tbody tr:hover { background:#f5f8ff; }
+    td select, td input { padding:4px 6px; border:1px solid #cbd5e1; border-radius:6px;
+                          font-size:11.5px; background:#fff; color:#111827; }
+    .muted { color:#9ca3af; }
+
+    .manage { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+    .manage .lbl { color:#94a3b8; font-size:11px; }
+
+    .stat-cards { display:flex; gap:8px; flex-wrap:wrap; }
+    .stat { flex:1; min-width:84px; background:#f8fafc; border:1px solid #eef2f7;
+            border-radius:8px; padding:10px 8px; text-align:center; }
+    .stat .num { font-size:20px; font-weight:700; line-height:1.1; }
+    .stat .lbl2 { font-size:11.5px; color:#64748b; margin-top:3px; }
+    .stat .lbl2 .muted { font-size:9.5px; display:block; }
+
+    .tag { padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
     .PRESENT{background:#dcfce7;color:#166534;} .LATE{background:#fef9c3;color:#854d0e;}
     .ABSENT{background:#fee2e2;color:#991b1b;} .LEAVE{background:#e0e7ff;color:#3730a3;}
-    .note { font-size:12.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:8px 10px; border-radius:6px; margin-bottom:8px; }
-    #msg { font-size:13px; margin-top:8px; }
+
+    .note { font-size:12.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a;
+            padding:8px 10px; border-radius:8px; margin-bottom:8px; }
+    #msg { font-size:13px; margin-top:10px; font-weight:500; }
   </style>
 </head>
 <body>
@@ -53,6 +87,7 @@
 
   <main class="content">
     <h1>출석관리</h1>
+    <p class="page-sub">반별 출석부로 등록·결석 처리하고, 아래에서 출석 이력을 조회·수정할 수 있어요.</p>
 
     <!-- 반 출석부 (반 선택 → 명단 → 상태/시간 저장) -->
     <div class="panel">
@@ -67,35 +102,70 @@
         <button class="btn sub" onclick="markAbsent()">결석 일괄 처리</button>
       </div>
       <div id="rosterNote"></div>
-      <table>
-        <thead><tr><th>학생</th><th>상태</th><th>입실</th><th>퇴실</th><th>저장</th></tr></thead>
-        <tbody id="roster">
-          <tr><td colspan="5" style="color:#9ca3af;">반을 고르고 명단을 불러오세요.</td></tr>
-        </tbody>
-      </table>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>학생</th><th>상태</th><th>입실</th><th>퇴실</th><th>저장</th></tr></thead>
+          <tbody id="roster">
+            <tr><td colspan="5" class="muted">반을 고르고 명단을 불러오세요.</td></tr>
+          </tbody>
+        </table>
+      </div>
       <div id="msg"></div>
+    </div>
+
+    <!-- 출석 통계 -->
+    <div class="panel">
+      <h2>출석 통계</h2>
+      <div class="row" style="margin-bottom:14px;">
+        <div class="f"><label>반</label>
+          <select id="s_classSel"><option value="">전체</option></select>
+        </div>
+        <div class="f"><label>시작일</label><input id="s_from" type="date"></div>
+        <div class="f"><label>종료일</label><input id="s_to" type="date"></div>
+        <button class="btn" onclick="loadStats()">통계 조회</button>
+      </div>
+      <div class="row quick" style="margin-bottom:12px;">
+        <button class="btn sub sm" onclick="setRange('today')">오늘</button>
+        <button class="btn sub sm" onclick="setRange('week')">이번주</button>
+        <button class="btn sub sm" onclick="setRange('month')">이번달</button>
+        <button class="btn sub sm" onclick="setRange('3m')">3개월</button>
+      </div>
+      <div id="statCards" class="stat-cards">
+        <div class="muted" style="font-size:13px;">반·기간을 고르고 통계를 조회하세요.</div>
+      </div>
     </div>
 
     <!-- 출석 이력 -->
     <div class="panel">
       <h2>출석 이력</h2>
-      <div class="row" style="margin-bottom:12px;">
+      <div class="row" style="margin-bottom:10px;">
         <div class="f"><label>반</label>
           <select id="q_classSel"><option value="">전체</option></select>
         </div>
         <div class="f"><label>학생 이름</label>
           <input id="q_keyword" placeholder="이름 일부 검색" onkeydown="if(event.key==='Enter')loadHistory()">
         </div>
+        <div class="f"><label>시작일</label><input id="q_from" type="date"></div>
+        <div class="f"><label>종료일</label><input id="q_to" type="date"></div>
         <button class="btn sub" onclick="loadHistory()">조회</button>
       </div>
-      <table>
-        <thead>
-          <tr><th>학생</th><th>반</th><th>날짜</th><th>상태</th><th>유형</th><th>입실/퇴실 · 관리</th></tr>
-        </thead>
-        <tbody id="tbody">
-          <tr><td colspan="6" style="color:#9ca3af;">조회를 눌러 이력을 불러오세요.</td></tr>
-        </tbody>
-      </table>
+      <div class="row quick" style="margin-bottom:12px;">
+        <button class="btn sub sm" onclick="setHistRange('today')">오늘</button>
+        <button class="btn sub sm" onclick="setHistRange('week')">이번주</button>
+        <button class="btn sub sm" onclick="setHistRange('month')">이번달</button>
+        <button class="btn sub sm" onclick="setHistRange('3m')">3개월</button>
+        <button class="btn sub sm" onclick="document.getElementById('q_from').value='';document.getElementById('q_to').value='';loadHistory()">전체기간</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>학생</th><th>반</th><th>날짜</th><th>상태</th><th>유형</th><th>입실/퇴실 · 관리</th></tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="6" class="muted">조회를 눌러 이력을 불러오세요.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </main>
 </div>
@@ -111,6 +181,48 @@
 
   // "yyyy-MM-dd HH:mm:ss" → datetime-local 값 "yyyy-MM-ddTHH:mm"
   function toInput(s) { return s ? s.replace(' ', 'T').slice(0,16) : ''; }
+  // "2026-07-14" → "2026-07-14(화)"
+  const WEEKDAYS = ['일','월','화','수','목','금','토'];
+  function fmtDate(d) {
+    if (!d) return '';
+    const dt = new Date(d + 'T00:00:00');
+    return isNaN(dt) ? d : `${d}(${WEEKDAYS[dt.getDay()]})`;
+  }
+  function checkTypeName(t) { return t === 'AUTO' ? '자동' : t === 'MANUAL' ? '수동' : (t ?? ''); }
+  // 로컬 기준 yyyy-MM-dd (toISOString은 UTC라 하루 밀릴 수 있어 사용 안 함)
+  function ymd(d) {
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  // 빠른 기간: 오늘 / 이번주(월~일) / 이번달(1일~말일) / 3개월(오늘~3개월전)
+  function rangeDates(kind) {
+    const now = new Date();
+    let from = new Date(now), to = new Date(now);
+    if (kind === 'week') {
+      const mon = (now.getDay() + 6) % 7;               // 월요일=0
+      from = new Date(now); from.setDate(now.getDate() - mon);
+      to = new Date(from);  to.setDate(from.getDate() + 6);
+    } else if (kind === 'month') {
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      to   = new Date(now.getFullYear(), now.getMonth() + 1, 0); // 말일
+    } else if (kind === '3m') {
+      from = new Date(now); from.setMonth(now.getMonth() - 3);
+      to = new Date(now);
+    }
+    return { from, to };
+  }
+  function setRange(kind) {
+    const r = rangeDates(kind);
+    document.getElementById('s_from').value = ymd(r.from);
+    document.getElementById('s_to').value = ymd(r.to);
+    loadStats();
+  }
+  function setHistRange(kind) {
+    const r = rangeDates(kind);
+    document.getElementById('q_from').value = ymd(r.from);
+    document.getElementById('q_to').value = ymd(r.to);
+    loadHistory();
+  }
   function statusOptions(sel) {
     return STATUSES.map(([v,l]) => `<option value="${v}" ${v===sel?'selected':''}>${l}</option>`).join('');
   }
@@ -125,8 +237,9 @@
       const opts = list.map(c => `<option value="${c.classId}">${c.className ?? ('반 '+c.classId)}</option>`).join('');
       // 출석부 드롭다운
       document.getElementById('classSel').innerHTML = opts || '<option value="">등록된 반 없음</option>';
-      // 이력 필터 반 드롭다운 (전체 + 반들)
+      // 이력 필터 / 통계 반 드롭다운 (전체 + 반들)
       document.getElementById('q_classSel').innerHTML = '<option value="">전체</option>' + opts;
+      document.getElementById('s_classSel').innerHTML = '<option value="">전체</option>' + opts;
     } catch (e) {
       // API 접근 실패 시 폴백 (권한/네트워크)
       document.getElementById('classPickWrap').innerHTML =
@@ -193,7 +306,7 @@
   // 결석 일괄 처리 (POST /api/attendance/mark-absent)
   async function markAbsent() {
     const classId = Number(document.getElementById('classSel').value);
-    const date = document.getElementById('sheetDate').value || new Date().toISOString().slice(0, 10);
+    const date = document.getElementById('sheetDate').value || ymd(new Date());
     const msg = document.getElementById('msg');
     if (!classId) { msg.textContent = '반을 먼저 선택/입력하세요.'; msg.style.color = '#b91c1c'; return; }
     if (!confirm(`이 반의 ${date} 미출석 학생을 모두 결석 처리할까요?`)) return;
@@ -213,30 +326,71 @@
     }
   }
 
+  // 출석 통계 (GET /api/attendance/statistics)
+  async function loadStats() {
+    const c = document.getElementById('s_classSel').value;
+    const from = document.getElementById('s_from').value;
+    const to = document.getElementById('s_to').value;
+    const qs = new URLSearchParams();
+    if (c) qs.append('classId', c);
+    if (from) qs.append('fromDate', from);
+    if (to) qs.append('toDate', to);
+    const box = document.getElementById('statCards');
+    const res = await fetch('/api/attendance/statistics?' + qs.toString());
+    if (!res.ok) { box.innerHTML = `<div class="muted">통계 조회 실패 (${res.status})</div>`; return; }
+    const s = await res.json();
+    const present=s.present||0, late=s.late||0, absent=s.absent||0, leave=s.leave||0;
+    const total = present+late+absent+leave;
+    const came = present+late+leave; // 출석 = 정상출석 + 지각 + 조퇴
+    const lateRate = total ? Math.round(late * 10000 / total) / 100 : 0; // 지각율 = 지각 / 전체
+    box.innerHTML = `
+      <div class="stat"><div class="num" style="color:#166534">${came}</div><div class="lbl2">출석 <span class="muted">(지각·조퇴 포함)</span></div></div>
+      <div class="stat"><div class="num" style="color:#854d0e">${late}</div><div class="lbl2">지각</div></div>
+      <div class="stat"><div class="num" style="color:#3730a3">${leave}</div><div class="lbl2">조퇴</div></div>
+      <div class="stat"><div class="num" style="color:#991b1b">${absent}</div><div class="lbl2">결석</div></div>
+      <div class="stat"><div class="num" style="color:#1e3a8a">${s.attendanceRate ?? 0}%</div><div class="lbl2">출석률</div></div>
+      <div class="stat"><div class="num" style="color:#854d0e">${lateRate}%</div><div class="lbl2">지각율</div></div>
+      <div class="stat"><div class="num" style="color:#64748b">${total}</div><div class="lbl2">총 건수</div></div>`;
+  }
+
   async function loadHistory() {
     const kw = document.getElementById('q_keyword').value.trim();
     const c = document.getElementById('q_classSel').value;
+    const from = document.getElementById('q_from').value;
+    const to = document.getElementById('q_to').value;
     const qs = new URLSearchParams();
     if (kw) qs.append('keyword', kw);
     if (c) qs.append('classId', c);
+    if (from) qs.append('fromDate', from);
+    if (to) qs.append('toDate', to);
     const res = await fetch('/api/attendance?' + qs.toString());
     const tbody = document.getElementById('tbody');
     if (!res.ok) { tbody.innerHTML = `<tr><td colspan="6">조회 실패 (${res.status})</td></tr>`; return; }
     const list = await res.json();
     if (!list.length) { tbody.innerHTML = `<tr><td colspan="6" style="color:#9ca3af;">기록 없음</td></tr>`; return; }
+    list.map(a => {
+        switch (a.statusCode) {
+            case "ABSENT"  : a.statusName = "결석"; break;
+            case "PRESENT" : a.statusName = "출석"; break;
+            case "LATE"    : a.statusName = "지각"; break;
+            case "LEAVE"   : a.statusName = "조퇴"; break;
+        }
+    });
     tbody.innerHTML = list.map(a => `
       <tr>
-        <td>${a.studentName ?? ('#'+(a.studentId ?? ''))}</td>
+        <td><b>${a.studentName ?? ('#'+(a.studentId ?? ''))}</b></td>
         <td>${a.className ?? ('#'+(a.classId ?? ''))}</td>
-        <td>${a.attendanceDate ?? ''}</td>
-        <td><span class="tag ${a.statusCode ?? ''}">${a.statusCode ?? ''}</span></td>
-        <td>${a.checkType ?? ''}</td>
+        <td>${fmtDate(a.attendanceDate)}</td>
+        <td><span class="tag ${a.statusCode ?? ''}">${a.statusName ?? ''}</span></td>
+        <td>${checkTypeName(a.checkType)}</td>
         <td>
-          <select class="e-status">${statusOptions(a.statusCode)}</select>
-          입실 <input type="datetime-local" class="e-in" value="${toInput(a.checkedAt)}">
-          퇴실 <input type="datetime-local" class="e-out" value="${toInput(a.checkOutAt)}">
-          <button class="btn sm" onclick="updateRow(this, ${a.attendanceId})">수정</button>
-          <button class="btn sm danger" onclick="deleteRow(${a.attendanceId})">삭제</button>
+          <div class="manage">
+            <select class="e-status">${statusOptions(a.statusCode)}</select>
+            <span class="lbl">입실</span><input type="datetime-local" class="e-in" value="${toInput(a.checkedAt)}">
+            <span class="lbl">퇴실</span><input type="datetime-local" class="e-out" value="${toInput(a.checkOutAt)}">
+            <button class="btn sm" onclick="updateRow(this, ${a.attendanceId})">수정</button>
+            <button class="btn sm danger" onclick="deleteRow(${a.attendanceId})">삭제</button>
+          </div>
         </td>
       </tr>`).join('');
   }
@@ -266,9 +420,10 @@
   }
 
   // 날짜는 기본 오늘 (보통 그대로 두고, 지난 날짜 보정 시에만 변경)
-  document.getElementById('sheetDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('sheetDate').value = ymd(new Date());
   loadClasses();
   loadHistory();
+  loadStats();
 </script>
 </body>
 </html>
