@@ -105,6 +105,24 @@ public class GradeController {
         return gradeMapper.selectGradeTrend(studentId, subject);
     }
 
+    // 반 평균 조회
+    // classId를 비우면 전체 반 평균을 조회하고, subject를 입력하면 해당 과목만 평균에 포함한다.
+    @GetMapping("/grades/class-averages")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    public List<Map<String, Object>> classAverageStats(@RequestParam(required = false) Long classId,
+                                                       @RequestParam(required = false) String subject) {
+        return gradeMapper.selectClassAverageStats(classId, subject);
+    }
+
+    // 과목별 성적 조회
+    // subject 기준으로 시험, 반, 학생별 성적 목록을 조회한다.
+    @GetMapping("/grades/subjects")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    public List<Map<String, Object>> gradesBySubject(@RequestParam String subject,
+                                                     @RequestParam(required = false) Long classId) {
+        return gradeMapper.selectGradesBySubject(subject, classId);
+    }
+
     // 선택한 시험의 수강 학생 목록과 성적 입력 상태 조회
     @GetMapping("/exams/{examId}/students")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")

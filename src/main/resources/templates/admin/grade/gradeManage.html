@@ -350,6 +350,87 @@
         </section>
 
         <section class="grade-panel">
+            <h2>과목별 성적 조회</h2>
+
+            <div class="grade-layout">
+                <div>
+                    <div class="form-row">
+                        <label for="subjectGradeSubject">과목</label>
+                        <input id="subjectGradeSubject" placeholder="예: 수학">
+                    </div>
+                </div>
+                <div>
+                    <div class="form-row">
+                        <label for="subjectGradeClassId">반 ID</label>
+                        <input id="subjectGradeClassId" placeholder="비워두면 전체 반">
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button class="grade-btn" onclick="loadGradesBySubject()">과목별 조회</button>
+            </div>
+
+            <div class="table-wrap">
+                <table class="grade-table">
+                    <thead>
+                    <tr>
+                        <th>과목</th>
+                        <th>시험명</th>
+                        <th>반</th>
+                        <th>학생명</th>
+                        <th>점수</th>
+                        <th>만점</th>
+                        <th>석차</th>
+                        <th>시험일시</th>
+                    </tr>
+                    </thead>
+                    <tbody id="subjectGradeList"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="grade-panel">
+            <h2>반 평균 조회</h2>
+
+            <div class="grade-layout">
+                <div>
+                    <div class="form-row">
+                        <label for="classAverageClassId">반 ID</label>
+                        <input id="classAverageClassId" placeholder="비워두면 전체 반">
+                    </div>
+                </div>
+                <div>
+                    <div class="form-row">
+                        <label for="classAverageSubject">과목</label>
+                        <input id="classAverageSubject" placeholder="비워두면 전체 과목">
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button class="grade-btn" onclick="loadClassAverageStats()">평균 조회</button>
+            </div>
+
+            <div class="table-wrap">
+                <table class="grade-table">
+                    <thead>
+                    <tr>
+                        <th>반 ID</th>
+                        <th>반</th>
+                        <th>성적 수</th>
+                        <th>평균점수</th>
+                        <th>최고점</th>
+                        <th>최저점</th>
+                        <th>평균비율</th>
+                    </tr>
+                    </thead>
+                    <tbody id="classAverageList"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="grade-panel">
             <h2>성적 추이 조회</h2>
 
             <div class="grade-layout">
@@ -835,6 +916,102 @@
                     <td>${row.score}</td>
                     <td>${row.rank_no || ''}</td>
                     <td>${escapeHtml(row.comment || '')}</td>
+                </tr>
+            `;
+        });
+    }
+
+    // 과목별 성적 조회
+    // 과목명은 필수이고, 반 ID는 입력한 경우에만 추가 필터로 사용한다.
+    async function loadGradesBySubject() {
+        const subject = document.getElementById('subjectGradeSubject').value;
+        const classId = document.getElementById('subjectGradeClassId').value;
+        const tbody = document.getElementById('subjectGradeList');
+
+        if (!subject) {
+            setStatus('과목별 성적을 조회할 과목을 입력하세요.', true);
+            return;
+        }
+
+        const params = new URLSearchParams();
+        params.append('subject', subject);
+        if (classId) {
+            params.append('classId', classId);
+        }
+
+        const res = await fetch('/api/grades/subjects?' + params.toString());
+
+        if (!res.ok) {
+            setStatus('과목별 성적 조회에 실패했습니다. 과목과 반 ID 입력값을 확인해주세요.', true);
+            return;
+        }
+
+        const data = await res.json();
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-row">조회된 과목별 성적이 없습니다.</td></tr>';
+            return;
+        }
+
+        data.forEach(row => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${escapeHtml(row.subject || '')}</td>
+                    <td>${escapeHtml(row.exam_name || '')}</td>
+                    <td>${escapeHtml(row.class_name || '')}</td>
+                    <td>${escapeHtml(row.student_name || '')}</td>
+                    <td>${row.score}</td>
+                    <td>${row.total_score}</td>
+                    <td>${row.rank_no || ''}</td>
+                    <td>${row.exam_date}</td>
+                </tr>
+            `;
+        });
+    }
+
+    // 반 평균 조회
+    // 반 ID를 비우면 전체 반을 조회하고, 과목을 입력하면 해당 과목 시험만 평균 계산에 사용한다.
+    async function loadClassAverageStats() {
+        const classId = document.getElementById('classAverageClassId').value;
+        const subject = document.getElementById('classAverageSubject').value;
+        const tbody = document.getElementById('classAverageList');
+
+        const params = new URLSearchParams();
+        if (classId) {
+            params.append('classId', classId);
+        }
+        if (subject) {
+            params.append('subject', subject);
+        }
+
+        const queryString = params.toString();
+        const url = '/api/grades/class-averages' + (queryString ? '?' + queryString : '');
+        const res = await fetch(url);
+
+        if (!res.ok) {
+            setStatus('반 평균 조회에 실패했습니다. 반 ID와 과목 입력값을 확인해주세요.', true);
+            return;
+        }
+
+        const data = await res.json();
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-row">조회된 반 평균이 없습니다.</td></tr>';
+            return;
+        }
+
+        data.forEach(row => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${row.class_id}</td>
+                    <td>${escapeHtml(row.class_name)}</td>
+                    <td>${row.grade_count}</td>
+                    <td>${row.average_score ?? '-'}</td>
+                    <td>${row.highest_score ?? '-'}</td>
+                    <td>${row.lowest_score ?? '-'}</td>
+                    <td>${row.average_rate == null ? '-' : row.average_rate + '%'}</td>
                 </tr>
             `;
         });

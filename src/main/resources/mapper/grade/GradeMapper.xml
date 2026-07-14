@@ -143,6 +143,69 @@
     </select>
 
     <!--
+        반 평균 조회
+        반별 평균 점수, 최고점, 최저점, 입력된 성적 수를 함께 조회
+    -->
+    <select id="selectClassAverageStats" resultType="hashmap">
+        SELECT c.class_id,                                              -- 반 ID
+        c.class_name,                                                   -- 반 이름
+        COUNT(g.grade_id) AS grade_count,                               -- 입력된 성적 수
+        ROUND(AVG(g.score), 1) AS average_score,                        -- 평균 점수
+        MAX(g.score) AS highest_score,                                  -- 최고점
+        MIN(g.score) AS lowest_score,                                   -- 최저점
+        ROUND(AVG((g.score / NULLIF(e.total_score, 0)) * 100), 1)
+        AS average_rate                                                 -- 만점 대비 평균 비율
+        FROM classes c
+        JOIN exams e ON e.class_id = c.class_id
+        JOIN grades g ON g.exam_id = e.exam_id
+        <where>
+            <if test="classId != null">
+                c.class_id = #{classId}
+            </if>
+            <if test="subject != null and subject != ''">
+                AND e.subject ILIKE CONCAT('%', #{subject}, '%')
+            </if>
+        </where>
+        GROUP BY c.class_id, c.class_name
+        ORDER BY c.class_name
+    </select>
+
+    <!--
+        과목별 성적 조회
+        과목명 기준으로 입력된 학생별 성적 목록을 조회
+    -->
+    <select id="selectGradesBySubject" resultType="hashmap">
+        SELECT e.subject,       -- 과목명
+        e.exam_id,              -- 시험 ID
+        e.exam_name,            -- 시험명
+        e.exam_date,            -- 시험일시
+        e.total_score,          -- 만점
+        c.class_id,             -- 반 ID
+        c.class_name,           -- 반 이름
+        g.grade_id,             -- 성적 ID
+        g.student_id,           -- 학생 ID
+        u.name AS student_name, -- 학생 이름
+        s.student_no,           -- 학생 관리번호
+        g.score,                -- 점수
+        g.rank_no,              -- 석차
+        g.comment               -- 비고
+        FROM grades g
+        JOIN exams e ON e.exam_id = g.exam_id
+        JOIN classes c ON c.class_id = e.class_id
+        JOIN students s ON s.student_id = g.student_id
+        JOIN users u ON u.user_id = s.user_id
+        <where>
+            <if test="subject != null and subject != ''">
+                e.subject ILIKE CONCAT('%', #{subject}, '%')
+            </if>
+            <if test="classId != null">
+                AND e.class_id = #{classId}
+            </if>
+        </where>
+        ORDER BY e.subject, e.exam_date DESC, e.exam_id DESC, c.class_name, u.name
+    </select>
+
+    <!--
     선택한 시험의 수강 학생 목록과 기존 성적 조회
     성적이 아직 없는 학생도 입력할 수 있도록 grades는 LEFT JOIN 처리
     -->
