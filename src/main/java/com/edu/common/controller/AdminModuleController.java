@@ -40,9 +40,6 @@ public class AdminModuleController {
     @GetMapping("/notices")       // 담당 도메인: notice
     public String notices(Model model)        { return placeholder(model, "공지관리", "com.edu.domain.notice"); }
 
-    @GetMapping("/counseling")    // 담당 도메인: counseling
-    public String counseling(Model model)     { return placeholder(model, "상담관리", "com.edu.domain.counseling"); }
-
     @GetMapping("/dashboard")     // 담당 도메인: dashboard
     public String dashboard(Model model)      { return placeholder(model, "대시보드", "com.edu.domain.dashboard"); }
 
