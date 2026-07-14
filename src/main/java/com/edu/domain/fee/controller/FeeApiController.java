@@ -2,16 +2,22 @@ package com.edu.domain.fee.controller;
 
 import com.edu.common.dto.PageResponse;
 import com.edu.domain.fee.dto.request.FeeCreateRequest;
+import com.edu.domain.fee.dto.request.FeePaymentRequest;
 import com.edu.domain.fee.dto.request.FeeSearchRequest;
+import com.edu.domain.fee.dto.request.FeeUpdateRequest;
 import com.edu.domain.fee.dto.response.FeeCreateResponse;
 import com.edu.domain.fee.dto.response.FeeListResponse;
+import com.edu.domain.fee.dto.response.FeePaymentResponse;
+import com.edu.domain.fee.dto.response.FeeUpdateResponse;
 import com.edu.domain.fee.service.FeeService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -48,5 +54,22 @@ public class FeeApiController {
     @ResponseStatus(HttpStatus.CREATED)
     public FeeCreateResponse createFee(@Valid @RequestBody FeeCreateRequest request) {
         return feeService.createFee(request);
+    }
+
+    /** PUT /api/v1/fees/{feeId} - 회비 수정 (FEE-03) */
+    @PutMapping("/{feeId}")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public FeeUpdateResponse updateFee(@PathVariable Long feeId,
+                                       @Valid @RequestBody FeeUpdateRequest request) {
+        return feeService.updateFee(feeId, request);
+    }
+
+    /** POST /api/v1/fees/{feeId}/payments - 납부 처리 (FEE-04) */
+    @PostMapping("/{feeId}/payments")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @ResponseStatus(HttpStatus.CREATED)
+    public FeePaymentResponse payFee(@PathVariable Long feeId,
+                                     @Valid @RequestBody FeePaymentRequest request) {
+        return feeService.payFee(feeId, request);
     }
 }

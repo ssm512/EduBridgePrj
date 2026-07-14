@@ -31,11 +31,20 @@
                f.fee_amount - f.discount_amount    AS billable_amount,
                f.due_date,
                f.status_code,
-               f.description
+               f.description,
+               p.last_payment_id,
+               COALESCE(p.paid_sum, 0)             AS paid_sum
           FROM fees f
           JOIN students s  ON s.student_id = f.student_id
           JOIN users u     ON u.user_id    = s.user_id
           LEFT JOIN classes c ON c.class_id = f.class_id
+          <!-- 유효 납부 이력을 fee 단위로 집계: 최근 이력 PK(취소 버튼용) + 납부 합계(잔액 표시용) -->
+          LEFT JOIN (SELECT fee_id,
+                            MAX(payment_id)  AS last_payment_id,
+                            SUM(paid_amount) AS paid_sum
+                       FROM fee_payments
+                      WHERE cancel_yn = 'N'
+                      GROUP BY fee_id) p ON p.fee_id = f.fee_id
         <include refid="feeSearchCondition"/>
          ORDER BY f.billing_month DESC, f.due_date ASC, f.fee_id ASC
          LIMIT #{size} OFFSET #{offset}
@@ -71,5 +80,47 @@
           FROM fees
          WHERE fee_id = #{feeId}
     </select>
+
+    <update id="updateFee">
+        UPDATE fees
+           SET fee_amount      = #{feeAmount},
+               discount_amount = #{discountAmount},
+               due_date        = #{dueDate},
+               description     = #{description},
+               status_code     = #{statusCode}
+         WHERE fee_id = #{feeId}
+    </update>
+
+    <update id="updateFeeStatus">
+        UPDATE fees
+           SET status_code = #{statusCode}
+         WHERE fee_id = #{feeId}
+    </update>
+
+    <insert id="insertPayment" useGeneratedKeys="true" keyProperty="paymentId" keyColumn="payment_id">
+        INSERT INTO fee_payments (fee_id, paid_amount, paid_at, payment_method, cancel_yn)
+        VALUES (#{feeId}, #{paidAmount}, #{paidAt}, #{paymentMethod}, 'N')
+    </insert>
+
+    <select id="selectPaymentByPaymentId" resultType="com.edu.domain.fee.vo.FeePaymentVo">
+        SELECT payment_id, fee_id, paid_amount, paid_at, payment_method,
+               receipt_no, cancel_yn, created_at
+          FROM fee_payments
+         WHERE payment_id = #{paymentId}
+    </select>
+
+    <!-- 취소분 제외한 유효 납부 합계. 납부 이력이 없으면 0 -->
+    <select id="sumPaidAmountByFeeId" resultType="long">
+        SELECT COALESCE(SUM(paid_amount), 0)
+          FROM fee_payments
+         WHERE fee_id    = #{feeId}
+           AND cancel_yn = 'N'
+    </select>
+
+    <update id="cancelPayment">
+        UPDATE fee_payments
+           SET cancel_yn = 'Y'
+         WHERE payment_id = #{paymentId}
+    </update>
 
 </mapper>

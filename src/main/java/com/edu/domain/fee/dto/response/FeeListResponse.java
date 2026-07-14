@@ -52,4 +52,17 @@ public class FeeListResponse {
 
     /** 비고 */
     private String description;
+
+    /** 가장 최근 유효 납부 이력 PK - 납부 취소 버튼용, 없으면 null (SQL 집계) */
+    private Long lastPaymentId;
+
+    /** 유효 납부 합계 (취소분 제외, 없으면 0 - SQL COALESCE) */
+    private Long paidSum;
+
+    /** 남은 금액 = 실 청구액 - 유효 납부 합계 */
+    public Long getRemainingAmount() {
+        long billable = billableAmount == null ? 0L : billableAmount;
+        long paid = paidSum == null ? 0L : paidSum;
+        return billable - paid;
+    }
 }

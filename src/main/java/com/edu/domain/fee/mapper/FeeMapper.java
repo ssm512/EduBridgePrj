@@ -2,6 +2,7 @@ package com.edu.domain.fee.mapper;
 
 import com.edu.domain.fee.dto.request.FeeSearchRequest;
 import com.edu.domain.fee.dto.response.FeeListResponse;
+import com.edu.domain.fee.vo.FeePaymentVo;
 import com.edu.domain.fee.vo.FeeVo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -27,4 +28,22 @@ public interface FeeMapper {
     boolean existsFee(@Param("studentId") Long studentId,
                       @Param("billingMonth") String billingMonth,
                       @Param("classId") Long classId);
+
+    /** 회비 수정 - 금액/할인/기한/비고/상태 (FEE-03) */
+    int updateFee(FeeVo fee);
+
+    /** 회비 상태만 변경 - 납부 처리/취소 후 상태 재계산용 */
+    int updateFeeStatus(@Param("feeId") Long feeId, @Param("statusCode") String statusCode);
+
+    /** 납부 이력 저장 (FEE-04) */
+    int insertPayment(FeePaymentVo payment);
+
+    /** 납부 이력 단건 조회 */
+    FeePaymentVo selectPaymentByPaymentId(@Param("paymentId") Long paymentId);
+
+    /** 유효 납부 합계 - 취소되지 않은 납부 금액 합 */
+    long sumPaidAmountByFeeId(@Param("feeId") Long feeId);
+
+    /** 납부 취소 - cancel_yn = 'Y' (FEE-05, 이력은 삭제하지 않는다) */
+    int cancelPayment(@Param("paymentId") Long paymentId);
 }
