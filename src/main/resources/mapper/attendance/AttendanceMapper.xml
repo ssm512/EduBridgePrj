@@ -105,4 +105,38 @@
         LIMIT 1
     </select>
 
+    <!-- 로그인 ID → student_id (본인 확인) -->
+    <select id="findStudentIdByLoginId" resultType="long">
+        SELECT s.student_id
+        FROM students s
+        JOIN users u ON s.user_id = u.user_id
+        WHERE u.login_id = #{loginId}
+    </select>
+
+    <!-- 로그인 학생의 수강 중(ACTIVE) 반 목록 -->
+    <select id="findMyClasses" resultType="com.edu.domain.attendance.dto.response.ClassOptionResponse">
+        SELECT c.class_id AS classId, c.class_name AS className
+        FROM enrollments e
+        JOIN classes  c ON e.class_id   = c.class_id
+        JOIN students s ON e.student_id = s.student_id
+        JOIN users    u ON s.user_id    = u.user_id
+        WHERE u.login_id = #{loginId}
+          AND e.status_code = 'ACTIVE'
+        ORDER BY c.class_id
+    </select>
+
+    <!-- 결석 대상: 해당 반 ACTIVE 수강생 중 그 날짜 출석 기록 없는 학생 -->
+    <select id="findAbsentCandidates" resultType="long">
+        SELECT e.student_id
+        FROM enrollments e
+        WHERE e.class_id = #{classId}
+          AND e.status_code = 'ACTIVE'
+          AND NOT EXISTS (
+              SELECT 1 FROM attendance_records ar
+              WHERE ar.student_id = e.student_id
+                AND ar.class_id   = e.class_id
+                AND ar.attendance_date = #{date}
+          )
+    </select>
+
 </mapper>

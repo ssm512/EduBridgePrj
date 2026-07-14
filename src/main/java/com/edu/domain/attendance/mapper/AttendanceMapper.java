@@ -64,4 +64,15 @@ public interface AttendanceMapper {
 
     /** 반의 활성 등록 비콘 조회 — 비콘 검증용 (없으면 null → 검증 생략) */
     BeaconView findActiveBeaconByClass(@Param("classId") Long classId);
+
+    /** 로그인 ID로 student_id 조회 (본인 확인용, 없으면 null) */
+    Long findStudentIdByLoginId(@Param("loginId") String loginId);
+
+    /** 로그인한 학생이 수강 중인 반 목록 (출석 대상 선택용) */
+    java.util.List<com.edu.domain.attendance.dto.response.ClassOptionResponse>
+            findMyClasses(@Param("loginId") String loginId);
+
+    /** 결석 대상: 해당 반의 ACTIVE 수강생 중 그 날짜에 출석 기록이 없는 student_id 목록 */
+    java.util.List<Long> findAbsentCandidates(@Param("classId") Long classId,
+                                              @Param("date") java.time.LocalDate date);
 }

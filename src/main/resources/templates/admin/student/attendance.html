@@ -42,6 +42,7 @@
         </div>
         <div class="f"><label>날짜</label><input id="sheetDate" type="date"></div>
         <button class="btn" onclick="loadRoster()">명단 불러오기</button>
+        <button class="btn sub" onclick="markAbsent()">결석 일괄 처리</button>
       </div>
       <div id="rosterNote"></div>
       <table>
@@ -156,6 +157,29 @@
     });
     if (res.ok) { msg.textContent = `학생 ${studentId} 저장됨`; msg.style.color='#166534'; loadHistory(); }
     else { const d = await res.json().catch(()=>({})); msg.textContent = `저장 실패 (${res.status}): ${d.message||''}`; msg.style.color='#b91c1c'; }
+  }
+
+  // 결석 일괄 처리 (POST /api/attendance/mark-absent)
+  async function markAbsent() {
+    const classId = Number(document.getElementById('classSel').value);
+    const date = document.getElementById('sheetDate').value || new Date().toISOString().slice(0, 10);
+    const msg = document.getElementById('msg');
+    if (!classId) { msg.textContent = '반을 먼저 선택/입력하세요.'; msg.style.color = '#b91c1c'; return; }
+    if (!confirm(`이 반의 ${date} 미출석 학생을 모두 결석 처리할까요?`)) return;
+    const token = await ensureCsrf();
+    const res = await fetch('/api/attendance/mark-absent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': token },
+      body: JSON.stringify({ classId, date })
+    });
+    if (res.ok) {
+      const d = await res.json();
+      msg.textContent = `결석 처리 완료: ${d.markedAbsent}명`; msg.style.color = '#166534';
+      loadHistory();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      msg.textContent = `결석 처리 실패 (${res.status}): ${d.message || ''}`; msg.style.color = '#b91c1c';
+    }
   }
 
   async function loadHistory() {

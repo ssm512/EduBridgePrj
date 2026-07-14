@@ -7,6 +7,7 @@ import com.edu.domain.attendance.dto.request.AttendanceUpdateRequest;
 import com.edu.domain.attendance.dto.request.ManualAttendanceRequest;
 import com.edu.domain.attendance.dto.response.AttendanceResponse;
 import com.edu.domain.attendance.dto.response.AttendanceStatisticsResponse;
+import com.edu.domain.attendance.dto.response.ClassOptionResponse;
 import com.edu.domain.attendance.mapper.AttendanceMapper;
 import com.edu.domain.attendance.service.AttendanceService;
 import com.edu.domain.attendance.service.AttendanceVerificationService;
@@ -54,9 +55,10 @@ public class AttendanceServiceImpl implements AttendanceService {
      *   (현재 스키마엔 반의 기준 좌표 컬럼이 없어 반/설정 도메인과 합의 필요 → 지금은 PRESENT로 저장)
      */
     @Override
-    public AttendanceResponse checkIn(AttendanceCheckRequest request) {
+    public AttendanceResponse checkIn(AttendanceCheckRequest request, String loginId) {
+        Long studentId = resolveStudentId(loginId);   // 본인만 출석 (요청의 studentId 무시)
         LocalDate today = LocalDate.now();
-        guardDuplicate(request.studentId(), request.classId(), today);
+        guardDuplicate(studentId, request.classId(), today);
 
         // ATT-10/11 비콘(UUID)·RSSI 검증 (반에 등록 비콘이 있을 때만)
         guardBeacon(request.classId(), request.beaconUuid(), request.rssiValue());
@@ -68,11 +70,8 @@ public class AttendanceServiceImpl implements AttendanceService {
         LocalTime startTime = schedule != null ? schedule.getStartTime() : null;
         String statusCode = verificationService.resolveStatusByTime(startTime, now.toLocalTime(), DEFAULT_ALLOW_MINUTES);
 
-        // TODO: GPS 반경/등록 비콘 UUID/RSSI 검증도 verificationService로 연결
-        //       (반 기준 좌표·등록 비콘 데이터가 갖춰지면)
-
         AttendanceRecord record = AttendanceRecord.builder()
-                .studentId(request.studentId())
+                .studentId(studentId)
                 .classId(request.classId())
                 .attendanceDate(today)
                 .statusCode(statusCode)
@@ -89,12 +88,17 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     @Override
-    public AttendanceResponse checkOut(AttendanceCheckoutRequest request) {
+    public AttendanceResponse checkOut(AttendanceCheckoutRequest request, String loginId) {
+        Long studentId = resolveStudentId(loginId);   // 본인만 퇴실
         LocalDate today = LocalDate.now();
         AttendanceRecord record = attendanceMapper.findByStudentClassDate(
-                request.studentId(), request.classId(), today);
+                studentId, request.classId(), today);
         if (record == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "오늘 등원 기록이 없어 퇴실할 수 없습니다");
+        }
+        // 퇴실 중복 방지
+        if (record.getCheckOutAt() != null) {
+            throw new ApiException(HttpStatus.CONFLICT, "이미 퇴실 처리되었습니다");
         }
 
         // 등원과 동일하게 비콘 검증
@@ -187,6 +191,40 @@ public class AttendanceServiceImpl implements AttendanceService {
         int total = records.size();
         double rate = total == 0 ? 0.0 : Math.round((present * 10000.0) / total) / 100.0; // 소수 둘째자리
         return new AttendanceStatisticsResponse(present, late, absent, leave, rate);
+    }
+
+    /** 로그인 학생의 수강 반 목록 */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassOptionResponse> getMyClasses(String loginId) {
+        return attendanceMapper.findMyClasses(loginId);
+    }
+
+    /** ATT-08 결석 일괄 처리 */
+    @Override
+    public int markAbsent(Long classId, LocalDate date) {
+        List<Long> studentIds = attendanceMapper.findAbsentCandidates(classId, date);
+        for (Long studentId : studentIds) {
+            AttendanceRecord record = AttendanceRecord.builder()
+                    .studentId(studentId)
+                    .classId(classId)
+                    .attendanceDate(date)
+                    .statusCode("ABSENT")
+                    .checkType("MANUAL")   // 시스템 일괄(스키마상 AUTO/MANUAL만 허용)
+                    .failureReason("미출석 자동 결석 처리")
+                    .build();
+            attendanceMapper.insert(record);
+        }
+        return studentIds.size();
+    }
+
+    /** 로그인 ID → 본인 student_id (없으면 403) */
+    private Long resolveStudentId(String loginId) {
+        Long studentId = attendanceMapper.findStudentIdByLoginId(loginId);
+        if (studentId == null) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "학생 계정이 아니거나 학생 정보가 없습니다");
+        }
+        return studentId;
     }
 
     /** 같은 날 같은 반 중복 출석 방지 */

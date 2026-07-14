@@ -4,8 +4,10 @@ import com.edu.domain.attendance.dto.request.AttendanceCheckRequest;
 import com.edu.domain.attendance.dto.request.AttendanceCheckoutRequest;
 import com.edu.domain.attendance.dto.request.AttendanceUpdateRequest;
 import com.edu.domain.attendance.dto.request.ManualAttendanceRequest;
+import com.edu.domain.attendance.dto.request.MarkAbsentRequest;
 import com.edu.domain.attendance.dto.response.AttendanceResponse;
 import com.edu.domain.attendance.dto.response.AttendanceStatisticsResponse;
+import com.edu.domain.attendance.dto.response.ClassOptionResponse;
 import com.edu.domain.attendance.service.AttendanceService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 출석관리 REST API (틀).
@@ -43,18 +46,27 @@ public class AttendanceController {
         this.attendanceService = attendanceService;
     }
 
-    /** ATT-01 자동 출석 - 등원 (학생 앱) */
+    /** ATT-01 자동 출석 - 등원 (학생 앱). studentId는 JWT에서 도출(본인만). */
     @PostMapping("/check")
     @PreAuthorize("hasRole('STUDENT')")
-    public AttendanceResponse check(@RequestBody AttendanceCheckRequest request) {
-        return attendanceService.checkIn(request);
+    public AttendanceResponse check(@RequestBody AttendanceCheckRequest request,
+                                    Authentication authentication) {
+        return attendanceService.checkIn(request, authentication.getName());
     }
 
-    /** 퇴실 (학생 앱): 오늘 등원 기록에 퇴실시각 기록 + 조퇴 판정 */
+    /** 퇴실 (학생 앱): 본인 오늘 등원 기록에 퇴실시각 기록 + 조퇴 판정 */
     @PostMapping("/checkout")
     @PreAuthorize("hasRole('STUDENT')")
-    public AttendanceResponse checkout(@RequestBody AttendanceCheckoutRequest request) {
-        return attendanceService.checkOut(request);
+    public AttendanceResponse checkout(@RequestBody AttendanceCheckoutRequest request,
+                                       Authentication authentication) {
+        return attendanceService.checkOut(request, authentication.getName());
+    }
+
+    /** 본인 수강 반 목록 (출석 대상 선택용) */
+    @GetMapping("/my-classes")
+    @PreAuthorize("hasRole('STUDENT')")
+    public List<ClassOptionResponse> myClasses(Authentication authentication) {
+        return attendanceService.getMyClasses(authentication.getName());
     }
 
     /** ATT-02 수동 출석 등록 (관리자/강사) */
@@ -93,6 +105,14 @@ public class AttendanceController {
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     public void delete(@PathVariable Long attendanceId) {
         attendanceService.delete(attendanceId);
+    }
+
+    /** ATT-08 결석 일괄 처리 (관리자/강사): 반+날짜의 미기록 수강생을 ABSENT로 */
+    @PostMapping("/mark-absent")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    public Map<String, Integer> markAbsent(@RequestBody MarkAbsentRequest request) {
+        int count = attendanceService.markAbsent(request.classId(), request.date());
+        return Map.of("markedAbsent", count);
     }
 
     /** ATT-05 출석 통계 (관리자/강사) */
