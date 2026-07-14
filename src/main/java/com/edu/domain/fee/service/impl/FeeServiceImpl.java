@@ -16,6 +16,7 @@ import com.edu.domain.fee.mapper.FeeMapper;
 import com.edu.domain.fee.service.FeeService;
 import com.edu.domain.fee.vo.FeePaymentVo;
 import com.edu.domain.fee.vo.FeeVo;
+import com.edu.domain.notification.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,9 +36,11 @@ import java.util.stream.Collectors;
 public class FeeServiceImpl implements FeeService {
 
     private final FeeMapper feeMapper;
+    private final NotificationService notificationService;
 
-    public FeeServiceImpl(FeeMapper feeMapper) {
+    public FeeServiceImpl(FeeMapper feeMapper, NotificationService notificationService) {
         this.feeMapper = feeMapper;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -85,6 +88,17 @@ public class FeeServiceImpl implements FeeService {
                 .build();
 
         feeMapper.insertFee(fee);   // useGeneratedKeys 로 fee.feeId 채워짐
+
+        // 도메인 연동: 회비 등록 시 학생의 학부모에게 납부 안내 알림 생성
+        // 알림 생성이 실패하면 회비 등록도 롤백된다 (같은 트랜잭션)
+        // TODO(팀 확인): 알림 실패 시 회비 등록까지 취소할지, 분리할지 - 회의 안건
+        notificationService.notifyParentsOfStudent(
+                request.getStudentId(),
+                "FEE",
+                request.getBillingMonth() + " 회비 납부 안내",
+                request.getBillingMonth() + " 회비 " + fee.getBillableAmount() + "원이 청구되었습니다. 납부 기한: " + request.getDueDate()
+        );
+
         return new FeeCreateResponse(fee.getFeeId(), statusCode);
     }
 

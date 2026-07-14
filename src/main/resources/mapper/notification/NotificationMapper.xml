@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.domain.notification.mapper.NotificationMapper">
+
+    <!-- 목록/건수 공통 검색 조건 -->
+    <sql id="notificationSearchCondition">
+        <where>
+            <if test="userId != null">
+                AND n.user_id = #{userId}
+            </if>
+            <if test="notificationType != null and notificationType != ''">
+                AND n.notification_type = #{notificationType}
+            </if>
+            <if test="readYn != null and readYn != ''">
+                AND n.read_yn = #{readYn}
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectNotificationList" resultType="com.edu.domain.notification.dto.response.NotificationListResponse">
+        SELECT n.notification_id,
+               n.user_id,
+               u.name              AS user_name,
+               n.notification_type,
+               n.title,
+               n.message,
+               n.send_channel,
+               n.send_status,
+               n.sent_at,
+               n.read_yn,
+               n.created_at
+          FROM notifications n
+          JOIN users u ON u.user_id = n.user_id
+        <include refid="notificationSearchCondition"/>
+         ORDER BY n.created_at DESC, n.notification_id DESC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countNotificationList" resultType="long">
+        SELECT COUNT(*)
+          FROM notifications n
+        <include refid="notificationSearchCondition"/>
+    </select>
+
+    <select id="selectByNotificationId" resultType="com.edu.domain.notification.vo.NotificationVo">
+        SELECT notification_id, user_id, notification_type, title, message,
+               send_channel, send_status, sent_at, read_yn, created_at
+          FROM notifications
+         WHERE notification_id = #{notificationId}
+    </select>
+
+    <insert id="insertNotification" useGeneratedKeys="true" keyProperty="notificationId" keyColumn="notification_id">
+        INSERT INTO notifications (user_id, notification_type, title, message,
+                                   send_channel, send_status, sent_at)
+        VALUES (#{userId}, #{notificationType}, #{title}, #{message},
+                #{sendChannel}, #{sendStatus}, #{sentAt})
+    </insert>
+
+    <update id="updateReadYn">
+        UPDATE notifications
+           SET read_yn = 'Y'
+         WHERE notification_id = #{notificationId}
+    </update>
+
+    <!-- 회비 알림 수신자: 학생에 연결된 모든 학부모의 user_id
+         TODO(팀 확인): primary_yn = 'Y' 인 대표 보호자에게만 보낼지 - 회의 안건 -->
+    <select id="selectParentUserIdsByStudentId" resultType="long">
+        SELECT p.user_id
+          FROM student_parents sp
+          JOIN parents p ON p.parent_id = sp.parent_id
+         WHERE sp.student_id = #{studentId}
+    </select>
+
+</mapper>

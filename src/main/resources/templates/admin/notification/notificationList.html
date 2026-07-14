@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="'EduBridge · ' + ${title}">EduBridge</title>
+  <link rel="stylesheet" href="/css/common.css">
+
+  <!-- 알림 이력 페이지 전용 스타일 (팀 규칙: 개인 구간은 html 내 style 태그)
+       사용 중인 클래스:
+       .noti-toolbar      : 필터 폼 영역
+       .noti-filter       : 검색 필터 폼
+       .noti-table        : 알림 이력 테이블
+       .noti-type-badge   : 유형 뱃지 공통
+       .type-attendance / .type-fee / .type-notice : 유형별 색상
+       .send-badge        : 발송 상태 뱃지 공통
+       .send-sent / .send-pending / .send-failed : 발송 상태별 색상
+       .read-badge        : 읽음 뱃지 공통
+       .read-y / .read-n  : 읽음/안읽음 색상
+       .noti-actions      : 행 우측 관리 버튼 영역
+       .noti-paging       : 페이지네이션
+       .empty-row         : 데이터 없음 표시 행
+  -->
+  <style>
+    /* TODO(윤동재): 페이지 스타일 작성 */
+  </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/common :: topbar(${title})}"></div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <a href="/admin/dashboard">대시보드</a>
+    <a href="/admin/members">회원관리</a>
+    <div class="group-label">반 / 수강</div>
+    <a href="/admin/classes">반관리</a>
+    <a href="/admin/enrollments">수강관리</a>
+    <div class="group-label">학생</div>
+    <a href="/admin/attendance">출석관리</a>
+    <a href="/admin/fees">회비관리</a>
+    <a href="/admin/grades">성적관리</a>
+    <div class="group-label">소통</div>
+    <a href="/admin/notices">공지관리</a>
+    <a href="/admin/counseling">상담관리</a>
+    <div class="group-label">운영</div>
+    <a href="/admin/ai">AI 리포트</a>
+    <a href="/admin/notifications">알림이력</a>
+    <a href="/admin/logs">활동로그</a>
+    <a href="/admin/settings">시스템설정</a>
+  </nav>
+
+  <main class="content">
+    <h1>알림 발송 이력</h1>
+    <p class="sub">출석/회비/공지 알림 발송 이력과 수신 상태 (SCR-W-18)</p>
+
+    <!-- 필터: 유형/읽음/대상 사용자
+         TODO(팀 확인): 화면설계의 기간 필터는 NTI-01 파라미터에 없음 - 회의 안건 -->
+    <div class="noti-toolbar">
+      <form class="noti-filter" th:action="@{/admin/notifications}" method="get">
+        <select name="notificationType">
+          <option value=""           th:selected="${search.notificationType == null or search.notificationType == ''}">전체 유형</option>
+          <option value="ATTENDANCE" th:selected="${search.notificationType == 'ATTENDANCE'}">출석</option>
+          <option value="FEE"        th:selected="${search.notificationType == 'FEE'}">회비</option>
+          <option value="NOTICE"     th:selected="${search.notificationType == 'NOTICE'}">공지</option>
+        </select>
+        <select name="readYn">
+          <option value=""  th:selected="${search.readYn == null or search.readYn == ''}">읽음 전체</option>
+          <option value="Y" th:selected="${search.readYn == 'Y'}">읽음</option>
+          <option value="N" th:selected="${search.readYn == 'N'}">안읽음</option>
+        </select>
+        <!-- TODO: member 파트 목록 API 완성 후 사용자 select 로 교체 -->
+        <input type="number" name="userId" min="1" placeholder="대상 사용자 ID" th:value="${search.userId}">
+        <button type="submit">조회</button>
+      </form>
+    </div>
+
+    <!-- 알림 이력 테이블 -->
+    <table class="noti-table">
+      <thead>
+      <tr>
+        <th>일시</th>
+        <th>유형</th>
+        <th>대상</th>
+        <th>제목</th>
+        <th>채널</th>
+        <th>발송</th>
+        <th>읽음</th>
+        <th>관리</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="noti : ${notificationPage.content}">
+        <!-- 발송 전(PENDING)이면 sent_at 이 null 이라 생성 시각으로 대체 -->
+        <td th:text="${#temporals.format(noti.sentAt != null ? noti.sentAt : noti.createdAt, 'yyyy-MM-dd HH:mm')}">2026-07-14 10:30</td>
+        <td>
+          <span class="noti-type-badge"
+                th:classappend="${noti.notificationType == 'ATTENDANCE'} ? 'type-attendance' : (${noti.notificationType == 'FEE'} ? 'type-fee' : 'type-notice')"
+                th:text="${noti.notificationType == 'ATTENDANCE'} ? '출석' : (${noti.notificationType == 'FEE'} ? '회비' : '공지')">유형</span>
+        </td>
+        <td th:text="${noti.userName}">홍길동</td>
+        <td th:text="${noti.title}">7월 회비 안내</td>
+        <td th:text="${noti.sendChannel}">APP</td>
+        <td>
+          <span class="send-badge"
+                th:classappend="${noti.sendStatus == 'SENT'} ? 'send-sent' : (${noti.sendStatus == 'FAILED'} ? 'send-failed' : 'send-pending')"
+                th:text="${noti.sendStatus == 'SENT'} ? '성공' : (${noti.sendStatus == 'FAILED'} ? '실패' : '대기')">발송</span>
+        </td>
+        <td>
+          <span class="read-badge"
+                th:classappend="${noti.readYn == 'Y'} ? 'read-y' : 'read-n'"
+                th:text="${noti.readYn == 'Y'} ? '읽음' : '안읽음'">읽음</span>
+        </td>
+        <td class="noti-actions">
+          <!-- TODO(팀 확인): 화면설계의 재발송/수정/삭제/수신설정은 API 명세에 없음 - 회의 안건 -->
+          <button type="button" disabled title="API 명세에 재발송 없음 (팀 확인 필요)">재발송</button>
+          <button type="button" disabled title="API 명세에 수정 없음 (팀 확인 필요)">수정</button>
+          <button type="button" disabled title="API 명세에 삭제 없음 (팀 확인 필요)">삭제</button>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(notificationPage.content)}" class="empty-row">
+        <td colspan="8">조회된 알림 이력이 없습니다.</td>
+      </tr>
+      </tbody>
+    </table>
+
+    <!-- 페이지네이션: 필터 조건 유지한 채 page 만 변경 -->
+    <div class="noti-paging" th:if="${notificationPage.totalPages > 1}">
+      <a th:if="${notificationPage.page > 1}"
+         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userId=${search.userId}, page=${notificationPage.page - 1})}">이전</a>
+
+      <a th:each="i : ${#numbers.sequence(1, notificationPage.totalPages)}"
+         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userId=${search.userId}, page=${i})}"
+         th:text="${i}"
+         th:classappend="${i == notificationPage.page} ? 'now-page'">1</a>
+
+      <a th:if="${notificationPage.page < notificationPage.totalPages}"
+         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userId=${search.userId}, page=${notificationPage.page + 1})}">다음</a>
+    </div>
+  </main>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+</body>
+</html>
