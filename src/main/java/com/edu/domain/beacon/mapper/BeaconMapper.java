@@ -12,8 +12,13 @@ import java.util.List;
 @Mapper
 public interface BeaconMapper {
 
-    /** 목록 조회 (반 필터 선택). className 조인 */
-    List<Beacon> findList(@Param("classId") Long classId);
+    /** 목록 조회 (반 필터 선택, 페이징). className 조인 */
+    List<Beacon> findList(@Param("classId") Long classId,
+                          @Param("size") int size,
+                          @Param("offset") int offset);
+
+    /** 목록 전체 건수 (페이징용) */
+    long countList(@Param("classId") Long classId);
 
     /** PK 단건 조회 */
     Beacon findById(@Param("beaconId") Long beaconId);

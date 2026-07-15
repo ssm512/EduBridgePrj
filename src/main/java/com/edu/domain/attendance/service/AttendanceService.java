@@ -4,6 +4,7 @@ import com.edu.domain.attendance.dto.request.AttendanceCheckRequest;
 import com.edu.domain.attendance.dto.request.AttendanceCheckoutRequest;
 import com.edu.domain.attendance.dto.request.AttendanceUpdateRequest;
 import com.edu.domain.attendance.dto.request.ManualAttendanceRequest;
+import com.edu.common.dto.PageResponse;
 import com.edu.domain.attendance.dto.response.AttendanceResponse;
 import com.edu.domain.attendance.dto.response.AttendanceStatisticsResponse;
 import com.edu.domain.attendance.dto.response.ClassOptionResponse;
@@ -32,9 +33,10 @@ public interface AttendanceService {
     /** ATT-02 수동 출석 등록 */
     AttendanceResponse registerManual(ManualAttendanceRequest request, Long createdBy);
 
-    /** ATT-03 출석 이력 조회 (keyword = 학생 이름 부분 일치) */
-    List<AttendanceResponse> getHistory(Long studentId, Long classId,
-                                        LocalDate fromDate, LocalDate toDate, String keyword);
+    /** ATT-03 출석 이력 조회 (keyword = 학생 이름 부분 일치, 페이징) */
+    PageResponse<AttendanceResponse> getHistory(Long studentId, Long classId,
+                                                LocalDate fromDate, LocalDate toDate, String keyword,
+                                                int page, int size);
 
     /** ATT-04 출석 수정 */
     AttendanceResponse update(Long attendanceId, AttendanceUpdateRequest request);
@@ -44,4 +46,6 @@ public interface AttendanceService {
 
     /** ATT-05 출석 통계 */
     AttendanceStatisticsResponse getStatistics(Long classId, Long studentId, LocalDate fromDate, LocalDate toDate);
+
+    Long getMyUserId(String name);
 }

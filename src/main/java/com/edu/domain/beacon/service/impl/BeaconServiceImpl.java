@@ -1,5 +1,6 @@
 package com.edu.domain.beacon.service.impl;
 
+import com.edu.common.dto.PageResponse;
 import com.edu.domain.beacon.dto.request.BeaconRequest;
 import com.edu.domain.beacon.mapper.BeaconMapper;
 import com.edu.domain.beacon.service.BeaconService;
@@ -24,8 +25,13 @@ public class BeaconServiceImpl implements BeaconService {
     }
 
     @Override
-    public List<Beacon> getList(Long classId) {
-        return beaconMapper.findList(classId);
+    public PageResponse<Beacon> getList(Long classId, int page, int size) {
+        int safePage = Math.max(page, 1);
+        int safeSize = size <= 0 ? 10 : Math.min(size, 100);
+        int offset = (safePage - 1) * safeSize;
+        long total = beaconMapper.countList(classId);
+        List<Beacon> items = beaconMapper.findList(classId, safeSize, offset);
+        return PageResponse.of(items, safePage, safeSize, total);
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.edu.domain.attendance.service.impl;
 
+import com.edu.common.dto.PageResponse;
 import com.edu.common.exception.ApiException;
 import com.edu.domain.attendance.dto.request.AttendanceCheckRequest;
 import com.edu.domain.attendance.dto.request.AttendanceCheckoutRequest;
@@ -14,6 +15,7 @@ import com.edu.domain.attendance.service.AttendanceVerificationService;
 import com.edu.domain.attendance.vo.AttendanceRecord;
 import com.edu.domain.attendance.vo.BeaconView;
 import com.edu.domain.attendance.vo.ClassScheduleView;
+import com.edu.domain.notification.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -40,11 +43,13 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     private final AttendanceMapper attendanceMapper;
     private final AttendanceVerificationService verificationService;
+    private final NotificationService notificationService;
 
     public AttendanceServiceImpl(AttendanceMapper attendanceMapper,
-                                 AttendanceVerificationService verificationService) {
+                                 AttendanceVerificationService verificationService, NotificationService notificationService) {
         this.attendanceMapper = attendanceMapper;
         this.verificationService = verificationService;
+        this.notificationService = notificationService;
     }
 
     /**
@@ -68,6 +73,8 @@ public class AttendanceServiceImpl implements AttendanceService {
                 request.gpsLatitude(), request.gpsLongitude());
 
         LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        String checkTime = now.format(formatter);
 
         // 반 시작시간 대비 지각 판정 (반 정보 없으면 PRESENT로 처리 → resolveStatusByTime이 null-safe)
         ClassScheduleView schedule = attendanceMapper.findClassSchedule(request.classId());
@@ -87,7 +94,13 @@ public class AttendanceServiceImpl implements AttendanceService {
                 .rssiValue(request.rssiValue())
                 .build();
 
+        String studentName = attendanceMapper.getStudentName(studentId);
+        String notifyStatus = statusCode.equals("PRESENT") ? "정상등원 " : "입실, 지각 ";
+        String className = attendanceMapper.getClassName(request.classId());
+        String notifyMsg = " : " + studentName + " 학생이 " + checkTime + "분, [" + className +  "] 강의에 " + notifyStatus + "하였습니다.";
         attendanceMapper.insert(record);
+        notificationService.notifyParentsOfStudent(
+                studentId, "ATTENDANCE", "등원 안내", notifyMsg);
         return AttendanceResponse.from(attendanceMapper.findById(record.getAttendanceId()));
     }
 
@@ -110,6 +123,8 @@ public class AttendanceServiceImpl implements AttendanceService {
                 request.gpsLatitude(), request.gpsLongitude());
 
         LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        String checkTime = now.format(formatter);
 
         // 수업 종료시간보다 이르면 조퇴(LEAVE). 아니면 기존 상태(출석/지각) 유지
         ClassScheduleView schedule = attendanceMapper.findClassSchedule(request.classId());
@@ -119,7 +134,14 @@ public class AttendanceServiceImpl implements AttendanceService {
             statusCode = "LEAVE";
         }
 
+        String studentName = attendanceMapper.getStudentName(studentId);
+        String notifyStatus = statusCode.equals("LEAVE") ? "조퇴 " : "정상 퇴실 ";
+        String className = attendanceMapper.getClassName(request.classId());
+        String notifyMsg = " : " + studentName + " 학생이 " + checkTime + "분, [" + className +  "] 강의에서 " + notifyStatus + "하였습니다.";
+
         attendanceMapper.updateCheckOut(record.getAttendanceId(), now, statusCode);
+        notificationService.notifyParentsOfStudent(
+                studentId, "ATTENDANCE", "하원 안내", notifyMsg);
         return AttendanceResponse.from(attendanceMapper.findById(record.getAttendanceId()));
     }
 
@@ -128,6 +150,9 @@ public class AttendanceServiceImpl implements AttendanceService {
     public AttendanceResponse registerManual(ManualAttendanceRequest request, Long createdBy) {
         LocalDate date = request.attendanceDate() != null ? request.attendanceDate() : LocalDate.now();
         guardDuplicate(request.studentId(), request.classId(), date);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        LocalDateTime checkAt = request.checkInAt() != null ? request.checkInAt() : LocalDateTime.now();
+        String checkTime = checkAt.format(formatter);
 
         AttendanceRecord record = AttendanceRecord.builder()
                 .studentId(request.studentId())
@@ -141,18 +166,32 @@ public class AttendanceServiceImpl implements AttendanceService {
                 .createdBy(createdBy)
                 .build();
 
+        String studentName = attendanceMapper.getStudentName(request.studentId());
+        String notifyStatus = request.statusCode().equals("PRESENT") ? "정상등원 " : "입실, 지각 ";
+        String className = attendanceMapper.getClassName(request.classId());
+        String notifyMsg = " : " + studentName + " 학생이 " + checkTime + "분, [" + className +  "] 강의에 " + notifyStatus + "하였습니다.";
+
         attendanceMapper.insert(record);
+        notificationService.notifyParentsOfStudent(
+                request.studentId(), "ATTENDANCE", "등원 안내", notifyMsg);
         return AttendanceResponse.from(attendanceMapper.findById(record.getAttendanceId()));
     }
 
     /** ATT-03 출석 이력 조회 */
     @Override
     @Transactional(readOnly = true)
-    public List<AttendanceResponse> getHistory(Long studentId, Long classId,
-                                               LocalDate fromDate, LocalDate toDate, String keyword) {
+    public PageResponse<AttendanceResponse> getHistory(Long studentId, Long classId,
+                                                       LocalDate fromDate, LocalDate toDate, String keyword,
+                                                       int page, int size) {
         // TODO: 권한별 조회 범위 제한(본인/자녀 등)은 정책 확정 후 반영
-        return attendanceMapper.findList(studentId, classId, fromDate, toDate, keyword)
+        int safePage = Math.max(page, 1);
+        int safeSize = size <= 0 ? 10 : Math.min(size, 100);
+        int offset = (safePage - 1) * safeSize;
+        long total = attendanceMapper.countList(studentId, classId, fromDate, toDate, keyword);
+        List<AttendanceResponse> items = attendanceMapper
+                .findPage(studentId, classId, fromDate, toDate, keyword, safeSize, offset)
                 .stream().map(AttendanceResponse::from).toList();
+        return PageResponse.of(items, safePage, safeSize, total);
     }
 
     /** ATT-04 출석 수정 */
@@ -211,6 +250,8 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     public int markAbsent(Long classId, LocalDate date) {
         List<Long> studentIds = attendanceMapper.findAbsentCandidates(classId, date);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        String checkDate = date.format(formatter);
         for (Long studentId : studentIds) {
             AttendanceRecord record = AttendanceRecord.builder()
                     .studentId(studentId)
@@ -220,9 +261,21 @@ public class AttendanceServiceImpl implements AttendanceService {
                     .checkType("MANUAL")   // 시스템 일괄(스키마상 AUTO/MANUAL만 허용)
                     .failureReason("미출석 자동 결석 처리")
                     .build();
+
+            String studentName = attendanceMapper.getStudentName(studentId);
+            String className = attendanceMapper.getClassName(classId);
+            String notifyMsg = " : " + studentName + " 학생이 " + checkDate + ", [" + className +  "] 강의에 결석 하였습니다.";
+
             attendanceMapper.insert(record);
+            notificationService.notifyParentsOfStudent(
+                    studentId, "ATTENDANCE", "결석 안내", notifyMsg);
         }
         return studentIds.size();
+    }
+
+    @Override
+    public Long getMyUserId(String loginId) {
+        return attendanceMapper.getMyUserId(loginId);
     }
 
     /** 로그인 ID → 본인 student_id (없으면 403) */

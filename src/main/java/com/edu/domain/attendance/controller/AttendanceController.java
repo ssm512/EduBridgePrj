@@ -1,5 +1,6 @@
 package com.edu.domain.attendance.controller;
 
+import com.edu.common.dto.PageResponse;
 import com.edu.domain.attendance.dto.request.AttendanceCheckRequest;
 import com.edu.domain.attendance.dto.request.AttendanceCheckoutRequest;
 import com.edu.domain.attendance.dto.request.AttendanceUpdateRequest;
@@ -75,21 +76,22 @@ public class AttendanceController {
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     public AttendanceResponse manual(@RequestBody ManualAttendanceRequest request,
                                      Authentication authentication) {
-        // TODO: authentication에서 실제 user_id 추출해 createdBy로 전달
-        Long createdBy = null;
+        Long createdBy = attendanceService.getMyUserId(authentication.getName());
         return attendanceService.registerManual(request, createdBy);
     }
 
-    /** ATT-03 출석 이력 조회 */
+    /** ATT-03 출석 이력 조회 (페이징) */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER','PARENT','STUDENT')")
-    public List<AttendanceResponse> history(
+    public PageResponse<AttendanceResponse> history(
             @RequestParam(required = false) Long studentId,
             @RequestParam(required = false) Long classId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
-            @RequestParam(required = false) String keyword) {
-        return attendanceService.getHistory(studentId, classId, fromDate, toDate, keyword);
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return attendanceService.getHistory(studentId, classId, fromDate, toDate, keyword, page, size);
     }
 
     /** ATT-04 출석 수정 (관리자/강사) */

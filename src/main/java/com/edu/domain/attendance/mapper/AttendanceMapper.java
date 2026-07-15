@@ -23,12 +23,28 @@ public interface AttendanceMapper {
     /** PK 단건 조회 */
     AttendanceRecord findById(@Param("attendanceId") Long attendanceId);
 
-    /** 학생/반/기간/이름 조건 목록 조회 (ATT-03). keyword = 학생 이름 부분 일치 */
+    /** 학생/반/기간/이름 조건 전체 목록 조회 (통계 집계 등, 페이징 없음). keyword = 학생 이름 부분 일치 */
     List<AttendanceRecord> findList(@Param("studentId") Long studentId,
                                     @Param("classId") Long classId,
                                     @Param("fromDate") LocalDate fromDate,
                                     @Param("toDate") LocalDate toDate,
                                     @Param("keyword") String keyword);
+
+    /** 이력 페이지 조회 (ATT-03, LIMIT/OFFSET) */
+    List<AttendanceRecord> findPage(@Param("studentId") Long studentId,
+                                    @Param("classId") Long classId,
+                                    @Param("fromDate") LocalDate fromDate,
+                                    @Param("toDate") LocalDate toDate,
+                                    @Param("keyword") String keyword,
+                                    @Param("size") int size,
+                                    @Param("offset") int offset);
+
+    /** 위 목록의 전체 건수 (페이징용) */
+    long countList(@Param("studentId") Long studentId,
+                   @Param("classId") Long classId,
+                   @Param("fromDate") LocalDate fromDate,
+                   @Param("toDate") LocalDate toDate,
+                   @Param("keyword") String keyword);
 
     /** 상태/사유 수정 (ATT-04) */
     int updateStatus(@Param("attendanceId") Long attendanceId,
@@ -69,6 +85,9 @@ public interface AttendanceMapper {
     /** 로그인 ID로 student_id 조회 (본인 확인용, 없으면 null) */
     Long findStudentIdByLoginId(@Param("loginId") String loginId);
 
+    /** student_id로 학생 이름 조회 (등원/퇴실 알림 메시지용) */
+    String getStudentName(@Param("studentId") Long studentId);
+
     /** 로그인한 학생이 수강 중인 반 목록 (출석 대상 선택용) */
     java.util.List<com.edu.domain.attendance.dto.response.ClassOptionResponse>
             findMyClasses(@Param("loginId") String loginId);
@@ -76,4 +95,8 @@ public interface AttendanceMapper {
     /** 결석 대상: 해당 반의 ACTIVE 수강생 중 그 날짜에 출석 기록이 없는 student_id 목록 */
     java.util.List<Long> findAbsentCandidates(@Param("classId") Long classId,
                                               @Param("date") java.time.LocalDate date);
+
+    String getClassName(@Param("classId") Long classId);
+
+    Long getMyUserId(@Param("loginId") String loginId);
 }

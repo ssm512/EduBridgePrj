@@ -34,8 +34,8 @@
         WHERE ar.attendance_id = #{attendanceId}
     </select>
 
-    <select id="findList" resultType="AttendanceRecord">
-        <include refid="selectWithNames"/>
+    <!-- 목록 조건 공통 (findList / countList 공유) -->
+    <sql id="listWhere">
         <where>
             <if test="studentId != null"> AND ar.student_id = #{studentId} </if>
             <if test="classId  != null"> AND ar.class_id   = #{classId}   </if>
@@ -43,7 +43,28 @@
             <if test="toDate   != null"> AND ar.attendance_date &lt;= #{toDate}   </if>
             <if test="keyword != null and keyword != ''"> AND u.name ILIKE '%' || #{keyword} || '%' </if>
         </where>
+    </sql>
+
+    <select id="findList" resultType="AttendanceRecord">
+        <include refid="selectWithNames"/>
+        <include refid="listWhere"/>
         ORDER BY ar.attendance_date DESC, ar.attendance_id DESC
+    </select>
+
+    <select id="findPage" resultType="AttendanceRecord">
+        <include refid="selectWithNames"/>
+        <include refid="listWhere"/>
+        ORDER BY ar.attendance_date DESC, ar.attendance_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countList" resultType="long">
+        SELECT COUNT(*)
+        FROM attendance_records ar
+        LEFT JOIN students s ON ar.student_id = s.student_id
+        LEFT JOIN users    u ON s.user_id     = u.user_id
+        LEFT JOIN classes  c ON ar.class_id   = c.class_id
+        <include refid="listWhere"/>
     </select>
 
     <update id="updateStatus">
@@ -115,6 +136,14 @@
         WHERE u.login_id = #{loginId}
     </select>
 
+    <!-- student_id → 학생 이름 (알림 메시지용) -->
+    <select id="getStudentName" resultType="string">
+        SELECT u.name
+        FROM students s
+        JOIN users u ON s.user_id = u.user_id
+        WHERE s.student_id = #{studentId}
+    </select>
+
     <!-- 로그인 학생의 수강 중(ACTIVE) 반 목록 -->
     <select id="findMyClasses" resultType="com.edu.domain.attendance.dto.response.ClassOptionResponse">
         SELECT c.class_id AS classId, c.class_name AS className
@@ -139,6 +168,18 @@
                 AND ar.class_id   = e.class_id
                 AND ar.attendance_date = #{date}
           )
+    </select>
+
+    <select id="getClassName">
+        SELECT class_name
+        FROM classes
+        WHERE class_id = #{classId}
+    </select>
+
+    <select id="getMyUserId">
+        SELECT user_id
+        FROM users
+        WHERE login_id = #{loginId}
     </select>
 
 </mapper>

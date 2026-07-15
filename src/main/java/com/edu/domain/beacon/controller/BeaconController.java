@@ -1,5 +1,6 @@
 package com.edu.domain.beacon.controller;
 
+import com.edu.common.dto.PageResponse;
 import com.edu.domain.beacon.dto.request.BeaconRequest;
 import com.edu.domain.beacon.service.BeaconService;
 import com.edu.domain.beacon.vo.Beacon;
@@ -16,8 +17,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 /**
  * 비콘 관리 REST API (BCN-01~03 = ATT-18).
  * 조회는 ADMIN/TEACHER, 등록/수정/삭제는 ADMIN.
@@ -32,11 +31,13 @@ public class BeaconController {
         this.beaconService = beaconService;
     }
 
-    /** BCN-01 목록 조회 (반 필터 선택) */
+    /** BCN-01 목록 조회 (반 필터 선택, 페이징) */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
-    public List<Beacon> list(@RequestParam(required = false) Long classId) {
-        return beaconService.getList(classId);
+    public PageResponse<Beacon> list(@RequestParam(required = false) Long classId,
+                                     @RequestParam(defaultValue = "1") int page,
+                                     @RequestParam(defaultValue = "10") int size) {
+        return beaconService.getList(classId, page, size);
     }
 
     /** 단건 조회 */

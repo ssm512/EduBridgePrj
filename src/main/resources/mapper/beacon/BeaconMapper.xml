@@ -11,12 +11,22 @@
         LEFT JOIN classes c ON b.class_id = c.class_id
     </sql>
 
-    <select id="findList" resultType="Beacon">
-        <include refid="selectWithClass"/>
+    <sql id="listWhere">
         <where>
             <if test="classId != null"> AND b.class_id = #{classId} </if>
         </where>
+    </sql>
+
+    <select id="findList" resultType="Beacon">
+        <include refid="selectWithClass"/>
+        <include refid="listWhere"/>
         ORDER BY b.beacon_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countList" resultType="long">
+        SELECT COUNT(*) FROM beacons b
+        <include refid="listWhere"/>
     </select>
 
     <select id="findById" resultType="Beacon">

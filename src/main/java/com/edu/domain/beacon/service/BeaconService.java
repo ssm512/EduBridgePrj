@@ -1,15 +1,14 @@
 package com.edu.domain.beacon.service;
 
+import com.edu.common.dto.PageResponse;
 import com.edu.domain.beacon.dto.request.BeaconRequest;
 import com.edu.domain.beacon.vo.Beacon;
-
-import java.util.List;
 
 /** 비콘 관리 서비스 (BCN-01~03) */
 public interface BeaconService {
 
-    /** 목록 조회 (반 필터 선택) */
-    List<Beacon> getList(Long classId);
+    /** 목록 조회 (반 필터 선택, 페이징) */
+    PageResponse<Beacon> getList(Long classId, int page, int size);
 
     /** 단건 조회 */
     Beacon get(Long beaconId);
