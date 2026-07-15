@@ -9,6 +9,8 @@ import com.edu.domain.fee.dto.request.FeeUpdateRequest;
 import com.edu.domain.fee.dto.response.FeeCreateResponse;
 import com.edu.domain.fee.dto.response.FeeListResponse;
 import com.edu.domain.fee.dto.response.FeeMonthlyStatResponse;
+import com.edu.domain.fee.dto.response.FeeNotificationTargetResponse;
+import com.edu.domain.fee.dto.response.FeePaymentHistoryResponse;
 import com.edu.domain.fee.dto.response.FeePaymentResponse;
 import com.edu.domain.fee.dto.response.FeeStatisticsResponse;
 import com.edu.domain.fee.dto.response.FeeUpdateResponse;
@@ -194,6 +196,15 @@ public class FeeServiceImpl implements FeeService {
     }
 
     @Override
+    public List<FeePaymentHistoryResponse> getPaymentHistory(Long feeId) {
+        // 존재하지 않는 회비면 404 - 빈 목록과 "잘못된 회비"를 구분하기 위함
+        if (feeMapper.selectByFeeId(feeId) == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 회비입니다");
+        }
+        return feeMapper.selectPaymentsByFeeId(feeId);
+    }
+
+    @Override
     @Transactional
     public void deleteFee(Long feeId) {
         FeeVo fee = feeMapper.selectByFeeId(feeId);
@@ -210,6 +221,16 @@ public class FeeServiceImpl implements FeeService {
         }
 
         feeMapper.deleteFee(feeId);
+    }
+
+    @Override
+    public List<FeeNotificationTargetResponse> getFeesDueOn(LocalDate dueDate) {
+        return feeMapper.selectFeesDueOn(dueDate);
+    }
+
+    @Override
+    public List<FeeNotificationTargetResponse> getOverdueUnpaidFees() {
+        return feeMapper.selectOverdueUnpaidFees();
     }
 
     /** 통계 추이 차트에 보여줄 개월 수 (기준 월 포함) */

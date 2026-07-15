@@ -66,6 +66,11 @@
           <option value="UNPAID"    th:selected="${search.statusCode == 'UNPAID'}">미납</option>
           <option value="SCHEDULED" th:selected="${search.statusCode == 'SCHEDULED'}">예정</option>
         </select>
+        <!-- FEE-07 미납 조회: 기한 지난 미납만 필터. 체크 시 due_date 경과 + 미완납 건만 표시 -->
+        <label class="fee-overdue-check">
+          <input type="checkbox" name="overdueOnly" value="true" th:checked="${search.overdueOnly}">
+          기한 지난 미납만
+        </label>
         <button type="submit">조회</button>
       </form>
       <button type="button" onclick="openFeeCreateModal()">+ 회비 등록</button>
@@ -180,6 +185,31 @@
       </form>
     </dialog>
 
+    <!-- 납부 이력 조회 모달 (FEE-06) - 취소분 포함 전체 납부 기록.
+         목록의 '이력' 버튼으로 열고, 내용은 JS 가 API 로 받아서 tbody 에 그림 -->
+    <dialog id="feeHistoryModal" class="fee-modal">
+      <h2>납부 이력</h2>
+      <p id="feeHistoryTarget" class="fee-history-target"></p>
+
+      <table class="fee-history-table">
+        <thead>
+        <tr>
+          <th>납부일시</th>
+          <th>금액</th>
+          <th>수단</th>
+          <th>영수증</th>
+          <th>상태</th>
+        </tr>
+        </thead>
+        <!-- 행은 renderPaymentHistory() 가 채움 -->
+        <tbody id="feeHistoryBody"></tbody>
+      </table>
+
+      <div class="fee-modal-buttons">
+        <button type="button" onclick="document.getElementById('feeHistoryModal').close()">닫기</button>
+      </div>
+    </dialog>
+
     <!-- 회비 목록 테이블 -->
     <table class="fee-table">
       <thead>
@@ -237,6 +267,11 @@
                   th:title="${fee.paymentCount > 0} ? '납부 이력이 있는 회비는 삭제할 수 없습니다' : ''"
                   th:attr="data-fee-id=${fee.feeId}, data-student-name=${fee.studentName}, data-billing-month=${fee.billingMonth}"
                   onclick="deleteFee(this)">삭제</button>
+          <!-- 납부 이력(FEE-06): 취소분 포함 전체 납부 기록 조회. 이력이 없으면 비활성 -->
+          <button type="button"
+                  th:disabled="${fee.paymentCount == 0}"
+                  th:attr="data-fee-id=${fee.feeId}, data-student-name=${fee.studentName}, data-billing-month=${fee.billingMonth}"
+                  onclick="openFeeHistoryModal(this)">이력</button>
         </td>
       </tr>
       <tr th:if="${#lists.isEmpty(feePage.items)}" class="empty-row">
@@ -248,15 +283,15 @@
     <!-- 페이지네이션: 필터 조건 유지한 채 page 만 변경 -->
     <div class="fee-paging" th:if="${feePage.totalPages > 1}">
       <a th:if="${feePage.page > 1}"
-         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, page=${feePage.page - 1})}">이전</a>
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${feePage.page - 1})}">이전</a>
 
       <a th:each="i : ${#numbers.sequence(1, feePage.totalPages)}"
-         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, page=${i})}"
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${i})}"
          th:text="${i}"
          th:classappend="${i == feePage.page} ? 'now-page'">1</a>
 
       <a th:if="${feePage.page < feePage.totalPages}"
-         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, page=${feePage.page + 1})}">다음</a>
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${feePage.page + 1})}">다음</a>
     </div>
   </main>
 </div>
@@ -538,6 +573,73 @@
 
     const res = await feeApi('/api/v1/fees/' + btn.dataset.feeId, 'DELETE', null);
     await handleResult(res, '삭제 실패');
+  }
+
+  // ===== 납부 이력 조회 (FEE-06) =====
+  // 목록의 '이력' 버튼 -> 해당 회비의 납부 기록(취소분 포함)을 모달에 표로 출력.
+  // GET 이라 CSRF 헤더 불필요.
+  async function openFeeHistoryModal(btn) {
+    const feeId = btn.dataset.feeId;
+    const modal = document.getElementById('feeHistoryModal');
+    const body  = document.getElementById('feeHistoryBody');
+
+    document.getElementById('feeHistoryTarget').textContent =
+      btn.dataset.studentName + ' / ' + btn.dataset.billingMonth;
+
+    // 로딩 중 표시 후 모달을 먼저 연다
+    body.innerHTML = '';
+    const loadingRow = body.insertRow();
+    loadingRow.insertCell().colSpan = 5;
+    loadingRow.cells[0].textContent = '불러오는 중...';
+    modal.showModal();
+
+    const res = await fetch('/api/v1/fees/' + feeId + '/payments');
+    if (!res.ok) {
+      body.innerHTML = '';
+      const row = body.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 5;
+      cell.textContent = '납부 이력 조회 실패: ' + res.status;
+      return;
+    }
+
+    renderPaymentHistory(await res.json());
+  }
+
+  function renderPaymentHistory(list) {
+    const body = document.getElementById('feeHistoryBody');
+    body.innerHTML = '';
+
+    if (!list || list.length === 0) {
+      const row = body.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 5;
+      cell.textContent = '납부 이력이 없습니다.';
+      return;
+    }
+
+    // XSS 방지: 서버 데이터는 textContent 로만 바인딩
+    list.forEach(function (p) {
+      const row = body.insertRow();
+      const canceled = p.cancelYn === 'Y';
+      if (canceled) row.className = 'fee-history-canceled';
+
+      // 납부일시: 'T' 를 공백으로 바꿔 보기 좋게 (없으면 '-')
+      row.insertCell().textContent = p.paidAt ? p.paidAt.replace('T', ' ').substring(0, 16) : '-';
+      row.insertCell().textContent = Number(p.paidAmount).toLocaleString() + '원';
+      row.insertCell().textContent = paymentMethodLabel(p.paymentMethod);
+      row.insertCell().textContent = p.receiptNo || '-';
+      row.insertCell().textContent = canceled ? '취소됨' : '정상';
+    });
+  }
+
+  function paymentMethodLabel(code) {
+    switch (code) {
+      case 'CASH':     return '현금';
+      case 'TRANSFER': return '계좌이체';
+      case 'CARD':     return '카드';
+      default:         return code || '-';
+    }
   }
 </script>
 </body>

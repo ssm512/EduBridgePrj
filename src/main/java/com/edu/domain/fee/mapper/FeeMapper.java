@@ -3,11 +3,14 @@ package com.edu.domain.fee.mapper;
 import com.edu.domain.fee.dto.request.FeeSearchRequest;
 import com.edu.domain.fee.dto.response.FeeListResponse;
 import com.edu.domain.fee.dto.response.FeeMonthlyStatResponse;
+import com.edu.domain.fee.dto.response.FeeNotificationTargetResponse;
+import com.edu.domain.fee.dto.response.FeePaymentHistoryResponse;
 import com.edu.domain.fee.vo.FeePaymentVo;
 import com.edu.domain.fee.vo.FeeVo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Mapper
@@ -42,6 +45,9 @@ public interface FeeMapper {
     /** 납부 이력 단건 조회 */
     FeePaymentVo selectPaymentByPaymentId(@Param("paymentId") Long paymentId);
 
+    /** 회비 1건의 납부 이력 목록 조회 - 취소분 포함, 최신순 (FEE-06) */
+    List<FeePaymentHistoryResponse> selectPaymentsByFeeId(@Param("feeId") Long feeId);
+
     /** 유효 납부 합계 - 취소되지 않은 납부 금액 합 */
     long sumPaidAmountByFeeId(@Param("feeId") Long feeId);
 
@@ -58,4 +64,10 @@ public interface FeeMapper {
     List<FeeMonthlyStatResponse> selectMonthlyStats(@Param("fromMonth") String fromMonth,
                                                     @Param("toMonth") String toMonth,
                                                     @Param("classId") Long classId);
+
+    /** 지정일에 납부 기한이 도래하는 미완납 회비 - 납부 예정 알림 대상 (FEE-08) */
+    List<FeeNotificationTargetResponse> selectFeesDueOn(@Param("dueDate") LocalDate dueDate);
+
+    /** 납부 기한이 지난 미완납 회비 - 미납 알림 대상, FEE-07 판정과 동일 조건 (FEE-09) */
+    List<FeeNotificationTargetResponse> selectOverdueUnpaidFees();
 }

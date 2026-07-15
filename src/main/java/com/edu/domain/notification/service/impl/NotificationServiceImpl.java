@@ -93,4 +93,21 @@ public class NotificationServiceImpl implements NotificationService {
             createNotification(parentUserId, notificationType, title, message);
         }
     }
+
+    @Override
+    @Transactional
+    public int notifyParentsOfStudentOnce(Long studentId, String notificationType, String title, String message) {
+        List<Long> parentUserIds = notificationMapper.selectParentUserIdsByStudentId(studentId);
+
+        int created = 0;
+        for (Long parentUserId : parentUserIds) {
+            // 같은 제목의 알림을 이미 받은 학부모는 건너뛴다 (청구월 기준 1회)
+            if (notificationMapper.existsByUserAndTypeAndTitle(parentUserId, notificationType, title)) {
+                continue;
+            }
+            createNotification(parentUserId, notificationType, title, message);
+            created++;
+        }
+        return created;
+    }
 }

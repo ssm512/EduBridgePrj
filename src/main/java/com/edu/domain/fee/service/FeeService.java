@@ -7,9 +7,14 @@ import com.edu.domain.fee.dto.request.FeeSearchRequest;
 import com.edu.domain.fee.dto.request.FeeUpdateRequest;
 import com.edu.domain.fee.dto.response.FeeCreateResponse;
 import com.edu.domain.fee.dto.response.FeeListResponse;
+import com.edu.domain.fee.dto.response.FeeNotificationTargetResponse;
+import com.edu.domain.fee.dto.response.FeePaymentHistoryResponse;
 import com.edu.domain.fee.dto.response.FeePaymentResponse;
 import com.edu.domain.fee.dto.response.FeeStatisticsResponse;
 import com.edu.domain.fee.dto.response.FeeUpdateResponse;
+
+import java.time.LocalDate;
+import java.util.List;
 
 public interface FeeService {
 
@@ -28,9 +33,18 @@ public interface FeeService {
     /** 납부 취소 - cancel_yn 처리 + 상태 재계산 (FEE-05) */
     FeePaymentResponse cancelPayment(Long paymentId);
 
+    /** 납부 이력 조회 - 회비 1건의 납부 기록 목록, 취소분 포함 (FEE-06) */
+    List<FeePaymentHistoryResponse> getPaymentHistory(Long feeId);
+
     /** 회비 통계 - 기준 월 요약 + 최근 6개월 추이 (FEE-06) */
     FeeStatisticsResponse getStatistics(String billingMonth, Long classId);
 
     /** 회비 삭제 - 납부 이력이 전혀 없는 잘못 등록 건만 (명세서 외 추가) */
     void deleteFee(Long feeId);
+
+    /** 지정일에 납부 기한이 도래하는 미완납 회비 목록 - 납부 예정 알림 배치용 (FEE-08) */
+    List<FeeNotificationTargetResponse> getFeesDueOn(LocalDate dueDate);
+
+    /** 납부 기한이 지난 미완납 회비 목록 - 미납 알림 배치용 (FEE-09) */
+    List<FeeNotificationTargetResponse> getOverdueUnpaidFees();
 }

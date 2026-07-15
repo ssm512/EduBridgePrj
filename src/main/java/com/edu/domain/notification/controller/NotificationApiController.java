@@ -30,8 +30,9 @@ public class NotificationApiController {
 
     /**
      * GET /api/v1/notifications - 알림 이력 조회 (NTI-01)
-     * ?userId=&notificationType=&readYn=&page=1&size=10
-     * userId 필터는 ADMIN 전용 - 그 외 역할은 서비스에서 본인 것으로 강제됨
+     * ?userName=&notificationType=&readYn=&page=1&size=10
+     * userName(수신자 이름 부분검색)은 ADMIN 화면 필터용.
+     * 비-ADMIN 역할은 서비스에서 본인 알림(userId)으로 강제된다.
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT', 'STUDENT')")

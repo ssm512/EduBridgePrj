@@ -15,6 +15,12 @@
             <if test="statusCode != null and statusCode != ''">
                 AND f.status_code = #{statusCode}
             </if>
+            <!-- FEE-07 미납 조회: 저장된 status_code 는 기한이 지나도 SCHEDULED 로 남을 수 있어
+                 신뢰하지 않고, "기한 경과(due_date < 오늘) + 완납 아님(status <> PAID)" 으로 직접 판정 -->
+            <if test="overdueOnly">
+                AND f.due_date &lt; CURRENT_DATE
+                AND f.status_code &lt;&gt; 'PAID'
+            </if>
         </where>
     </sql>
 
@@ -114,6 +120,21 @@
          WHERE payment_id = #{paymentId}
     </select>
 
+    <!-- 회비 1건의 납부 이력 목록 (FEE-06) - 취소분 포함.
+         최신 납부가 위로 오도록 paid_at DESC, 동시각이면 payment_id DESC -->
+    <select id="selectPaymentsByFeeId" resultType="com.edu.domain.fee.dto.response.FeePaymentHistoryResponse">
+        SELECT payment_id,
+               fee_id,
+               paid_amount,
+               paid_at,
+               payment_method,
+               receipt_no,
+               cancel_yn
+          FROM fee_payments
+         WHERE fee_id = #{feeId}
+         ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+    </select>
+
     <!-- 취소분 제외한 유효 납부 합계. 납부 이력이 없으면 0 -->
     <select id="sumPaidAmountByFeeId" resultType="long">
         SELECT COALESCE(SUM(paid_amount), 0)
@@ -165,6 +186,31 @@
         </if>
          GROUP BY f.billing_month
          ORDER BY f.billing_month ASC
+    </select>
+
+    <!-- FEE-08 납부 예정 알림 대상: 지정일에 기한이 도래하는 미완납 회비.
+         status_code 는 PAID 여부만 신뢰(완납 시 항상 PAID 로 갱신됨) -->
+    <select id="selectFeesDueOn" resultType="com.edu.domain.fee.dto.response.FeeNotificationTargetResponse">
+        SELECT fee_id,
+               student_id,
+               billing_month,
+               due_date,
+               fee_amount - discount_amount AS billable_amount
+          FROM fees
+         WHERE due_date = #{dueDate}
+           AND status_code &lt;&gt; 'PAID'
+    </select>
+
+    <!-- FEE-09 미납 알림 대상: 기한이 지난 미완납 회비 (FEE-07 미납 조회와 동일 조건) -->
+    <select id="selectOverdueUnpaidFees" resultType="com.edu.domain.fee.dto.response.FeeNotificationTargetResponse">
+        SELECT fee_id,
+               student_id,
+               billing_month,
+               due_date,
+               fee_amount - discount_amount AS billable_amount
+          FROM fees
+         WHERE due_date &lt; CURRENT_DATE
+           AND status_code &lt;&gt; 'PAID'
     </select>
 
 </mapper>

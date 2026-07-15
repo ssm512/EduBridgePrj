@@ -31,4 +31,12 @@ public interface NotificationMapper {
      * (students <- student_parents -> parents -> users 경로)
      */
     List<Long> selectParentUserIdsByStudentId(@Param("studentId") Long studentId);
+
+    /**
+     * 같은 수신자에게 동일 (타입 + 제목) 알림이 이미 있는지 - 중복 알림 방지용.
+     * 회비 예정/미납 배치 알림을 청구월 기준 1회만 보내기 위함 (FEE-08/09).
+     */
+    boolean existsByUserAndTypeAndTitle(@Param("userId") Long userId,
+                                        @Param("notificationType") String notificationType,
+                                        @Param("title") String title);
 }
