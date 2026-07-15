@@ -877,18 +877,18 @@
     let res;
 
     if (editingStudentParentId) {
-      // 수정 모드: PUT /students/{id}/parents/{studentParentId}
+      // 수정 모드: PUT /api/students/{id}/parents/{studentParentId}
       res = await writeFetch(
-        '/api/students/' + editingStudentId + '/api/parents/' + editingStudentParentId,
+        '/api/students/' + editingStudentId + '/parents/' + editingStudentParentId,
         'PUT', { relationCode, primaryYn });
     } else {
-      // 신규 연결: POST /students/{id}/parents (PAR-03, 로그인ID로 지정)
+      // 신규 연결: POST /api/students/{id}/parents (PAR-03, 로그인ID로 지정)
       const parentLoginId = document.getElementById('sdLinkParentLoginId').value.trim();
       if (!parentLoginId) {
         document.getElementById('sdErr').textContent = '연결할 학부모의 로그인 ID를 입력하세요';
         return;
       }
-      res = await writeFetch('/api/students/' + editingStudentId + '/api/parents',
+      res = await writeFetch('/api/students/' + editingStudentId + '/parents',
         'POST', { parentLoginId, relationCode, primaryYn });
     }
 

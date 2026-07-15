@@ -17,6 +17,7 @@ import com.edu.domain.notice.service.NoticeService;
 import com.edu.domain.notice.vo.NoticeFileVo;
 import com.edu.domain.notice.vo.NoticeQueryContext;
 import com.edu.domain.notice.vo.NoticeVo;
+import com.edu.domain.notification.service.NotificationService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -48,6 +49,7 @@ public class NoticeServiceImpl implements NoticeService {
     private final NoticeMapper noticeMapper;
     private final NoticeFileMapper noticeFileMapper;
     private final UserMapper userMapper;
+    private final NotificationService notificationService;
 
     /** 첨부파일 저장 루트 (application.yaml part1.upload-path = ${UPLOAD_PATH}) */
     private final String uploadPath;
@@ -55,10 +57,12 @@ public class NoticeServiceImpl implements NoticeService {
     public NoticeServiceImpl(NoticeMapper noticeMapper,
                              NoticeFileMapper noticeFileMapper,
                              UserMapper userMapper,
+                             NotificationService notificationService,
                              @Value("${part1.upload-path}") String uploadPath) {
         this.noticeMapper = noticeMapper;
         this.noticeFileMapper = noticeFileMapper;
         this.userMapper = userMapper;
+        this.notificationService = notificationService;
         this.uploadPath = uploadPath;
     }
 
@@ -83,6 +87,9 @@ public class NoticeServiceImpl implements NoticeService {
         if (!"ALL".equals(request.targetType())) {
             noticeMapper.insertTargets(notice.getNoticeId(), request.targetType(), request.targetIds());
         }
+
+        notifyTargets(notice.getNoticeId(), request.targetType(), request.title(), request.content());
+
         return NoticeResponse.from(noticeMapper.selectDetail(notice.getNoticeId(), ctx));
     }
 
@@ -246,7 +253,28 @@ public class NoticeServiceImpl implements NoticeService {
         }
     }
 
+    /**
+     * 공지 대상(targetType)에 해당하는 실제 알림 수신자 user_id 목록 조회 (명세서 외 - 알림 연동용)
+     * ALL이면 활성 회원 전체, CLASS면 수강생+학부모+담당강사까지 포함해서 반환한다.
+     */
+    @Override
+    public List<Long> resolveTargetUserIds(Long noticeId, String targetType) {
+        return noticeMapper.selectTargetUserIds(noticeId, targetType);
+    }
+
     // ===== 내부 유틸 =====
+
+    /**
+     * 공지 등록 직후 대상자 전원에게 알림 생성.
+     * notification 도메인은 이미 공개된 NotificationService.createNotification만 호출하고
+     * notification 패키지 코드는 건드리지 않는다.
+     */
+    private void notifyTargets(Long noticeId, String targetType, String title, String content) {
+        List<Long> targetUserIds = resolveTargetUserIds(noticeId, targetType);
+        for (Long userId : targetUserIds) {
+            notificationService.createNotification(userId, "NOTICE", title, content);
+        }
+    }
 
     /** 현재 로그인 사용자의 롤/PK 컨텍스트 구성 */
     private NoticeQueryContext resolveContext(Authentication authentication) {

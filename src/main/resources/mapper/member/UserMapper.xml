@@ -41,14 +41,16 @@
 
     <select id="selectByLoginId" resultType="com.edu.domain.member.dto.UserDto">
         SELECT user_id, login_id, password, name, email, phone,
-               role_code, status_code, last_login_at, created_at, updated_at
+               role_code, status_code, must_change_password,
+               last_login_at, created_at, updated_at
           FROM users
          WHERE login_id = #{loginId}
     </select>
 
     <select id="selectByUserId" resultType="com.edu.domain.member.dto.UserDto">
         SELECT user_id, login_id, password, name, email, phone,
-               role_code, status_code, last_login_at, created_at, updated_at
+               role_code, status_code, must_change_password,
+               last_login_at, created_at, updated_at
           FROM users
          WHERE user_id = #{userId}
     </select>
@@ -80,6 +82,24 @@
         UPDATE users
            SET status_code = #{statusCode},
                updated_at  = CURRENT_TIMESTAMP
+         WHERE user_id = #{userId}
+    </update>
+
+    <!-- 본인 비밀번호 변경: 강제 변경 플래그 해제 -->
+    <update id="updatePassword">
+        UPDATE users
+           SET password             = #{password},
+               must_change_password = FALSE,
+               updated_at           = CURRENT_TIMESTAMP
+         WHERE user_id = #{userId}
+    </update>
+
+    <!-- 관리자 비밀번호 초기화(A안): 임시 비밀번호 + 강제 변경 플래그 설정 -->
+    <update id="resetPassword">
+        UPDATE users
+           SET password             = #{password},
+               must_change_password = TRUE,
+               updated_at           = CURRENT_TIMESTAMP
          WHERE user_id = #{userId}
     </update>
 

@@ -16,6 +16,8 @@ public record UserResponse(
         String phone,
         String roleCode,
         String statusCode,
+        /** 관리자 초기화 후 비밀번호 변경이 필요한지 (로그인 후 변경 페이지 유도용) */
+        boolean mustChangePassword,
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         LocalDateTime createdAt
 ) {
@@ -28,6 +30,7 @@ public record UserResponse(
                 user.getPhone(),
                 user.getRoleCode(),
                 user.getStatusCode(),
+                Boolean.TRUE.equals(user.getMustChangePassword()),
                 user.getCreatedAt()
         );
     }

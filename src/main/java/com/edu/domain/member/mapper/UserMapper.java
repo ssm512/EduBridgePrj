@@ -54,4 +54,20 @@ public interface UserMapper {
      */
     int updateStatus(@Param("userId") Long userId,
                      @Param("statusCode") String statusCode);
+
+    /**
+     * 본인 비밀번호 변경
+     * 변경 성공 시 must_change_password 플래그 해제
+     * 비밀번호는 Service에서 BCrypt 암호화 후 전달
+     */
+    int updatePassword(@Param("userId") Long userId,
+                       @Param("password") String password);
+
+    /**
+     * 관리자 비밀번호 초기화 (A안)
+     * 임시 비밀번호로 교체 + must_change_password = TRUE
+     * 비밀번호는 Service에서 BCrypt 암호화 후 전달
+     */
+    int resetPassword(@Param("userId") Long userId,
+                      @Param("password") String password);
 }

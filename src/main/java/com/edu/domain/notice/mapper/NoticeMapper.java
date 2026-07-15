@@ -71,4 +71,13 @@ public interface NoticeMapper {
 
     /** users PK로 teachers PK 조회 (TEACHER 롤) */
     Long selectTeacherIdByUserId(@Param("userId") Long userId);
+
+    // ===== 알림 연동 (공지 대상 → 실제 알림 수신자 user_id) =====
+
+    /**
+     * 공지 대상(targetType)에 해당하는 알림 수신자 user_id 목록 조회.
+     * ALL: 활성 회원 전체. CLASS: 수강생 + 학부모 + 담당강사. 그 외: 해당 대상 본인.
+     */
+    List<Long> selectTargetUserIds(@Param("noticeId") Long noticeId,
+                                   @Param("targetType") String targetType);
 }

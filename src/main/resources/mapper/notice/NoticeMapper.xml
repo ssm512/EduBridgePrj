@@ -238,4 +238,62 @@
         SELECT teacher_id FROM teachers WHERE user_id = #{userId}
     </select>
 
+    <!-- ===== 알림 연동: 공지 대상 → 실제 알림 수신자 user_id ===== -->
+    <select id="selectTargetUserIds" resultType="long">
+        <choose>
+            <when test='targetType == "ALL"'>
+                SELECT user_id
+                  FROM users
+                 WHERE status_code = 'ACTIVE'
+            </when>
+            <when test='targetType == "STUDENT"'>
+                SELECT DISTINCT s.user_id
+                  FROM notice_targets t
+                  JOIN students s ON s.student_id = t.target_ref_id
+                 WHERE t.notice_id = #{noticeId}
+                   AND t.target_type = 'STUDENT'
+            </when>
+            <when test='targetType == "PARENT"'>
+                SELECT DISTINCT p.user_id
+                  FROM notice_targets t
+                  JOIN parents p ON p.parent_id = t.target_ref_id
+                 WHERE t.notice_id = #{noticeId}
+                   AND t.target_type = 'PARENT'
+            </when>
+            <when test='targetType == "TEACHER"'>
+                SELECT DISTINCT te.user_id
+                  FROM notice_targets t
+                  JOIN teachers te ON te.teacher_id = t.target_ref_id
+                 WHERE t.notice_id = #{noticeId}
+                   AND t.target_type = 'TEACHER'
+            </when>
+            <when test='targetType == "CLASS"'>
+                SELECT s.user_id
+                  FROM notice_targets t
+                  JOIN enrollments e ON e.class_id = t.target_ref_id AND e.status_code = 'ACTIVE'
+                  JOIN students s ON s.student_id = e.student_id
+                 WHERE t.notice_id = #{noticeId}
+                   AND t.target_type = 'CLASS'
+                UNION
+                SELECT p.user_id
+                  FROM notice_targets t
+                  JOIN enrollments e ON e.class_id = t.target_ref_id AND e.status_code = 'ACTIVE'
+                  JOIN student_parents sp ON sp.student_id = e.student_id
+                  JOIN parents p ON p.parent_id = sp.parent_id
+                 WHERE t.notice_id = #{noticeId}
+                   AND t.target_type = 'CLASS'
+                UNION
+                SELECT te.user_id
+                  FROM notice_targets t
+                  JOIN classes c ON c.class_id = t.target_ref_id
+                  JOIN teachers te ON te.teacher_id = c.teacher_id
+                 WHERE t.notice_id = #{noticeId}
+                   AND t.target_type = 'CLASS'
+            </when>
+            <otherwise>
+                SELECT NULL WHERE 1 = 0
+            </otherwise>
+        </choose>
+    </select>
+
 </mapper>

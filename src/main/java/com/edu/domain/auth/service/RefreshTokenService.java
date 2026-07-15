@@ -85,6 +85,11 @@ public class RefreshTokenService {
         refreshTokenMapper.revokeByTokenHash(sha256(rawToken));
     }
 
+    /** 특정 사용자의 활성 토큰 전부 폐기 (비밀번호 변경/초기화 시 세션 무효화) */
+    public void revokeAllForUser(Long userId) {
+        refreshTokenMapper.revokeAllByUserId(userId);
+    }
+
     /** 매일 새벽 3시 만료 토큰 삭제 */
     @Scheduled(cron = "0 0 3 * * *")
     public void deleteExpiredTokens() {
