@@ -14,6 +14,7 @@
        .status-paid / .status-unpaid / .status-scheduled : 상태별 색상
        .fee-actions   : 행 우측 관리 버튼 영역
        .fee-paid-info : 부분납부 시 금액 옆 청구/납부 병기 (작은 글씨)
+       .fee-student-info : 학생 이름 옆 학번/생년월일 병기 (작은 글씨, 동명이인 구분)
        .fee-paging    : 페이지네이션
        .empty-row     : 데이터 없음 표시 행
        .fee-modal     : 회비 등록 모달 (dialog)
@@ -195,7 +196,12 @@
       <tbody>
       <tr th:each="fee : ${feePage.items}">
         <td th:text="${fee.billingMonth}">2026-07</td>
-        <td th:text="${fee.studentName}">홍길동</td>
+        <td>
+          <!-- 동명이인 구분: 이름 옆에 학번/생년월일 병기 -->
+          <span th:text="${fee.studentName}">홍길동</span>
+          <small class="fee-student-info"
+                 th:text="'(' + (${fee.studentNo} ?: '학번없음') + ' · ' + (${fee.birthDate} ?: '-') + ')'">(S001 · 2011-03-02)</small>
+        </td>
         <td th:text="${fee.className} ?: '-'">수학A반</td>
         <td>
           <!-- 남은 금액을 메인으로, 부분납부가 있으면 청구/납부 내역을 작게 병기 -->
@@ -224,8 +230,13 @@
                   th:disabled="${fee.lastPaymentId == null}"
                   th:attr="data-payment-id=${fee.lastPaymentId}"
                   onclick="cancelPayment(this)">납부취소</button>
-          <!-- TODO(팀 확인): 화면설계에는 삭제 버튼이 있으나 API 명세에 DELETE 없음 - 회의 안건 -->
-          <button type="button" disabled title="API 명세에 삭제 없음 (팀 확인 필요)">삭제</button>
+          <!-- 삭제(명세서 외 추가): 잘못 등록된 청구 정리용.
+               납부 이력(취소분 포함)이 있으면 비활성 - 서버에서도 409 로 이중 방어 -->
+          <button type="button"
+                  th:disabled="${fee.paymentCount > 0}"
+                  th:title="${fee.paymentCount > 0} ? '납부 이력이 있는 회비는 삭제할 수 없습니다' : ''"
+                  th:attr="data-fee-id=${fee.feeId}, data-student-name=${fee.studentName}, data-billing-month=${fee.billingMonth}"
+                  onclick="deleteFee(this)">삭제</button>
         </td>
       </tr>
       <tr th:if="${#lists.isEmpty(feePage.items)}" class="empty-row">
@@ -517,6 +528,16 @@
 
     const res = await feeApi('/api/v1/fee-payments/' + btn.dataset.paymentId + '/cancel', 'PUT', null);
     await handleResult(res, '납부 취소 실패');
+  }
+
+  // ===== 회비 삭제 (명세서 외 추가) =====
+  // 잘못 등록된 청구 정리용. 되돌릴 수 없는 작업이라 confirm 에 대상 정보를 명시
+  async function deleteFee(btn) {
+    const target = btn.dataset.studentName + ' / ' + btn.dataset.billingMonth;
+    if (!confirm('[' + target + '] 회비 청구를 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.')) return;
+
+    const res = await feeApi('/api/v1/fees/' + btn.dataset.feeId, 'DELETE', null);
+    await handleResult(res, '삭제 실패');
   }
 </script>
 </body>

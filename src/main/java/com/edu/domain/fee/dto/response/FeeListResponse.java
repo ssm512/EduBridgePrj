@@ -26,6 +26,12 @@ public class FeeListResponse {
     /** 학생 이름 (users.name) */
     private String studentName;
 
+    /** 학번 (students.student_no) - 동명이인 구분용 */
+    private String studentNo;
+
+    /** 생년월일 (students.birth_date) - 동명이인 구분용 */
+    private LocalDate birthDate;
+
     /** 반 PK */
     private Long classId;
 
@@ -58,6 +64,9 @@ public class FeeListResponse {
 
     /** 유효 납부 합계 (취소분 제외, 없으면 0 - SQL COALESCE) */
     private Long paidSum;
+
+    /** 납부 이력 행 수 (취소분 포함) - 삭제 버튼 활성화 판단용 */
+    private Long paymentCount;
 
     /** 남은 금액 = 실 청구액 - 유효 납부 합계 */
     public Long getRemainingAmount() {

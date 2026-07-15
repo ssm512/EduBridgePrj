@@ -30,4 +30,7 @@ public interface FeeService {
 
     /** 회비 통계 - 기준 월 요약 + 최근 6개월 추이 (FEE-06) */
     FeeStatisticsResponse getStatistics(String billingMonth, Long classId);
+
+    /** 회비 삭제 - 납부 이력이 전혀 없는 잘못 등록 건만 (명세서 외 추가) */
+    void deleteFee(Long feeId);
 }

@@ -14,6 +14,7 @@ import com.edu.domain.fee.service.FeeService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -86,5 +87,17 @@ public class FeeApiController {
     public FeePaymentResponse payFee(@PathVariable Long feeId,
                                      @Valid @RequestBody FeePaymentRequest request) {
         return feeService.payFee(feeId, request);
+    }
+
+    /**
+     * DELETE /api/v1/fees/{feeId} - 회비 삭제 (명세서 외 추가, 2026-07-15)
+     * 잘못 등록된 청구 정리용. 납부 이력(취소분 포함)이 있으면 409.
+     * 근거: 잘못 등록된 UNPAID 건이 미납 통계를 오염시키는 문제 해결 - 팀 공유 안건
+     */
+    @DeleteMapping("/{feeId}")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteFee(@PathVariable Long feeId) {
+        feeService.deleteFee(feeId);
     }
 }

@@ -16,7 +16,6 @@
        .send-sent / .send-pending / .send-failed : 발송 상태별 색상
        .read-badge        : 읽음 뱃지 공통
        .read-y / .read-n  : 읽음/안읽음 색상
-       .noti-actions      : 행 우측 관리 버튼 영역
        .noti-paging       : 페이지네이션
        .empty-row         : 데이터 없음 표시 행
   -->
@@ -85,7 +84,6 @@
         <th>채널</th>
         <th>발송</th>
         <th>읽음</th>
-        <th>관리</th>
       </tr>
       </thead>
       <tbody>
@@ -110,15 +108,12 @@
                 th:classappend="${noti.readYn == 'Y'} ? 'read-y' : 'read-n'"
                 th:text="${noti.readYn == 'Y'} ? '읽음' : '안읽음'">읽음</span>
         </td>
-        <td class="noti-actions">
-          <!-- TODO(팀 확인): 화면설계의 재발송/수정/삭제/수신설정은 API 명세에 없음 - 회의 안건 -->
-          <button type="button" disabled title="API 명세에 재발송 없음 (팀 확인 필요)">재발송</button>
-          <button type="button" disabled title="API 명세에 수정 없음 (팀 확인 필요)">수정</button>
-          <button type="button" disabled title="API 명세에 삭제 없음 (팀 확인 필요)">삭제</button>
-        </td>
+        <!-- 관리(재발송/수정/삭제) 컬럼 제거 (2026-07-15)
+             : 알림은 발송 '이력'이라 불변이 원칙 + 해당 API 가 명세에 없음.
+               화면설계(SCR-W-18)와 다른 부분이므로 팀 공유 필요 -->
       </tr>
       <tr th:if="${#lists.isEmpty(notificationPage.items)}" class="empty-row">
-        <td colspan="8">조회된 알림 이력이 없습니다.</td>
+        <td colspan="7">조회된 알림 이력이 없습니다.</td>
       </tr>
       </tbody>
     </table>

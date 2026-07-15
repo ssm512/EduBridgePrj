@@ -48,6 +48,12 @@ public interface FeeMapper {
     /** 납부 취소 - cancel_yn = 'Y' (FEE-05, 이력은 삭제하지 않는다) */
     int cancelPayment(@Param("paymentId") Long paymentId);
 
+    /** 납부 이력 행 수 - 취소분 포함 (삭제 가능 여부 판단용) */
+    long countPaymentsByFeeId(@Param("feeId") Long feeId);
+
+    /** 회비 삭제 - 납부 이력이 전혀 없는 잘못 등록 건만 (명세서 외 추가) */
+    int deleteFee(@Param("feeId") Long feeId);
+
     /** 월 범위 회비 통계 - 청구/납부 합계 + 상태별 건수, billing_month 로 GROUP BY (FEE-06) */
     List<FeeMonthlyStatResponse> selectMonthlyStats(@Param("fromMonth") String fromMonth,
                                                     @Param("toMonth") String toMonth,

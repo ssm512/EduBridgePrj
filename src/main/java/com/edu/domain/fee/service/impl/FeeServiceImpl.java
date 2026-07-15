@@ -193,6 +193,25 @@ public class FeeServiceImpl implements FeeService {
         return new FeePaymentResponse(paymentId, statusCode);
     }
 
+    @Override
+    @Transactional
+    public void deleteFee(Long feeId) {
+        FeeVo fee = feeMapper.selectByFeeId(feeId);
+        if (fee == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 회비입니다");
+        }
+
+        // 납부 이력(취소분 포함)이 있으면 삭제 불가 - 돈이 오갔던 기록의 근거를 지울 수 없다.
+        // 서비스 검증이 1차 방어, fee_payments FK 제약이 2차(최종) 방어
+        long paymentCount = feeMapper.countPaymentsByFeeId(feeId);
+        if (paymentCount > 0) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "납부 이력이 " + paymentCount + "건 있는 회비는 삭제할 수 없습니다. 잘못 등록된 건만 삭제 가능합니다");
+        }
+
+        feeMapper.deleteFee(feeId);
+    }
+
     /** 통계 추이 차트에 보여줄 개월 수 (기준 월 포함) */
     private static final int STATS_MONTH_RANGE = 6;
 
