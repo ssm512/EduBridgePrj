@@ -60,6 +60,24 @@ public interface GradeMapper {
     List<Map<String, Object>> selectGradeTrend(@Param("studentId") Long studentId,
                                                @Param("subject") String subject);
 
+    // 로그인 ID로 학생 ID 조회
+    // 학생 본인의 성적 조회 API에서 요청 사용자의 student_id를 찾기 위해 사용한다.
+    Long selectStudentIdByLoginId(@Param("loginId") String loginId);
+
+    // 학부모가 연결된 자녀인지 확인
+    // 학부모 성적 조회에서 다른 학생 성적을 볼 수 없게 검증한다.
+    boolean existsParentChildByLoginId(@Param("loginId") String loginId,
+                                       @Param("studentId") Long studentId);
+
+    // 학부모에게 연결된 자녀 목록 조회
+    // parentPage 자녀 성적 화면의 학생 선택 목록으로 사용한다.
+    List<Map<String, Object>> selectChildrenByParentLoginId(@Param("loginId") String loginId);
+
+    // 학생별 성적 조회 목록
+    // 학생/학부모 조회 화면에서 시험명, 반, 과목, 점수, 석차를 함께 보여준다.
+    List<Map<String, Object>> selectStudentGradeList(@Param("studentId") Long studentId,
+                                                     @Param("subject") String subject);
+
     // 반별 성적 추이 조회
     // classId 기준으로 시험별 평균 점수 변화를 조회한다.
     List<Map<String, Object>> selectClassGradeTrend(@Param("classId") Long classId,

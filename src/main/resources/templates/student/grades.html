@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>내 성적</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .grade-page { display: grid; gap: 16px; }
+        .grade-panel {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 18px;
+        }
+        .grade-toolbar {
+            display: flex;
+            align-items: end;
+            gap: 12px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .field { display: grid; gap: 6px; min-width: 220px; }
+        .field label { font-size: 13px; font-weight: 600; color: #0f2a5f; }
+        select {
+            height: 36px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 0 10px;
+            background: #fff;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 10px 8px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        th { background: #f8fafc; color: #0f2a5f; font-weight: 600; }
+        .empty { color: #64748b; text-align: center; padding: 28px 0; }
+        .score-chip { font-weight: 700; color: #1d4ed8; }
+        .chart-wrap {
+            height: 300px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+        }
+        @media (max-width: 720px) {
+            .content { padding: 20px 16px; }
+            .table-wrap { overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/common :: topbar('학생')}"></div>
+<div class="shell">
+    <main class="content">
+        <h1>내 성적</h1>
+        <p class="sub">내 시험 점수와 과목별 성적 추이를 확인합니다.</p>
+
+        <div class="grade-page">
+            <section class="grade-panel">
+                <div class="grade-toolbar">
+                    <div class="field">
+                        <label for="subjectFilter">과목</label>
+                        <select id="subjectFilter" onchange="loadGradePage()">
+                            <option value="">전체 과목</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </section>
+
+            <section class="grade-panel">
+                <h2>성적 목록</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>시험명</th>
+                            <th>반</th>
+                            <th>과목</th>
+                            <th>시험일시</th>
+                            <th>점수</th>
+                            <th>석차</th>
+                            <th>비고</th>
+                        </tr>
+                        </thead>
+                        <tbody id="gradeRows">
+                        <tr><td class="empty" colspan="7">성적을 불러오는 중입니다.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+<script src="/js/chart.umd.min.js"></script>
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script>
+    let trendChart;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadSubjects();
+        await loadGradePage();
+    });
+
+    async function fetchJson(url) {
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+        return response.json();
+    }
+
+    async function loadSubjects() {
+        const subjects = await fetchJson('/api/grades/my/subjects');
+        const select = document.getElementById('subjectFilter');
+        select.innerHTML = '<option value="">전체 과목</option>';
+        subjects.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.subject;
+            option.textContent = item.subject;
+            select.appendChild(option);
+        });
+    }
+
+    async function loadGradePage() {
+        const subject = document.getElementById('subjectFilter').value;
+        const query = subject ? `?subject=${encodeURIComponent(subject)}` : '';
+        const [grades, trends] = await Promise.all([
+            fetchJson(`/api/grades/my${query}`),
+            fetchJson(`/api/grades/my/trends${query}`)
+        ]);
+        renderGrades(grades);
+        renderChart(trends);
+    }
+
+    function renderGrades(grades) {
+        const tbody = document.getElementById('gradeRows');
+        if (!grades.length) {
+            tbody.innerHTML = '<tr><td class="empty" colspan="7">조회된 성적이 없습니다.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = grades.map(grade => `
+            <tr>
+                <td>${escapeHtml(grade.exam_name || '')}</td>
+                <td>${escapeHtml(grade.class_name || '')}</td>
+                <td>${escapeHtml(grade.subject || '')}</td>
+                <td>${formatKoreanDateTime(grade.exam_date)}</td>
+                <td><span class="score-chip">${formatNumber(grade.score)}</span> / ${formatNumber(grade.total_score)}</td>
+                <td>${grade.rank_no ? `${grade.rank_no}등` : '-'}</td>
+                <td>${escapeHtml(grade.comment || '')}</td>
+            </tr>
+        `).join('');
+    }
+
+    function renderChart(trends) {
+        const sorted = [...trends].sort((a, b) => new Date(a.exam_date) - new Date(b.exam_date));
+        const labels = sorted.map(item => formatShortDate(item.exam_date));
+        const scores = sorted.map(item => Number(item.score || 0));
+        const ctx = document.getElementById('trendChart');
+        if (trendChart) {
+            trendChart.destroy();
+        }
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: '점수',
+                    data: scores,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, .12)',
+                    tension: .25,
+                    fill: true
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, suggestedMax: 100 } }
+            }
+        });
+    }
+
+    function formatKoreanDateTime(value) {
+        if (!value) return '-';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '-';
+        return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${String(date.getHours()).padStart(2, '0')}시 ${String(date.getMinutes()).padStart(2, '0')}분`;
+    }
+
+    function formatShortDate(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '-';
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
+
+    function formatNumber(value) {
+        if (value === null || value === undefined || value === '') return '-';
+        return Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 1 });
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+</script>
+</body>
+</html>
