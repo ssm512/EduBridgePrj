@@ -182,4 +182,10 @@
         WHERE login_id = #{loginId}
     </select>
 
+    <!-- 활동로그 저장 (출석 실패 사유 등). created_at은 DEFAULT -->
+    <insert id="insertActivityLog">
+        INSERT INTO activity_logs (user_id, action_type, target_table, target_id, description)
+        VALUES (#{userId}, #{actionType}, #{targetTable}, #{targetId}, #{description})
+    </insert>
+
 </mapper>

@@ -10,6 +10,7 @@ import com.edu.domain.attendance.dto.response.AttendanceResponse;
 import com.edu.domain.attendance.dto.response.AttendanceStatisticsResponse;
 import com.edu.domain.attendance.dto.response.ClassOptionResponse;
 import com.edu.domain.attendance.mapper.AttendanceMapper;
+import com.edu.domain.attendance.service.AttendanceFailLogService;
 import com.edu.domain.attendance.service.AttendanceService;
 import com.edu.domain.attendance.service.AttendanceVerificationService;
 import com.edu.domain.attendance.vo.AttendanceRecord;
@@ -44,12 +45,16 @@ public class AttendanceServiceImpl implements AttendanceService {
     private final AttendanceMapper attendanceMapper;
     private final AttendanceVerificationService verificationService;
     private final NotificationService notificationService;
+    private final AttendanceFailLogService failLogService;
 
     public AttendanceServiceImpl(AttendanceMapper attendanceMapper,
-                                 AttendanceVerificationService verificationService, NotificationService notificationService) {
+                                 AttendanceVerificationService verificationService,
+                                 NotificationService notificationService,
+                                 AttendanceFailLogService failLogService) {
         this.attendanceMapper = attendanceMapper;
         this.verificationService = verificationService;
         this.notificationService = notificationService;
+        this.failLogService = failLogService;
     }
 
     /**
@@ -66,11 +71,20 @@ public class AttendanceServiceImpl implements AttendanceService {
     public AttendanceResponse checkIn(AttendanceCheckRequest request, String loginId) {
         Long studentId = resolveStudentId(loginId);   // 본인만 출석 (요청의 studentId 무시)
         LocalDate today = LocalDate.now();
-        guardDuplicate(studentId, request.classId(), today);
 
-        // ATT-09/10/11 비콘(UUID)·RSSI·GPS 검증 (반에 등록 비콘이 있을 때만)
-        guardBeacon(request.classId(), request.beaconUuid(), request.rssiValue(),
+        // 중복 출석 방지 (실패 시 활동로그 기록)
+        if (attendanceMapper.countByStudentClassDate(studentId, request.classId(), today) > 0) {
+            failAndLog(loginId, request.classId(), "DUPLICATE", request.beaconUuid(),
+                    request.rssiValue(), request.gpsLatitude(), request.gpsLongitude(), HttpStatus.CONFLICT);
+        }
+
+        // ATT-09/10/11 비콘(UUID)·RSSI·GPS 검증 (반에 등록 비콘이 있을 때만). 실패 시 활동로그 기록 후 예외
+        String failCode = beaconFailCode(request.classId(), request.beaconUuid(), request.rssiValue(),
                 request.gpsLatitude(), request.gpsLongitude());
+        if (failCode != null) {
+            failAndLog(loginId, request.classId(), failCode, request.beaconUuid(),
+                    request.rssiValue(), request.gpsLatitude(), request.gpsLongitude(), HttpStatus.BAD_REQUEST);
+        }
 
         LocalDateTime now = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -118,9 +132,13 @@ public class AttendanceServiceImpl implements AttendanceService {
             throw new ApiException(HttpStatus.CONFLICT, "이미 퇴실 처리되었습니다");
         }
 
-        // 등원과 동일하게 비콘·GPS 검증
-        guardBeacon(request.classId(), request.beaconUuid(), request.rssiValue(),
+        // 등원과 동일하게 비콘·GPS 검증. 실패 시 활동로그 기록 후 예외
+        String failCode = beaconFailCode(request.classId(), request.beaconUuid(), request.rssiValue(),
                 request.gpsLatitude(), request.gpsLongitude());
+        if (failCode != null) {
+            failAndLog(loginId, request.classId(), failCode, request.beaconUuid(),
+                    request.rssiValue(), request.gpsLatitude(), request.gpsLongitude(), HttpStatus.BAD_REQUEST);
+        }
 
         LocalDateTime now = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -295,23 +313,26 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     /**
-     * 비콘 검증 — 반에 등록된 활성 비콘이 있을 때만 수행.
-     * 감지 UUID가 등록 UUID와 일치하고, RSSI가 기준 이상이어야 통과.
-     * 등록 비콘이 없으면 검증을 생략(통과)한다.
+     * 비콘/RSSI/GPS 검증 — 반에 등록된 활성 비콘이 있을 때만 수행.
+     * 통과하면 null, 실패하면 표준 실패코드를 반환한다(예외는 던지지 않음 → 호출부가 로그 저장 후 처리).
+     * 등록 비콘이 없으면 검증 생략(null 반환).
+     *
+     * 실패코드: BEACON_UUID_MISMATCH / RSSI_TOO_LOW / GPS_OUT_OF_RANGE
      */
-    private void guardBeacon(Long classId, String detectedUuid, Integer detectedRssi,
-                             Double gpsLat, Double gpsLng) {
+    private String beaconFailCode(Long classId, String detectedUuid, Integer detectedRssi,
+                                  Double gpsLat, Double gpsLng) {
         BeaconView beacon = attendanceMapper.findActiveBeaconByClass(classId);
         if (beacon == null) {
-            return; // 등록 비콘 없음 → 검증 생략
+            return null; // 등록 비콘 없음 → 검증 생략
         }
-        // ATT-10/11 비콘 UUID + RSSI
+        // ATT-10 비콘 UUID
+        if (!verificationService.verifyBeaconUuid(detectedUuid, beacon.getBeaconUuid())) {
+            return "BEACON_UUID_MISMATCH";
+        }
+        // ATT-11 RSSI
         int threshold = beacon.getRssiThreshold() != null ? beacon.getRssiThreshold() : -75;
-        boolean uuidOk = verificationService.verifyBeaconUuid(detectedUuid, beacon.getBeaconUuid());
-        boolean rssiOk = detectedRssi != null && verificationService.verifyRssi(detectedRssi, threshold);
-        if (!uuidOk || !rssiOk) {
-            throw new ApiException(HttpStatus.BAD_REQUEST,
-                    "비콘 인증 실패 — 강의실 비콘 근처에서 다시 시도하세요");
+        if (detectedRssi == null || !verificationService.verifyRssi(detectedRssi, threshold)) {
+            return "RSSI_TOO_LOW";
         }
         // ATT-09 GPS 위치 (비콘에 기준 좌표가 등록된 경우에만)
         if (beacon.getGpsLatitude() != null && beacon.getGpsLongitude() != null) {
@@ -321,10 +342,34 @@ public class AttendanceServiceImpl implements AttendanceService {
                             beacon.getGpsLatitude(), beacon.getGpsLongitude(),
                             DEFAULT_GPS_RADIUS_METERS);
             if (!gpsOk) {
-                throw new ApiException(HttpStatus.BAD_REQUEST,
-                        "위치 확인 실패 — 강의실 근처에서 다시 시도하세요");
+                return "GPS_OUT_OF_RANGE";
             }
         }
+        return null;
+    }
+
+    /**
+     * 출석 검증 실패 처리: 활동로그(activity_logs)에 실패 사유를 남기고 예외를 던진다.
+     * 로그는 REQUIRES_NEW(별도 트랜잭션)라 이 예외로 인한 롤백에도 유실되지 않는다.
+     */
+    private void failAndLog(String loginId, Long classId, String failCode, String uuid,
+                            Integer rssi, Double lat, Double lng, HttpStatus status) {
+        Long userId = attendanceMapper.getMyUserId(loginId);
+        String desc = "출석실패 [" + failCode + "] uuid=" + uuid
+                + ", rssi=" + rssi + ", gps=" + lat + "," + lng;
+        failLogService.record(userId, classId, desc);
+        throw new ApiException(status, failMessage(failCode));
+    }
+
+    /** 실패코드 → 사용자용 안내 메시지 */
+    private String failMessage(String failCode) {
+        return switch (failCode) {
+            case "DUPLICATE"           -> "이미 오늘 출석 기록이 있습니다.";
+            case "BEACON_UUID_MISMATCH" -> "강의실 비콘이 감지되지 않았습니다. 비콘 근처에서 다시 시도하세요.";
+            case "RSSI_TOO_LOW"        -> "비콘 신호가 약합니다. 비콘에 더 가까이서 다시 시도하세요.";
+            case "GPS_OUT_OF_RANGE"    -> "강의실 위치를 벗어났습니다. 강의실 근처에서 다시 시도하세요.";
+            default                     -> "출석 검증에 실패했습니다.";
+        };
     }
 
     private BigDecimal toBigDecimal(Double value) {

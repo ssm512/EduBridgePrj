@@ -99,4 +99,14 @@ public interface AttendanceMapper {
     String getClassName(@Param("classId") Long classId);
 
     Long getMyUserId(@Param("loginId") String loginId);
+
+    /**
+     * 활동로그 저장 (activity_logs). 출석 검증 실패 사유 기록 등에 사용.
+     * actionType 예: ATTENDANCE_FAIL (나중에 활동로그 화면에서 분류/탭 조회)
+     */
+    int insertActivityLog(@Param("userId") Long userId,
+                          @Param("actionType") String actionType,
+                          @Param("targetTable") String targetTable,
+                          @Param("targetId") Long targetId,
+                          @Param("description") String description);
 }
