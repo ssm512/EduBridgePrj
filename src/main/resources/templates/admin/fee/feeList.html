@@ -18,6 +18,9 @@
        .empty-row     : 데이터 없음 표시 행
        .fee-modal     : 회비 등록 모달 (dialog)
        .fee-modal-buttons : 모달 하단 버튼 영역
+       .fee-student-picker  : 등록 모달 내 학생 검색 영역
+       .fee-student-results : 학생 검색 결과 리스트 (li 클릭 선택, .no-result / .more-hint 포함)
+       .fee-student-selected : 선택된 학생 표시 줄
   -->
   <style>
     /* TODO(윤동재): 페이지 스타일 작성 */
@@ -73,12 +76,34 @@
       <form id="feeCreateForm">
         <h2>회비 등록</h2>
 
-        <!-- TODO: 학생/반 선택은 member, classroom 파트 목록 API 완성 후 select 로 교체 -->
-        <label>학생 ID
-          <input type="number" name="studentId" required min="1">
-        </label>
-        <label>반 ID (개인 청구 시 비워두기)
-          <input type="number" name="classId" min="1">
+        <!-- 학생 선택: 이름 검색 -> 후보 리스트 -> 선택 (팀원 STU-02 GET /api/students 재사용) -->
+        <div class="fee-student-picker">
+          <label>학생 검색 (이름/학번)
+            <input type="text" id="studentKeyword" placeholder="이름 입력 후 검색" autocomplete="off">
+          </label>
+          <button type="button" onclick="searchStudents()">검색</button>
+
+          <!-- 검색 결과: 동명이인 구분을 위해 학교/학년/생년월일/학번 병기 -->
+          <ul id="studentResults" class="fee-student-results" hidden></ul>
+
+          <!-- 선택 완료 표시 -->
+          <div id="studentSelected" class="fee-student-selected" hidden>
+            <span id="studentSelectedLabel"></span>
+            <button type="button" onclick="resetStudentSelect()">다시 검색</button>
+          </div>
+
+          <!-- 실제 전송값: 리스트에서 선택한 학생의 PK (서버에서 존재 여부 재검증) -->
+          <input type="hidden" name="studentId" id="studentIdInput">
+        </div>
+
+        <!-- 반 선택: 팀원 CLS-02(GET /api/classes) 재사용.
+             모달 열 때 ACTIVE 반 전체를 1회 로딩하고,
+             필터 입력은 서버 재호출 없이 클라이언트에서 옵션만 걸러냄 -->
+        <label>반 (개인 청구 시 그대로 두기)
+          <input type="text" id="classFilter" placeholder="반이름/과목/강사명으로 거르기" autocomplete="off">
+          <select name="classId" id="classSelect">
+            <option value="">개인 청구 (반 없음)</option>
+          </select>
         </label>
         <label>청구 월
           <input type="month" name="billingMonth" required>
@@ -260,19 +285,167 @@
     dialog.close();
   }
 
+  // ===== 학생 이름 검색 -> 선택 (등록 모달) =====
+  // 팀원 STU-02(GET /api/students) 재사용. keyword 는 이름/로그인ID/학번을 검색함.
+  // GET 이라 CSRF 헤더 불필요
+  async function searchStudents() {
+    const keyword = document.getElementById('studentKeyword').value.trim();
+    if (!keyword) { alert('검색어를 입력해 주세요'); return; }
+
+    const res = await fetch('/api/students?keyword=' + encodeURIComponent(keyword) + '&size=20');
+    if (!res.ok) { alert('학생 검색 실패: ' + res.status); return; }
+    const page = await res.json();
+
+    const list = document.getElementById('studentResults');
+    list.innerHTML = '';
+    list.hidden = false;
+    document.getElementById('studentSelected').hidden = true;
+    document.getElementById('studentIdInput').value = '';
+
+    if (page.items.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'no-result';
+      li.textContent = '검색 결과가 없습니다';
+      list.appendChild(li);
+      return;
+    }
+
+    // XSS 방지: 서버 데이터는 innerHTML 이 아닌 textContent 로만 바인딩
+    page.items.forEach(function (s) {
+      const li = document.createElement('li');
+      const school = [s.schoolName, s.gradeLevel].filter(Boolean).join(' ');
+      li.textContent = s.name
+        + ' · ' + (school || '-')
+        + ' · ' + (s.birthDate || '생년월일 없음')
+        + ' · ' + (s.studentNo || '학번 없음');
+      li.onclick = function () { selectStudent(s); };
+      list.appendChild(li);
+    });
+
+    // 페이지 크기(20)보다 결과가 많으면 검색어를 좁히도록 안내
+    if (page.totalCount > page.items.length) {
+      const li = document.createElement('li');
+      li.className = 'more-hint';
+      li.textContent = '총 ' + page.totalCount + '건 중 20건만 표시 중입니다. 검색어를 더 정확히 입력해 주세요';
+      list.appendChild(li);
+    }
+  }
+
+  function selectStudent(s) {
+    const school = [s.schoolName, s.gradeLevel].filter(Boolean).join(' ');
+    document.getElementById('studentIdInput').value = s.studentId;
+    document.getElementById('studentSelectedLabel').textContent =
+      '선택됨: ' + s.name + (school ? ' (' + school + ')' : '');
+    document.getElementById('studentResults').hidden = true;
+    document.getElementById('studentSelected').hidden = false;
+  }
+
+  function resetStudentSelect() {
+    document.getElementById('studentIdInput').value = '';
+    document.getElementById('studentKeyword').value = '';
+    document.getElementById('studentSelected').hidden = true;
+    const list = document.getElementById('studentResults');
+    list.innerHTML = '';
+    list.hidden = true;
+  }
+
+  // 검색창에서 Enter 를 치면 폼 제출(등록)이 아니라 검색이 실행되게
+  document.getElementById('studentKeyword').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); searchStudents(); }
+  });
+
+  // ===== 반 select 옵션 로딩 + 클라이언트 필터 =====
+  // 팀원 CLS-02(GET /api/classes) 재사용. 운영중(ACTIVE) 반만 조회.
+  // 서버 호출은 모달 열 때 1회뿐 - 필터는 캐시(classOptions)를 걸러서 다시 그림.
+  // (반 규모 수십 개 전제. size=100 초과 시 학생처럼 서버 검색 방식으로 전환 필요)
+  let classOptions = [];
+
+  async function loadClassOptions() {
+    const select = document.getElementById('classSelect');
+    classOptions = [];
+    renderClassOptions('');
+
+    const res = await fetch('/api/classes?statusCode=ACTIVE&size=100');
+    if (!res.ok) {
+      // 반 로딩이 실패해도 개인 청구는 가능해야 하므로 모달은 막지 않고 표시만
+      const opt = document.createElement('option');
+      opt.disabled = true;
+      opt.textContent = '반 목록 로딩 실패 (' + res.status + ')';
+      select.appendChild(opt);
+      return;
+    }
+
+    const page = await res.json();
+    classOptions = page.items;
+    renderClassOptions('');
+  }
+
+  // 필터 문자열(반이름/과목/강사명)에 맞는 옵션만 다시 그림
+  function renderClassOptions(filterText) {
+    const select = document.getElementById('classSelect');
+    const keyword = filterText.trim().toLowerCase();
+    const prevValue = select.value; // 필터 중에도 기존 선택 유지 시도
+
+    select.length = 1; // 첫 옵션(개인 청구)만 남기고 초기화
+
+    const filtered = classOptions.filter(function (c) {
+      if (!keyword) return true;
+      const target = [c.className, c.subject, c.teacherName].filter(Boolean).join(' ').toLowerCase();
+      return target.includes(keyword);
+    });
+
+    filtered.forEach(function (c) {
+      const opt = document.createElement('option');
+      opt.value = c.classId;
+      opt.textContent = c.className
+        + (c.subject ? ' · ' + c.subject : '')
+        + (c.teacherName ? ' (' + c.teacherName + ')' : '');
+      select.appendChild(opt);
+    });
+
+    if (classOptions.length > 0 && filtered.length === 0) {
+      const opt = document.createElement('option');
+      opt.disabled = true;
+      opt.textContent = '일치하는 반 없음';
+      select.appendChild(opt);
+    }
+
+    // 이전에 고른 반이 필터 결과에 남아 있으면 선택 복원 (없으면 개인 청구로 초기화됨)
+    if (prevValue) select.value =
+      [...select.options].some(o => o.value === prevValue) ? prevValue : '';
+  }
+
+  document.getElementById('classFilter').addEventListener('input', function () {
+    renderClassOptions(this.value);
+  });
+
+  // 필터 칸에서 Enter 를 쳐도 폼 제출(등록)로 이어지지 않게 차단
+  document.getElementById('classFilter').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') e.preventDefault();
+  });
+
   // ===== 회비 등록 (FEE-01) =====
   function openFeeCreateModal() {
+    loadClassOptions(); // 비동기 로딩 - 모달은 먼저 열리고 옵션이 채워짐
     document.getElementById('feeCreateModal').showModal();
   }
 
   function closeFeeCreateModal() {
     closeModal('feeCreateModal');
+    resetStudentSelect(); // 결과 리스트/선택 표시는 form.reset() 으로 안 지워지므로 별도 초기화
   }
 
   document.getElementById('feeCreateForm').addEventListener('submit', async function (e) {
     e.preventDefault();
 
     const form = new FormData(this);
+
+    // hidden 이라 required 브라우저 검증이 안 걸리므로 직접 확인
+    if (!form.get('studentId')) {
+      alert('학생을 검색해서 선택해 주세요');
+      return;
+    }
+
     const body = {
       studentId:      Number(form.get('studentId')),
       classId:        form.get('classId') ? Number(form.get('classId')) : null,
