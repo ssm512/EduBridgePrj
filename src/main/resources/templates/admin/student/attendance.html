@@ -8,7 +8,13 @@
     /* 다크모드에서 폼 컨트롤이 검게 칠해지는 것 방지 (라이트 강제) */
     :root { color-scheme: light; }
     input, select, textarea { background:#fff; color:#111827; font-family:inherit; }
-    .page-sub { color:#6b7280; font-size:13px; margin:-6px 0 16px; }
+    .page-sub { color:#6b7280; font-size:13px; margin:-6px 0 14px; }
+
+    .tabs { display:flex; gap:4px; border-bottom:2px solid #e5e7eb; margin-bottom:16px; }
+    .tab { padding:9px 18px; border:0; background:none; cursor:pointer; font-size:14px;
+           font-weight:600; color:#94a3b8; border-bottom:2px solid transparent; margin-bottom:-2px; }
+    .tab:hover { color:#475569; }
+    .tab.active { color:#1e3a8a; border-bottom-color:#1e3a8a; }
 
     .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;
              margin-bottom:14px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
@@ -87,8 +93,17 @@
 
   <main class="content">
     <h1>출석관리</h1>
-    <p class="page-sub">반별 출석부로 등록·결석 처리하고, 아래에서 출석 이력을 조회·수정할 수 있어요.</p>
+    <p class="page-sub">출석부·출결 통계·비콘을 탭으로 나눠 관리해요.</p>
 
+    <!-- 탭 -->
+    <div class="tabs">
+      <button class="tab active" data-tab="sheet"  onclick="showTab('sheet')">출석부</button>
+      <button class="tab"        data-tab="stats"  onclick="showTab('stats')">출결 통계</button>
+      <button class="tab"        data-tab="beacon" onclick="showTab('beacon')">비콘관리</button>
+    </div>
+
+    <!-- ===== 탭: 출석부 (반 출석부 + 출석 이력) ===== -->
+    <section class="tab-panel" id="tab-sheet">
     <!-- 반 출석부 (반 선택 → 명단 → 상태/시간 저장) -->
     <div class="panel">
       <h2>반 출석부</h2>
@@ -111,28 +126,6 @@
         </table>
       </div>
       <div id="msg"></div>
-    </div>
-
-    <!-- 출석 통계 -->
-    <div class="panel">
-      <h2>출석 통계</h2>
-      <div class="row" style="margin-bottom:14px;">
-        <div class="f"><label>반</label>
-          <select id="s_classSel"><option value="">전체</option></select>
-        </div>
-        <div class="f"><label>시작일</label><input id="s_from" type="date"></div>
-        <div class="f"><label>종료일</label><input id="s_to" type="date"></div>
-        <button class="btn" onclick="loadStats()">통계 조회</button>
-      </div>
-      <div class="row quick" style="margin-bottom:12px;">
-        <button class="btn sub sm" onclick="setRange('today')">오늘</button>
-        <button class="btn sub sm" onclick="setRange('week')">이번주</button>
-        <button class="btn sub sm" onclick="setRange('month')">이번달</button>
-        <button class="btn sub sm" onclick="setRange('3m')">3개월</button>
-      </div>
-      <div id="statCards" class="stat-cards">
-        <div class="muted" style="font-size:13px;">반·기간을 고르고 통계를 조회하세요.</div>
-      </div>
     </div>
 
     <!-- 출석 이력 -->
@@ -167,6 +160,86 @@
         </table>
       </div>
     </div>
+    </section><!-- /tab-sheet -->
+
+    <!-- ===== 탭: 출결 통계 ===== -->
+    <section class="tab-panel" id="tab-stats" hidden>
+    <div class="panel">
+      <h2>출석 통계</h2>
+      <div class="row" style="margin-bottom:14px;">
+        <div class="f"><label>반</label>
+          <select id="s_classSel"><option value="">전체</option></select>
+        </div>
+        <div class="f"><label>시작일</label><input id="s_from" type="date"></div>
+        <div class="f"><label>종료일</label><input id="s_to" type="date"></div>
+        <button class="btn" onclick="loadStats()">통계 조회</button>
+      </div>
+      <div class="row quick" style="margin-bottom:12px;">
+        <button class="btn sub sm" onclick="setRange('today')">오늘</button>
+        <button class="btn sub sm" onclick="setRange('week')">이번주</button>
+        <button class="btn sub sm" onclick="setRange('month')">이번달</button>
+        <button class="btn sub sm" onclick="setRange('3m')">3개월</button>
+      </div>
+      <div id="statCards" class="stat-cards">
+        <div class="muted" style="font-size:13px;">반·기간을 고르고 통계를 조회하세요.</div>
+      </div>
+    </div>
+    </section><!-- /tab-stats -->
+
+    <!-- ===== 탭: 비콘관리 (BCN-01~03) ===== -->
+    <section class="tab-panel" id="tab-beacon" hidden>
+    <!-- 비콘 등록/수정 폼 -->
+    <div class="panel">
+      <h2 id="beaconFormTitle">비콘 등록</h2>
+      <input type="hidden" id="b_id">
+      <div class="row" style="margin-bottom:10px;">
+        <div class="f"><label>반</label>
+          <select id="b_classSel"><option value="">미지정</option></select>
+        </div>
+        <div class="f" style="flex:2;"><label>UUID *</label>
+          <input id="b_uuid" placeholder="예: E2C56DB5-DFFB-48D2-B060-D0F5A71096E0" style="min-width:340px;">
+        </div>
+        <div class="f"><label>위치명</label><input id="b_loc" placeholder="예: 301호"></div>
+      </div>
+      <div class="row" style="margin-bottom:10px;">
+        <div class="f"><label>Major</label><input id="b_major" type="number" placeholder="예: 1"></div>
+        <div class="f"><label>Minor</label><input id="b_minor" type="number" placeholder="예: 1"></div>
+        <div class="f"><label>RSSI 기준</label><input id="b_rssi" type="number" placeholder="-75"></div>
+        <div class="f"><label>활성</label>
+          <select id="b_active"><option value="Y">사용(Y)</option><option value="N">중지(N)</option></select>
+        </div>
+      </div>
+      <div class="row" style="margin-bottom:10px;">
+        <div class="f"><label>기준 위도(lat)</label><input id="b_lat" placeholder="예: 37.5665"></div>
+        <div class="f"><label>기준 경도(lng)</label><input id="b_lng" placeholder="예: 126.9780"></div>
+        <button class="btn" onclick="saveBeacon()">저장</button>
+        <button class="btn sub" onclick="resetBeaconForm()">새로 입력</button>
+      </div>
+      <div class="note" style="margin-top:2px;">GPS 좌표를 비우면 해당 비콘은 GPS 검증 없이 UUID·RSSI만으로 출석을 인정합니다.</div>
+      <div id="bmsg"></div>
+    </div>
+
+    <!-- 비콘 목록 -->
+    <div class="panel">
+      <h2>비콘 목록</h2>
+      <div class="row" style="margin-bottom:10px;">
+        <div class="f"><label>반 필터</label>
+          <select id="bq_classSel" onchange="loadBeacons()"><option value="">전체</option></select>
+        </div>
+        <button class="btn sub" onclick="loadBeacons()">새로고침</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>반</th><th>UUID</th><th>Major/Minor</th><th>RSSI</th><th>위치</th><th>GPS</th><th>활성</th><th>관리</th></tr>
+          </thead>
+          <tbody id="beaconTbody">
+            <tr><td colspan="8" class="muted">불러오는 중…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    </section><!-- /tab-beacon -->
   </main>
 </div>
 
@@ -240,6 +313,9 @@
       // 이력 필터 / 통계 반 드롭다운 (전체 + 반들)
       document.getElementById('q_classSel').innerHTML = '<option value="">전체</option>' + opts;
       document.getElementById('s_classSel').innerHTML = '<option value="">전체</option>' + opts;
+      // 비콘: 폼(미지정 허용) / 목록필터(전체)
+      document.getElementById('b_classSel').innerHTML  = '<option value="">미지정</option>' + opts;
+      document.getElementById('bq_classSel').innerHTML = '<option value="">전체</option>' + opts;
     } catch (e) {
       // API 접근 실패 시 폴백 (권한/네트워크)
       document.getElementById('classPickWrap').innerHTML =
@@ -417,6 +493,128 @@
     const token = await ensureCsrf();
     const res = await fetch(`/api/attendance/${id}`, { method:'DELETE', headers:{ 'X-XSRF-TOKEN':token } });
     if (res.ok || res.status === 204) loadHistory(); else alert(`삭제 실패 (${res.status})`);
+  }
+
+  // ===== 탭 전환 =====
+  let beaconLoaded = false;
+  function showTab(name) {
+    ['sheet','stats','beacon'].forEach(t => {
+      document.getElementById('tab-' + t).hidden = (t !== name);
+    });
+    document.querySelectorAll('.tab').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === name);
+    });
+    if (name === 'beacon' && !beaconLoaded) { beaconLoaded = true; loadBeacons(); }
+  }
+
+  // ===== 비콘 관리 (GET/POST/PUT/DELETE /api/beacons) =====
+  let beaconCache = [];
+  function esc(s) { return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  async function loadBeacons() {
+    const c = document.getElementById('bq_classSel').value;
+    const qs = c ? ('?classId=' + c) : '';
+    const tb = document.getElementById('beaconTbody');
+    const res = await fetch('/api/beacons' + qs);
+    if (!res.ok) { tb.innerHTML = `<tr><td colspan="8">조회 실패 (${res.status})</td></tr>`; return; }
+    beaconCache = await res.json();
+    if (!beaconCache.length) { tb.innerHTML = `<tr><td colspan="8" class="muted">등록된 비콘이 없습니다.</td></tr>`; return; }
+    tb.innerHTML = beaconCache.map(b => {
+      const gps = (b.gpsLatitude != null && b.gpsLongitude != null)
+        ? `${b.gpsLatitude}, ${b.gpsLongitude}` : '<span class="muted">없음</span>';
+      const active = b.activeYn === 'Y'
+        ? '<span class="tag PRESENT">사용</span>' : '<span class="tag ABSENT">중지</span>';
+      return `<tr>
+        <td>${esc(b.className) || '<span class="muted">미지정</span>'}</td>
+        <td style="font-family:monospace; font-size:11px;">${esc(b.beaconUuid)}</td>
+        <td>${b.majorValue ?? '-'} / ${b.minorValue ?? '-'}</td>
+        <td>${b.rssiThreshold ?? '-'}</td>
+        <td>${esc(b.locationName) || '-'}</td>
+        <td style="font-size:11px;">${gps}</td>
+        <td>${active}</td>
+        <td>
+          <div class="manage">
+            <button class="btn sm" onclick="editBeacon(${b.beaconId})">수정</button>
+            <button class="btn sm danger" onclick="deleteBeacon(${b.beaconId})">삭제</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function resetBeaconForm() {
+    document.getElementById('beaconFormTitle').textContent = '비콘 등록';
+    document.getElementById('b_id').value = '';
+    document.getElementById('b_classSel').value = '';
+    document.getElementById('b_uuid').value = '';
+    document.getElementById('b_loc').value = '';
+    document.getElementById('b_major').value = '';
+    document.getElementById('b_minor').value = '';
+    document.getElementById('b_rssi').value = '';
+    document.getElementById('b_active').value = 'Y';
+    document.getElementById('b_lat').value = '';
+    document.getElementById('b_lng').value = '';
+    document.getElementById('bmsg').textContent = '';
+  }
+
+  function editBeacon(id) {
+    const b = beaconCache.find(x => x.beaconId === id);
+    if (!b) return;
+    document.getElementById('beaconFormTitle').textContent = `비콘 수정 (#${id})`;
+    document.getElementById('b_id').value = id;
+    document.getElementById('b_classSel').value = b.classId ?? '';
+    document.getElementById('b_uuid').value = b.beaconUuid ?? '';
+    document.getElementById('b_loc').value = b.locationName ?? '';
+    document.getElementById('b_major').value = b.majorValue ?? '';
+    document.getElementById('b_minor').value = b.minorValue ?? '';
+    document.getElementById('b_rssi').value = b.rssiThreshold ?? '';
+    document.getElementById('b_active').value = b.activeYn ?? 'Y';
+    document.getElementById('b_lat').value = b.gpsLatitude ?? '';
+    document.getElementById('b_lng').value = b.gpsLongitude ?? '';
+    document.getElementById('tab-beacon').scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  function numOrNull(id) { const v = document.getElementById(id).value.trim(); return v === '' ? null : Number(v); }
+  function strOrNull(id) { const v = document.getElementById(id).value.trim(); return v === '' ? null : v; }
+
+  async function saveBeacon() {
+    const msg = document.getElementById('bmsg');
+    const uuid = document.getElementById('b_uuid').value.trim();
+    if (!uuid) { msg.textContent = 'UUID는 필수입니다.'; msg.style.color = '#b91c1c'; return; }
+    const id = document.getElementById('b_id').value;
+    const body = {
+      classId:      numOrNull('b_classSel'),
+      beaconUuid:   uuid,
+      majorValue:   numOrNull('b_major'),
+      minorValue:   numOrNull('b_minor'),
+      rssiThreshold:numOrNull('b_rssi'),
+      locationName: strOrNull('b_loc'),
+      activeYn:     document.getElementById('b_active').value,
+      gpsLatitude:  numOrNull('b_lat'),
+      gpsLongitude: numOrNull('b_lng')
+    };
+    const token = await ensureCsrf();
+    const url = id ? `/api/beacons/${id}` : '/api/beacons';
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type':'application/json', 'X-XSRF-TOKEN':token },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      msg.textContent = id ? '수정되었습니다.' : '등록되었습니다.'; msg.style.color = '#166534';
+      resetBeaconForm(); loadBeacons();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      msg.textContent = `저장 실패 (${res.status}): ${d.message || ''}`; msg.style.color = '#b91c1c';
+    }
+  }
+
+  async function deleteBeacon(id) {
+    if (!confirm(`비콘 #${id} 을(를) 삭제할까요?`)) return;
+    const token = await ensureCsrf();
+    const res = await fetch(`/api/beacons/${id}`, { method:'DELETE', headers:{ 'X-XSRF-TOKEN':token } });
+    if (res.ok || res.status === 204) loadBeacons(); else alert(`삭제 실패 (${res.status})`);
   }
 
   // 날짜는 기본 오늘 (보통 그대로 두고, 지난 날짜 보정 시에만 변경)

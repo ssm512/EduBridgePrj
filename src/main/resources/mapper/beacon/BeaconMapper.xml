@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 비콘 매퍼 (BCN-01~03). map-underscore-to-camel-case=true -->
+<mapper namespace="com.edu.domain.beacon.mapper.BeaconMapper">
+
+    <sql id="selectWithClass">
+        SELECT b.*, c.class_name AS class_name
+        FROM beacons b
+        LEFT JOIN classes c ON b.class_id = c.class_id
+    </sql>
+
+    <select id="findList" resultType="Beacon">
+        <include refid="selectWithClass"/>
+        <where>
+            <if test="classId != null"> AND b.class_id = #{classId} </if>
+        </where>
+        ORDER BY b.beacon_id DESC
+    </select>
+
+    <select id="findById" resultType="Beacon">
+        <include refid="selectWithClass"/>
+        WHERE b.beacon_id = #{beaconId}
+    </select>
+
+    <insert id="insert" parameterType="Beacon"
+            useGeneratedKeys="true" keyProperty="beaconId" keyColumn="beacon_id">
+        INSERT INTO beacons
+            (class_id, beacon_uuid, major_value, minor_value, rssi_threshold,
+             location_name, active_yn, gps_latitude, gps_longitude)
+        VALUES
+            (#{classId}, #{beaconUuid}, #{majorValue}, #{minorValue}, #{rssiThreshold},
+             #{locationName}, #{activeYn}, #{gpsLatitude}, #{gpsLongitude})
+    </insert>
+
+    <update id="update" parameterType="Beacon">
+        UPDATE beacons
+        SET class_id       = #{classId},
+            beacon_uuid    = #{beaconUuid},
+            major_value    = #{majorValue},
+            minor_value    = #{minorValue},
+            rssi_threshold = #{rssiThreshold},
+            location_name  = #{locationName},
+            active_yn      = #{activeYn},
+            gps_latitude   = #{gpsLatitude},
+            gps_longitude  = #{gpsLongitude}
+        WHERE beacon_id = #{beaconId}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM beacons WHERE beacon_id = #{beaconId}
+    </delete>
+
+</mapper>
