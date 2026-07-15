@@ -15,6 +15,23 @@
             <if test="statusCode != null and statusCode != ''">
                 AND f.status_code = #{statusCode}
             </if>
+            <!-- FEE-14 학부모 회비 조회: 학부모(user_id)의 자녀 회비만.
+                 count/list 양쪽에서 쓰므로 조인 대신 서브쿼리로 자녀 student_id 를 제한한다.
+                 studentId 필터와 함께 걸리면, 자녀가 아닌 studentId 는 결과가 비게 되어 정보 노출이 없다. -->
+            <if test="parentUserId != null">
+                AND f.student_id IN (
+                    SELECT sp.student_id
+                      FROM student_parents sp
+                      JOIN parents p ON p.parent_id = sp.parent_id
+                     WHERE p.user_id = #{parentUserId}
+                )
+            </if>
+            <!-- FEE-07 미납 조회: 저장된 status_code 는 기한이 지나도 SCHEDULED 로 남을 수 있어
+                 신뢰하지 않고, "기한 경과(due_date < 오늘) + 완납 아님(status <> PAID)" 으로 직접 판정 -->
+            <if test="overdueOnly">
+                AND f.due_date &lt; CURRENT_DATE
+                AND f.status_code &lt;&gt; 'PAID'
+            </if>
         </where>
     </sql>
 
@@ -23,6 +40,8 @@
         SELECT f.fee_id,
                f.student_id,
                u.name                              AS student_name,
+               s.student_no,
+               s.birth_date,
                f.class_id,
                c.class_name,
                f.billing_month,
@@ -33,17 +52,20 @@
                f.status_code,
                f.description,
                p.last_payment_id,
-               COALESCE(p.paid_sum, 0)             AS paid_sum
+               COALESCE(p.paid_sum, 0)             AS paid_sum,
+               COALESCE(p.payment_count, 0)        AS payment_count
           FROM fees f
           JOIN students s  ON s.student_id = f.student_id
           JOIN users u     ON u.user_id    = s.user_id
           LEFT JOIN classes c ON c.class_id = f.class_id
-          <!-- 유효 납부 이력을 fee 단위로 집계: 최근 이력 PK(취소 버튼용) + 납부 합계(잔액 표시용) -->
+          <!-- 납부 이력을 fee 단위로 집계
+               last_payment_id / paid_sum : 유효분(cancel_yn='N')만 - FILTER 로 걸러냄
+               payment_count              : 취소분 포함 전체 행 수 - 삭제 버튼 활성화 판단용 -->
           LEFT JOIN (SELECT fee_id,
-                            MAX(payment_id)  AS last_payment_id,
-                            SUM(paid_amount) AS paid_sum
+                            MAX(payment_id)  FILTER (WHERE cancel_yn = 'N') AS last_payment_id,
+                            SUM(paid_amount) FILTER (WHERE cancel_yn = 'N') AS paid_sum,
+                            COUNT(*)                                        AS payment_count
                        FROM fee_payments
-                      WHERE cancel_yn = 'N'
                       GROUP BY fee_id) p ON p.fee_id = f.fee_id
         <include refid="feeSearchCondition"/>
          ORDER BY f.billing_month DESC, f.due_date ASC, f.fee_id ASC
@@ -109,6 +131,21 @@
          WHERE payment_id = #{paymentId}
     </select>
 
+    <!-- 회비 1건의 납부 이력 목록 (FEE-06) - 취소분 포함.
+         최신 납부가 위로 오도록 paid_at DESC, 동시각이면 payment_id DESC -->
+    <select id="selectPaymentsByFeeId" resultType="com.edu.domain.fee.dto.response.FeePaymentHistoryResponse">
+        SELECT payment_id,
+               fee_id,
+               paid_amount,
+               paid_at,
+               payment_method,
+               receipt_no,
+               cancel_yn
+          FROM fee_payments
+         WHERE fee_id = #{feeId}
+         ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+    </select>
+
     <!-- 취소분 제외한 유효 납부 합계. 납부 이력이 없으면 0 -->
     <select id="sumPaidAmountByFeeId" resultType="long">
         SELECT COALESCE(SUM(paid_amount), 0)
@@ -122,6 +159,21 @@
            SET cancel_yn = 'Y'
          WHERE payment_id = #{paymentId}
     </update>
+
+    <!-- 납부 이력 행 수 (취소분 포함) - 삭제 가능 여부 판단용.
+         cancel_yn 을 안 거는 이유: 취소된 납부도 '돈이 오갔던 기록'이므로 있으면 삭제 불가 -->
+    <select id="countPaymentsByFeeId" resultType="long">
+        SELECT COUNT(*)
+          FROM fee_payments
+         WHERE fee_id = #{feeId}
+    </select>
+
+    <!-- 회비 삭제 (명세서 외 추가) - 납부 이력이 전혀 없는 잘못 등록 건 전용.
+         이력이 있으면 서비스에서 409 로 막고, 뚫려도 fee_payments FK 가 최종 방어 -->
+    <delete id="deleteFee">
+        DELETE FROM fees
+         WHERE fee_id = #{feeId}
+    </delete>
 
     <!-- 월별 통계 (FEE-06)
          - billing_month 가 CHAR(7) 'YYYY-MM' 이라 BETWEEN 문자열 비교로 월 범위 조회 가능
@@ -145,6 +197,44 @@
         </if>
          GROUP BY f.billing_month
          ORDER BY f.billing_month ASC
+    </select>
+
+    <!-- FEE-08 납부 예정 알림 대상: 지정일에 기한이 도래하는 미완납 회비.
+         status_code 는 PAID 여부만 신뢰(완납 시 항상 PAID 로 갱신됨) -->
+    <select id="selectFeesDueOn" resultType="com.edu.domain.fee.dto.response.FeeNotificationTargetResponse">
+        SELECT fee_id,
+               student_id,
+               billing_month,
+               due_date,
+               fee_amount - discount_amount AS billable_amount
+          FROM fees
+         WHERE due_date = #{dueDate}
+           AND status_code &lt;&gt; 'PAID'
+    </select>
+
+    <!-- FEE-09 미납 알림 대상: 기한이 지난 미완납 회비 (FEE-07 미납 조회와 동일 조건) -->
+    <select id="selectOverdueUnpaidFees" resultType="com.edu.domain.fee.dto.response.FeeNotificationTargetResponse">
+        SELECT fee_id,
+               student_id,
+               billing_month,
+               due_date,
+               fee_amount - discount_amount AS billable_amount
+          FROM fees
+         WHERE due_date &lt; CURRENT_DATE
+           AND status_code &lt;&gt; 'PAID'
+    </select>
+
+    <!-- FEE-14 접근 제어: 해당 회비가 이 학부모(user_id)의 자녀 것인지.
+         학부모의 납부 이력 조회(FEE-06) 권한 확인용 -->
+    <select id="existsFeeForParent" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fees f
+              JOIN student_parents sp ON sp.student_id = f.student_id
+              JOIN parents p          ON p.parent_id   = sp.parent_id
+             WHERE f.fee_id    = #{feeId}
+               AND p.user_id   = #{parentUserId}
+        )
     </select>
 
 </mapper>

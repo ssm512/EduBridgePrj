@@ -14,10 +14,14 @@
        .status-paid / .status-unpaid / .status-scheduled : 상태별 색상
        .fee-actions   : 행 우측 관리 버튼 영역
        .fee-paid-info : 부분납부 시 금액 옆 청구/납부 병기 (작은 글씨)
+       .fee-student-info : 학생 이름 옆 학번/생년월일 병기 (작은 글씨, 동명이인 구분)
        .fee-paging    : 페이지네이션
        .empty-row     : 데이터 없음 표시 행
        .fee-modal     : 회비 등록 모달 (dialog)
        .fee-modal-buttons : 모달 하단 버튼 영역
+       .fee-student-picker  : 등록 모달 내 학생 검색 영역
+       .fee-student-results : 학생 검색 결과 리스트 (li 클릭 선택, .no-result / .more-hint 포함)
+       .fee-student-selected : 선택된 학생 표시 줄
   -->
   <style>
     /* TODO(윤동재): 페이지 스타일 작성 */
@@ -62,6 +66,11 @@
           <option value="UNPAID"    th:selected="${search.statusCode == 'UNPAID'}">미납</option>
           <option value="SCHEDULED" th:selected="${search.statusCode == 'SCHEDULED'}">예정</option>
         </select>
+        <!-- FEE-07 미납 조회: 기한 지난 미납만 필터. 체크 시 due_date 경과 + 미완납 건만 표시 -->
+        <label class="fee-overdue-check">
+          <input type="checkbox" name="overdueOnly" value="true" th:checked="${search.overdueOnly}">
+          기한 지난 미납만
+        </label>
         <button type="submit">조회</button>
       </form>
       <button type="button" onclick="openFeeCreateModal()">+ 회비 등록</button>
@@ -73,12 +82,34 @@
       <form id="feeCreateForm">
         <h2>회비 등록</h2>
 
-        <!-- TODO: 학생/반 선택은 member, classroom 파트 목록 API 완성 후 select 로 교체 -->
-        <label>학생 ID
-          <input type="number" name="studentId" required min="1">
-        </label>
-        <label>반 ID (개인 청구 시 비워두기)
-          <input type="number" name="classId" min="1">
+        <!-- 학생 선택: 이름 검색 -> 후보 리스트 -> 선택 (팀원 STU-02 GET /api/students 재사용) -->
+        <div class="fee-student-picker">
+          <label>학생 검색 (이름/학번)
+            <input type="text" id="studentKeyword" placeholder="이름 입력 후 검색" autocomplete="off">
+          </label>
+          <button type="button" onclick="searchStudents()">검색</button>
+
+          <!-- 검색 결과: 동명이인 구분을 위해 학교/학년/생년월일/학번 병기 -->
+          <ul id="studentResults" class="fee-student-results" hidden></ul>
+
+          <!-- 선택 완료 표시 -->
+          <div id="studentSelected" class="fee-student-selected" hidden>
+            <span id="studentSelectedLabel"></span>
+            <button type="button" onclick="resetStudentSelect()">다시 검색</button>
+          </div>
+
+          <!-- 실제 전송값: 리스트에서 선택한 학생의 PK (서버에서 존재 여부 재검증) -->
+          <input type="hidden" name="studentId" id="studentIdInput">
+        </div>
+
+        <!-- 반 선택: 팀원 CLS-02(GET /api/classes) 재사용.
+             모달 열 때 ACTIVE 반 전체를 1회 로딩하고,
+             필터 입력은 서버 재호출 없이 클라이언트에서 옵션만 걸러냄 -->
+        <label>반 (개인 청구 시 그대로 두기)
+          <input type="text" id="classFilter" placeholder="반이름/과목/강사명으로 거르기" autocomplete="off">
+          <select name="classId" id="classSelect">
+            <option value="">개인 청구 (반 없음)</option>
+          </select>
         </label>
         <label>청구 월
           <input type="month" name="billingMonth" required>
@@ -154,6 +185,31 @@
       </form>
     </dialog>
 
+    <!-- 납부 이력 조회 모달 (FEE-06) - 취소분 포함 전체 납부 기록.
+         목록의 '이력' 버튼으로 열고, 내용은 JS 가 API 로 받아서 tbody 에 그림 -->
+    <dialog id="feeHistoryModal" class="fee-modal">
+      <h2>납부 이력</h2>
+      <p id="feeHistoryTarget" class="fee-history-target"></p>
+
+      <table class="fee-history-table">
+        <thead>
+        <tr>
+          <th>납부일시</th>
+          <th>금액</th>
+          <th>수단</th>
+          <th>영수증</th>
+          <th>상태</th>
+        </tr>
+        </thead>
+        <!-- 행은 renderPaymentHistory() 가 채움 -->
+        <tbody id="feeHistoryBody"></tbody>
+      </table>
+
+      <div class="fee-modal-buttons">
+        <button type="button" onclick="document.getElementById('feeHistoryModal').close()">닫기</button>
+      </div>
+    </dialog>
+
     <!-- 회비 목록 테이블 -->
     <table class="fee-table">
       <thead>
@@ -168,9 +224,14 @@
       </tr>
       </thead>
       <tbody>
-      <tr th:each="fee : ${feePage.content}">
+      <tr th:each="fee : ${feePage.items}">
         <td th:text="${fee.billingMonth}">2026-07</td>
-        <td th:text="${fee.studentName}">홍길동</td>
+        <td>
+          <!-- 동명이인 구분: 이름 옆에 학번/생년월일 병기 -->
+          <span th:text="${fee.studentName}">홍길동</span>
+          <small class="fee-student-info"
+                 th:text="'(' + (${fee.studentNo} ?: '학번없음') + ' · ' + (${fee.birthDate} ?: '-') + ')'">(S001 · 2011-03-02)</small>
+        </td>
         <td th:text="${fee.className} ?: '-'">수학A반</td>
         <td>
           <!-- 남은 금액을 메인으로, 부분납부가 있으면 청구/납부 내역을 작게 병기 -->
@@ -199,11 +260,21 @@
                   th:disabled="${fee.lastPaymentId == null}"
                   th:attr="data-payment-id=${fee.lastPaymentId}"
                   onclick="cancelPayment(this)">납부취소</button>
-          <!-- TODO(팀 확인): 화면설계에는 삭제 버튼이 있으나 API 명세에 DELETE 없음 - 회의 안건 -->
-          <button type="button" disabled title="API 명세에 삭제 없음 (팀 확인 필요)">삭제</button>
+          <!-- 삭제(명세서 외 추가): 잘못 등록된 청구 정리용.
+               납부 이력(취소분 포함)이 있으면 비활성 - 서버에서도 409 로 이중 방어 -->
+          <button type="button"
+                  th:disabled="${fee.paymentCount > 0}"
+                  th:title="${fee.paymentCount > 0} ? '납부 이력이 있는 회비는 삭제할 수 없습니다' : ''"
+                  th:attr="data-fee-id=${fee.feeId}, data-student-name=${fee.studentName}, data-billing-month=${fee.billingMonth}"
+                  onclick="deleteFee(this)">삭제</button>
+          <!-- 납부 이력(FEE-06): 취소분 포함 전체 납부 기록 조회. 이력이 없으면 비활성 -->
+          <button type="button"
+                  th:disabled="${fee.paymentCount == 0}"
+                  th:attr="data-fee-id=${fee.feeId}, data-student-name=${fee.studentName}, data-billing-month=${fee.billingMonth}"
+                  onclick="openFeeHistoryModal(this)">이력</button>
         </td>
       </tr>
-      <tr th:if="${#lists.isEmpty(feePage.content)}" class="empty-row">
+      <tr th:if="${#lists.isEmpty(feePage.items)}" class="empty-row">
         <td colspan="7">조회된 회비 내역이 없습니다.</td>
       </tr>
       </tbody>
@@ -212,15 +283,15 @@
     <!-- 페이지네이션: 필터 조건 유지한 채 page 만 변경 -->
     <div class="fee-paging" th:if="${feePage.totalPages > 1}">
       <a th:if="${feePage.page > 1}"
-         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, page=${feePage.page - 1})}">이전</a>
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${feePage.page - 1})}">이전</a>
 
       <a th:each="i : ${#numbers.sequence(1, feePage.totalPages)}"
-         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, page=${i})}"
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${i})}"
          th:text="${i}"
          th:classappend="${i == feePage.page} ? 'now-page'">1</a>
 
       <a th:if="${feePage.page < feePage.totalPages}"
-         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, page=${feePage.page + 1})}">다음</a>
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${feePage.page + 1})}">다음</a>
     </div>
   </main>
 </div>
@@ -260,19 +331,167 @@
     dialog.close();
   }
 
+  // ===== 학생 이름 검색 -> 선택 (등록 모달) =====
+  // 팀원 STU-02(GET /api/students) 재사용. keyword 는 이름/로그인ID/학번을 검색함.
+  // GET 이라 CSRF 헤더 불필요
+  async function searchStudents() {
+    const keyword = document.getElementById('studentKeyword').value.trim();
+    if (!keyword) { alert('검색어를 입력해 주세요'); return; }
+
+    const res = await fetch('/api/students?keyword=' + encodeURIComponent(keyword) + '&size=20');
+    if (!res.ok) { alert('학생 검색 실패: ' + res.status); return; }
+    const page = await res.json();
+
+    const list = document.getElementById('studentResults');
+    list.innerHTML = '';
+    list.hidden = false;
+    document.getElementById('studentSelected').hidden = true;
+    document.getElementById('studentIdInput').value = '';
+
+    if (page.items.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'no-result';
+      li.textContent = '검색 결과가 없습니다';
+      list.appendChild(li);
+      return;
+    }
+
+    // XSS 방지: 서버 데이터는 innerHTML 이 아닌 textContent 로만 바인딩
+    page.items.forEach(function (s) {
+      const li = document.createElement('li');
+      const school = [s.schoolName, s.gradeLevel].filter(Boolean).join(' ');
+      li.textContent = s.name
+        + ' · ' + (school || '-')
+        + ' · ' + (s.birthDate || '생년월일 없음')
+        + ' · ' + (s.studentNo || '학번 없음');
+      li.onclick = function () { selectStudent(s); };
+      list.appendChild(li);
+    });
+
+    // 페이지 크기(20)보다 결과가 많으면 검색어를 좁히도록 안내
+    if (page.totalCount > page.items.length) {
+      const li = document.createElement('li');
+      li.className = 'more-hint';
+      li.textContent = '총 ' + page.totalCount + '건 중 20건만 표시 중입니다. 검색어를 더 정확히 입력해 주세요';
+      list.appendChild(li);
+    }
+  }
+
+  function selectStudent(s) {
+    const school = [s.schoolName, s.gradeLevel].filter(Boolean).join(' ');
+    document.getElementById('studentIdInput').value = s.studentId;
+    document.getElementById('studentSelectedLabel').textContent =
+      '선택됨: ' + s.name + (school ? ' (' + school + ')' : '');
+    document.getElementById('studentResults').hidden = true;
+    document.getElementById('studentSelected').hidden = false;
+  }
+
+  function resetStudentSelect() {
+    document.getElementById('studentIdInput').value = '';
+    document.getElementById('studentKeyword').value = '';
+    document.getElementById('studentSelected').hidden = true;
+    const list = document.getElementById('studentResults');
+    list.innerHTML = '';
+    list.hidden = true;
+  }
+
+  // 검색창에서 Enter 를 치면 폼 제출(등록)이 아니라 검색이 실행되게
+  document.getElementById('studentKeyword').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); searchStudents(); }
+  });
+
+  // ===== 반 select 옵션 로딩 + 클라이언트 필터 =====
+  // 팀원 CLS-02(GET /api/classes) 재사용. 운영중(ACTIVE) 반만 조회.
+  // 서버 호출은 모달 열 때 1회뿐 - 필터는 캐시(classOptions)를 걸러서 다시 그림.
+  // (반 규모 수십 개 전제. size=100 초과 시 학생처럼 서버 검색 방식으로 전환 필요)
+  let classOptions = [];
+
+  async function loadClassOptions() {
+    const select = document.getElementById('classSelect');
+    classOptions = [];
+    renderClassOptions('');
+
+    const res = await fetch('/api/classes?statusCode=ACTIVE&size=100');
+    if (!res.ok) {
+      // 반 로딩이 실패해도 개인 청구는 가능해야 하므로 모달은 막지 않고 표시만
+      const opt = document.createElement('option');
+      opt.disabled = true;
+      opt.textContent = '반 목록 로딩 실패 (' + res.status + ')';
+      select.appendChild(opt);
+      return;
+    }
+
+    const page = await res.json();
+    classOptions = page.items;
+    renderClassOptions('');
+  }
+
+  // 필터 문자열(반이름/과목/강사명)에 맞는 옵션만 다시 그림
+  function renderClassOptions(filterText) {
+    const select = document.getElementById('classSelect');
+    const keyword = filterText.trim().toLowerCase();
+    const prevValue = select.value; // 필터 중에도 기존 선택 유지 시도
+
+    select.length = 1; // 첫 옵션(개인 청구)만 남기고 초기화
+
+    const filtered = classOptions.filter(function (c) {
+      if (!keyword) return true;
+      const target = [c.className, c.subject, c.teacherName].filter(Boolean).join(' ').toLowerCase();
+      return target.includes(keyword);
+    });
+
+    filtered.forEach(function (c) {
+      const opt = document.createElement('option');
+      opt.value = c.classId;
+      opt.textContent = c.className
+        + (c.subject ? ' · ' + c.subject : '')
+        + (c.teacherName ? ' (' + c.teacherName + ')' : '');
+      select.appendChild(opt);
+    });
+
+    if (classOptions.length > 0 && filtered.length === 0) {
+      const opt = document.createElement('option');
+      opt.disabled = true;
+      opt.textContent = '일치하는 반 없음';
+      select.appendChild(opt);
+    }
+
+    // 이전에 고른 반이 필터 결과에 남아 있으면 선택 복원 (없으면 개인 청구로 초기화됨)
+    if (prevValue) select.value =
+      [...select.options].some(o => o.value === prevValue) ? prevValue : '';
+  }
+
+  document.getElementById('classFilter').addEventListener('input', function () {
+    renderClassOptions(this.value);
+  });
+
+  // 필터 칸에서 Enter 를 쳐도 폼 제출(등록)로 이어지지 않게 차단
+  document.getElementById('classFilter').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') e.preventDefault();
+  });
+
   // ===== 회비 등록 (FEE-01) =====
   function openFeeCreateModal() {
+    loadClassOptions(); // 비동기 로딩 - 모달은 먼저 열리고 옵션이 채워짐
     document.getElementById('feeCreateModal').showModal();
   }
 
   function closeFeeCreateModal() {
     closeModal('feeCreateModal');
+    resetStudentSelect(); // 결과 리스트/선택 표시는 form.reset() 으로 안 지워지므로 별도 초기화
   }
 
   document.getElementById('feeCreateForm').addEventListener('submit', async function (e) {
     e.preventDefault();
 
     const form = new FormData(this);
+
+    // hidden 이라 required 브라우저 검증이 안 걸리므로 직접 확인
+    if (!form.get('studentId')) {
+      alert('학생을 검색해서 선택해 주세요');
+      return;
+    }
+
     const body = {
       studentId:      Number(form.get('studentId')),
       classId:        form.get('classId') ? Number(form.get('classId')) : null,
@@ -344,6 +563,83 @@
 
     const res = await feeApi('/api/v1/fee-payments/' + btn.dataset.paymentId + '/cancel', 'PUT', null);
     await handleResult(res, '납부 취소 실패');
+  }
+
+  // ===== 회비 삭제 (명세서 외 추가) =====
+  // 잘못 등록된 청구 정리용. 되돌릴 수 없는 작업이라 confirm 에 대상 정보를 명시
+  async function deleteFee(btn) {
+    const target = btn.dataset.studentName + ' / ' + btn.dataset.billingMonth;
+    if (!confirm('[' + target + '] 회비 청구를 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.')) return;
+
+    const res = await feeApi('/api/v1/fees/' + btn.dataset.feeId, 'DELETE', null);
+    await handleResult(res, '삭제 실패');
+  }
+
+  // ===== 납부 이력 조회 (FEE-06) =====
+  // 목록의 '이력' 버튼 -> 해당 회비의 납부 기록(취소분 포함)을 모달에 표로 출력.
+  // GET 이라 CSRF 헤더 불필요.
+  async function openFeeHistoryModal(btn) {
+    const feeId = btn.dataset.feeId;
+    const modal = document.getElementById('feeHistoryModal');
+    const body  = document.getElementById('feeHistoryBody');
+
+    document.getElementById('feeHistoryTarget').textContent =
+      btn.dataset.studentName + ' / ' + btn.dataset.billingMonth;
+
+    // 로딩 중 표시 후 모달을 먼저 연다
+    body.innerHTML = '';
+    const loadingRow = body.insertRow();
+    loadingRow.insertCell().colSpan = 5;
+    loadingRow.cells[0].textContent = '불러오는 중...';
+    modal.showModal();
+
+    const res = await fetch('/api/v1/fees/' + feeId + '/payments');
+    if (!res.ok) {
+      body.innerHTML = '';
+      const row = body.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 5;
+      cell.textContent = '납부 이력 조회 실패: ' + res.status;
+      return;
+    }
+
+    renderPaymentHistory(await res.json());
+  }
+
+  function renderPaymentHistory(list) {
+    const body = document.getElementById('feeHistoryBody');
+    body.innerHTML = '';
+
+    if (!list || list.length === 0) {
+      const row = body.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 5;
+      cell.textContent = '납부 이력이 없습니다.';
+      return;
+    }
+
+    // XSS 방지: 서버 데이터는 textContent 로만 바인딩
+    list.forEach(function (p) {
+      const row = body.insertRow();
+      const canceled = p.cancelYn === 'Y';
+      if (canceled) row.className = 'fee-history-canceled';
+
+      // 납부일시: 'T' 를 공백으로 바꿔 보기 좋게 (없으면 '-')
+      row.insertCell().textContent = p.paidAt ? p.paidAt.replace('T', ' ').substring(0, 16) : '-';
+      row.insertCell().textContent = Number(p.paidAmount).toLocaleString() + '원';
+      row.insertCell().textContent = paymentMethodLabel(p.paymentMethod);
+      row.insertCell().textContent = p.receiptNo || '-';
+      row.insertCell().textContent = canceled ? '취소됨' : '정상';
+    });
+  }
+
+  function paymentMethodLabel(code) {
+    switch (code) {
+      case 'CASH':     return '현금';
+      case 'TRANSFER': return '계좌이체';
+      case 'CARD':     return '카드';
+      default:         return code || '-';
+    }
   }
 </script>
 </body>

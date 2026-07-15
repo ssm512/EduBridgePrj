@@ -16,7 +16,6 @@
        .send-sent / .send-pending / .send-failed : 발송 상태별 색상
        .read-badge        : 읽음 뱃지 공통
        .read-y / .read-n  : 읽음/안읽음 색상
-       .noti-actions      : 행 우측 관리 버튼 영역
        .noti-paging       : 페이지네이션
        .empty-row         : 데이터 없음 표시 행
   -->
@@ -53,7 +52,7 @@
     <h1>알림 발송 이력</h1>
     <p class="sub">출석/회비/공지 알림 발송 이력과 수신 상태 (SCR-W-18)</p>
 
-    <!-- 필터: 유형/읽음/대상 사용자
+    <!-- 필터: 유형/읽음/대상자 이름
          TODO(팀 확인): 화면설계의 기간 필터는 NTI-01 파라미터에 없음 - 회의 안건 -->
     <div class="noti-toolbar">
       <form class="noti-filter" th:action="@{/admin/notifications}" method="get">
@@ -68,8 +67,8 @@
           <option value="Y" th:selected="${search.readYn == 'Y'}">읽음</option>
           <option value="N" th:selected="${search.readYn == 'N'}">안읽음</option>
         </select>
-        <!-- TODO: member 파트 목록 API 완성 후 사용자 select 로 교체 -->
-        <input type="number" name="userId" min="1" placeholder="대상 사용자 ID" th:value="${search.userId}">
+        <!-- 대상자 이름 부분검색 (동명이인이면 여러 명이 함께 조회됨) -->
+        <input type="text" name="userName" placeholder="대상자 이름" th:value="${search.userName}">
         <button type="submit">조회</button>
       </form>
     </div>
@@ -85,11 +84,10 @@
         <th>채널</th>
         <th>발송</th>
         <th>읽음</th>
-        <th>관리</th>
       </tr>
       </thead>
       <tbody>
-      <tr th:each="noti : ${notificationPage.content}">
+      <tr th:each="noti : ${notificationPage.items}">
         <!-- 발송 전(PENDING)이면 sent_at 이 null 이라 생성 시각으로 대체 -->
         <td th:text="${#temporals.format(noti.sentAt != null ? noti.sentAt : noti.createdAt, 'yyyy-MM-dd HH:mm')}">2026-07-14 10:30</td>
         <td>
@@ -110,15 +108,12 @@
                 th:classappend="${noti.readYn == 'Y'} ? 'read-y' : 'read-n'"
                 th:text="${noti.readYn == 'Y'} ? '읽음' : '안읽음'">읽음</span>
         </td>
-        <td class="noti-actions">
-          <!-- TODO(팀 확인): 화면설계의 재발송/수정/삭제/수신설정은 API 명세에 없음 - 회의 안건 -->
-          <button type="button" disabled title="API 명세에 재발송 없음 (팀 확인 필요)">재발송</button>
-          <button type="button" disabled title="API 명세에 수정 없음 (팀 확인 필요)">수정</button>
-          <button type="button" disabled title="API 명세에 삭제 없음 (팀 확인 필요)">삭제</button>
-        </td>
+        <!-- 관리(재발송/수정/삭제) 컬럼 제거 (2026-07-15)
+             : 알림은 발송 '이력'이라 불변이 원칙 + 해당 API 가 명세에 없음.
+               화면설계(SCR-W-18)와 다른 부분이므로 팀 공유 필요 -->
       </tr>
-      <tr th:if="${#lists.isEmpty(notificationPage.content)}" class="empty-row">
-        <td colspan="8">조회된 알림 이력이 없습니다.</td>
+      <tr th:if="${#lists.isEmpty(notificationPage.items)}" class="empty-row">
+        <td colspan="7">조회된 알림 이력이 없습니다.</td>
       </tr>
       </tbody>
     </table>
@@ -126,15 +121,15 @@
     <!-- 페이지네이션: 필터 조건 유지한 채 page 만 변경 -->
     <div class="noti-paging" th:if="${notificationPage.totalPages > 1}">
       <a th:if="${notificationPage.page > 1}"
-         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userId=${search.userId}, page=${notificationPage.page - 1})}">이전</a>
+         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userName=${search.userName}, page=${notificationPage.page - 1})}">이전</a>
 
       <a th:each="i : ${#numbers.sequence(1, notificationPage.totalPages)}"
-         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userId=${search.userId}, page=${i})}"
+         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userName=${search.userName}, page=${i})}"
          th:text="${i}"
          th:classappend="${i == notificationPage.page} ? 'now-page'">1</a>
 
       <a th:if="${notificationPage.page < notificationPage.totalPages}"
-         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userId=${search.userId}, page=${notificationPage.page + 1})}">다음</a>
+         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userName=${search.userName}, page=${notificationPage.page + 1})}">다음</a>
     </div>
   </main>
 </div>

@@ -36,4 +36,12 @@ public interface NotificationService {
      * 연결된 학부모가 없으면 아무 일도 하지 않는다 (예외 아님)
      */
     void notifyParentsOfStudent(Long studentId, String notificationType, String title, String message);
+
+    /**
+     * 학생의 학부모 전원에게 알림 생성하되, 같은 (타입 + 제목) 알림을 이미 받은 수신자는 건너뛴다.
+     * 회비 예정/미납 배치 알림의 중복 방지용 - 청구월 기준 1회 (FEE-08/09).
+     *
+     * @return 실제로 생성된 알림 수 (중복으로 건너뛴 건 제외)
+     */
+    int notifyParentsOfStudentOnce(Long studentId, String notificationType, String title, String message);
 }

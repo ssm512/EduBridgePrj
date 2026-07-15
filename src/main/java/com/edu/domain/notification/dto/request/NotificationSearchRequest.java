@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * 알림 이력 조회 조건 (NTI-01)
- * GET /api/v1/notifications?userId=&notificationType=&readYn=&page=1&size=10
+ * GET /api/v1/notifications?userName=&notificationType=&readYn=&page=1&size=10
  */
 @Data
 @Builder
@@ -15,8 +15,17 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class NotificationSearchRequest {
 
-    /** 수신자 필터 (ADMIN 전용 - 일반 사용자는 서버에서 본인 것으로 강제) */
+    /**
+     * 수신자 PK 필터 - 화면에서 직접 쓰진 않지만, 비-ADMIN 사용자를 본인 알림으로
+     * 강제(NotificationServiceImpl)하는 데 필요하므로 남겨둔다.
+     */
     private Long userId;
+
+    /**
+     * 수신자 이름 검색 (ADMIN 화면용, 부분 일치).
+     * 동명이인이 있으면 여러 사람의 알림이 함께 조회된다.
+     */
+    private String userName;
 
     /** 알림 유형 필터 (ATTENDANCE / FEE / NOTICE) */
     private String notificationType;

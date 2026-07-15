@@ -9,6 +9,8 @@ import com.edu.domain.fee.dto.request.FeeUpdateRequest;
 import com.edu.domain.fee.dto.response.FeeCreateResponse;
 import com.edu.domain.fee.dto.response.FeeListResponse;
 import com.edu.domain.fee.dto.response.FeeMonthlyStatResponse;
+import com.edu.domain.fee.dto.response.FeeNotificationTargetResponse;
+import com.edu.domain.fee.dto.response.FeePaymentHistoryResponse;
 import com.edu.domain.fee.dto.response.FeePaymentResponse;
 import com.edu.domain.fee.dto.response.FeeStatisticsResponse;
 import com.edu.domain.fee.dto.response.FeeUpdateResponse;
@@ -191,6 +193,49 @@ public class FeeServiceImpl implements FeeService {
         FeeVo fee = feeMapper.selectByFeeId(payment.getFeeId());
         String statusCode = recalculateFeeStatus(fee);
         return new FeePaymentResponse(paymentId, statusCode);
+    }
+
+    @Override
+    public List<FeePaymentHistoryResponse> getPaymentHistory(Long feeId, Long parentUserId) {
+        // 존재하지 않는 회비면 404 - 빈 목록과 "잘못된 회비"를 구분하기 위함
+        if (feeMapper.selectByFeeId(feeId) == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 회비입니다");
+        }
+        // FEE-14 학부모 스코핑: parentUserId 가 있으면(=PARENT 요청) 본인 자녀 회비인지 확인.
+        // 404 가 아니라 403 으로 응답해 "회비 존재 여부" 정보 노출을 최소화한다.
+        if (parentUserId != null && !feeMapper.existsFeeForParent(feeId, parentUserId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "본인 자녀의 회비만 조회할 수 있습니다");
+        }
+        return feeMapper.selectPaymentsByFeeId(feeId);
+    }
+
+    @Override
+    @Transactional
+    public void deleteFee(Long feeId) {
+        FeeVo fee = feeMapper.selectByFeeId(feeId);
+        if (fee == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 회비입니다");
+        }
+
+        // 납부 이력(취소분 포함)이 있으면 삭제 불가 - 돈이 오갔던 기록의 근거를 지울 수 없다.
+        // 서비스 검증이 1차 방어, fee_payments FK 제약이 2차(최종) 방어
+        long paymentCount = feeMapper.countPaymentsByFeeId(feeId);
+        if (paymentCount > 0) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "납부 이력이 " + paymentCount + "건 있는 회비는 삭제할 수 없습니다. 잘못 등록된 건만 삭제 가능합니다");
+        }
+
+        feeMapper.deleteFee(feeId);
+    }
+
+    @Override
+    public List<FeeNotificationTargetResponse> getFeesDueOn(LocalDate dueDate) {
+        return feeMapper.selectFeesDueOn(dueDate);
+    }
+
+    @Override
+    public List<FeeNotificationTargetResponse> getOverdueUnpaidFees() {
+        return feeMapper.selectOverdueUnpaidFees();
     }
 
     /** 통계 추이 차트에 보여줄 개월 수 (기준 월 포함) */
