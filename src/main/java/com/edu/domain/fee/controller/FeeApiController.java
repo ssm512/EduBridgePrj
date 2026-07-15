@@ -19,6 +19,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -52,11 +53,14 @@ public class FeeApiController {
      * GET /api/v1/fees - 회비 목록/납부 이력 조회 (FEE-06) + 미납 조회 (FEE-07)
      * ?studentId=&billingMonth=YYYY-MM&statusCode=&overdueOnly=true&page=1&size=10
      * overdueOnly=true 면 납부 기한이 지난 미완납 건만 조회 (FEE-07)
-     * TODO: PARENT 는 본인 자녀 회비만 조회되도록 데이터 범위 제한 필요 (팀 논의)
+     * FEE-14: PARENT 는 본인 자녀 회비만 조회. parentUserId 는 클라이언트 입력을 신뢰하지 않고
+     * 서버가 JWT userId 로 항상 덮어쓴다(직원=null 전체 조회, PARENT=본인 강제).
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT')")
-    public PageResponse<FeeListResponse> getFeeList(@ModelAttribute FeeSearchRequest search) {
+    public PageResponse<FeeListResponse> getFeeList(@ModelAttribute FeeSearchRequest search,
+                                                    JwtAuthenticationToken authentication) {
+        search.setParentUserId(isStaff(authentication) ? null : currentUserId(authentication));
         return feeService.getFeeList(search);
     }
 
@@ -104,8 +108,11 @@ public class FeeApiController {
      */
     @GetMapping("/{feeId}/payments")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT')")
-    public List<FeePaymentHistoryResponse> getPaymentHistory(@PathVariable Long feeId) {
-        return feeService.getPaymentHistory(feeId);
+    public List<FeePaymentHistoryResponse> getPaymentHistory(@PathVariable Long feeId,
+                                                             JwtAuthenticationToken authentication) {
+        // FEE-14: PARENT 는 본인 자녀 회비만. 직원은 null 로 넘겨 제한 없음.
+        Long parentUserId = isStaff(authentication) ? null : currentUserId(authentication);
+        return feeService.getPaymentHistory(feeId, parentUserId);
     }
 
     /**
@@ -131,5 +138,23 @@ public class FeeApiController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteFee(@PathVariable Long feeId) {
         feeService.deleteFee(feeId);
+    }
+
+    /**
+     * JWT userId 클레임에서 로그인 사용자 PK 추출 (FEE-14 학부모 스코핑용)
+     * JSON 숫자는 디코딩 시 정수 타입이 보장되지 않으므로 Number 로 받아 변환.
+     */
+    private Long currentUserId(JwtAuthenticationToken authentication) {
+        return ((Number) authentication.getToken().getClaim("userId")).longValue();
+    }
+
+    /**
+     * 직원(ADMIN/TEACHER) 여부 - 직원은 전체 회비를 조회할 수 있어 스코핑에서 제외한다.
+     * SecurityConfig 가 roles 클레임을 ROLE_* 권한으로 변환해 둔 것을 사용.
+     */
+    private boolean isStaff(JwtAuthenticationToken authentication) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority())
+                        || "ROLE_TEACHER".equals(auth.getAuthority()));
     }
 }

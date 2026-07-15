@@ -33,8 +33,12 @@ public interface FeeService {
     /** 납부 취소 - cancel_yn 처리 + 상태 재계산 (FEE-05) */
     FeePaymentResponse cancelPayment(Long paymentId);
 
-    /** 납부 이력 조회 - 회비 1건의 납부 기록 목록, 취소분 포함 (FEE-06) */
-    List<FeePaymentHistoryResponse> getPaymentHistory(Long feeId);
+    /**
+     * 납부 이력 조회 - 회비 1건의 납부 기록 목록, 취소분 포함 (FEE-06)
+     * parentUserId != null 이면 학부모 스코핑(FEE-14): 본인 자녀 회비가 아니면 403.
+     * 직원(ADMIN/TEACHER)은 parentUserId 를 null 로 넘겨 제한 없이 조회한다.
+     */
+    List<FeePaymentHistoryResponse> getPaymentHistory(Long feeId, Long parentUserId);
 
     /** 회비 통계 - 기준 월 요약 + 최근 6개월 추이 (FEE-06) */
     FeeStatisticsResponse getStatistics(String billingMonth, Long classId);

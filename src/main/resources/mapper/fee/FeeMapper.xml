@@ -15,6 +15,17 @@
             <if test="statusCode != null and statusCode != ''">
                 AND f.status_code = #{statusCode}
             </if>
+            <!-- FEE-14 학부모 회비 조회: 학부모(user_id)의 자녀 회비만.
+                 count/list 양쪽에서 쓰므로 조인 대신 서브쿼리로 자녀 student_id 를 제한한다.
+                 studentId 필터와 함께 걸리면, 자녀가 아닌 studentId 는 결과가 비게 되어 정보 노출이 없다. -->
+            <if test="parentUserId != null">
+                AND f.student_id IN (
+                    SELECT sp.student_id
+                      FROM student_parents sp
+                      JOIN parents p ON p.parent_id = sp.parent_id
+                     WHERE p.user_id = #{parentUserId}
+                )
+            </if>
             <!-- FEE-07 미납 조회: 저장된 status_code 는 기한이 지나도 SCHEDULED 로 남을 수 있어
                  신뢰하지 않고, "기한 경과(due_date < 오늘) + 완납 아님(status <> PAID)" 으로 직접 판정 -->
             <if test="overdueOnly">
@@ -211,6 +222,19 @@
           FROM fees
          WHERE due_date &lt; CURRENT_DATE
            AND status_code &lt;&gt; 'PAID'
+    </select>
+
+    <!-- FEE-14 접근 제어: 해당 회비가 이 학부모(user_id)의 자녀 것인지.
+         학부모의 납부 이력 조회(FEE-06) 권한 확인용 -->
+    <select id="existsFeeForParent" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fees f
+              JOIN student_parents sp ON sp.student_id = f.student_id
+              JOIN parents p          ON p.parent_id   = sp.parent_id
+             WHERE f.fee_id    = #{feeId}
+               AND p.user_id   = #{parentUserId}
+        )
     </select>
 
 </mapper>

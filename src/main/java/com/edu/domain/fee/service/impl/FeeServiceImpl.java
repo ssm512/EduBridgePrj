@@ -196,10 +196,15 @@ public class FeeServiceImpl implements FeeService {
     }
 
     @Override
-    public List<FeePaymentHistoryResponse> getPaymentHistory(Long feeId) {
+    public List<FeePaymentHistoryResponse> getPaymentHistory(Long feeId, Long parentUserId) {
         // 존재하지 않는 회비면 404 - 빈 목록과 "잘못된 회비"를 구분하기 위함
         if (feeMapper.selectByFeeId(feeId) == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 회비입니다");
+        }
+        // FEE-14 학부모 스코핑: parentUserId 가 있으면(=PARENT 요청) 본인 자녀 회비인지 확인.
+        // 404 가 아니라 403 으로 응답해 "회비 존재 여부" 정보 노출을 최소화한다.
+        if (parentUserId != null && !feeMapper.existsFeeForParent(feeId, parentUserId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "본인 자녀의 회비만 조회할 수 있습니다");
         }
         return feeMapper.selectPaymentsByFeeId(feeId);
     }
