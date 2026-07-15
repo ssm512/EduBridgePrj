@@ -593,31 +593,17 @@
 </head>
 <body>
 
-<div th:replace="~{fragments/common :: topbar('관리자')}"></div>
+<div th:replace="~{fragments/common :: topbar('강사')}"></div>
 
 <div class="shell">
     <nav class="sidebar">
-        <a href="/admin/dashboard">대시보드</a>
-        <a href="/admin/members">회원관리</a>
-        <div class="group-label">반 / 수강</div>
-        <a href="/admin/classes">반관리</a>
-        <a href="/admin/enrollments">수강관리</a>
-        <div class="group-label">학생</div>
-        <a href="/admin/attendance">출석관리</a>
-        <a href="/admin/fees">회비관리</a>
-        <a href="/admin/grades">성적관리</a>
-        <div class="group-label">소통</div>
-        <a href="/admin/notices">공지관리</a>
-        <a href="/admin/counseling">상담관리</a>
-        <div class="group-label">운영</div>
-        <a href="/admin/ai">AI 리포트</a>
-        <a href="/admin/notifications">알림이력</a>
-        <a href="/admin/logs">활동로그</a>
-        <a href="/admin/settings">시스템설정</a>
+        <a href="/teacherPage">강사 홈</a>
+        <a href="/teacherPage/grades">성적입력</a>
+        <a href="/teacherPage/notices">공지사항</a>
     </nav>
 
     <main class="content">
-        <h1>성적관리</h1>
+        <h1>성적입력</h1>
         <p class="sub">시험을 등록하고, 시험을 선택한 뒤 수강 학생별 점수를 입력합니다.</p>
 
         <div id="status" class="status"></div>

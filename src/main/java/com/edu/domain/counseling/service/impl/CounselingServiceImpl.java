@@ -5,7 +5,9 @@ import com.edu.domain.counseling.service.CounselingService;
 import com.edu.domain.counseling.vo.CounselingVo;
 import com.edu.domain.member.dto.UserDto;
 import com.edu.domain.member.mapper.UserMapper;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -33,8 +35,11 @@ public class CounselingServiceImpl implements CounselingService {
     public List<Map<String, Object>> getCounselingList(Long studentId,
                                                        Long parentId,
                                                        Long teacherId,
-                                                       String visibilityCode) {
-        return counselingMapper.selectCounselingList(studentId, parentId, teacherId, visibilityCode);
+                                                       String visibilityCode,
+                                                       String loginId) {
+        UserDto loginUser = getLoginUser(loginId);
+        return counselingMapper.selectCounselingList(studentId, parentId, teacherId, visibilityCode,
+                loginUser.getUserId(), loginUser.getRoleCode());
     }
 
     @Override
@@ -48,23 +53,51 @@ public class CounselingServiceImpl implements CounselingService {
     }
 
     @Override
+    public List<Map<String, Object>> getActiveParentOptions() {
+        return counselingMapper.selectActiveParentOptions();
+    }
+
+    @Override
     public List<Map<String, Object>> getTeacherOptions() {
         return counselingMapper.selectTeacherOptions();
     }
 
     @Override
-    public Map<String, Object> getCounselingDetail(Long counselingId) {
-        return counselingMapper.selectCounselingDetail(counselingId);
+    public Map<String, Object> getCounselingDetail(Long counselingId, String loginId) {
+        UserDto loginUser = getLoginUser(loginId);
+        Map<String, Object> counseling = counselingMapper.selectCounselingDetail(
+                counselingId, loginUser.getUserId(), loginUser.getRoleCode());
+        if (counseling == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "조회할 수 없는 상담 기록입니다.");
+        }
+        return counseling;
     }
 
     @Override
-    public void updateCounseling(Long counselingId, CounselingVo counselingVo) {
+    public void updateCounseling(Long counselingId, CounselingVo counselingVo, String loginId) {
+        UserDto loginUser = getLoginUser(loginId);
         counselingVo.setCounselingId(counselingId);
-        counselingMapper.updateCounseling(counselingVo);
+        int updated = counselingMapper.updateCounseling(counselingVo, loginUser.getUserId(), loginUser.getRoleCode());
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "수정할 수 없는 상담 기록입니다.");
+        }
     }
 
     @Override
-    public void deleteCounseling(Long counselingId) {
-        counselingMapper.deleteCounseling(counselingId);
+    public void deleteCounseling(Long counselingId, String loginId) {
+        UserDto loginUser = getLoginUser(loginId);
+        int deleted = counselingMapper.deleteCounseling(counselingId, loginUser.getUserId(), loginUser.getRoleCode());
+        if (deleted == 0) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "삭제할 수 없는 상담 기록입니다.");
+        }
+    }
+
+    // 상담 공개 범위 판단에 필요한 현재 로그인 사용자 정보를 조회한다.
+    private UserDto getLoginUser(String loginId) {
+        UserDto loginUser = userMapper.selectByLoginId(loginId);
+        if (loginUser == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인 정보가 없습니다.");
+        }
+        return loginUser;
     }
 }

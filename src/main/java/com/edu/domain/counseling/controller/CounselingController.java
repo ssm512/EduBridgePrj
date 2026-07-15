@@ -33,8 +33,9 @@ public class CounselingController {
     public List<Map<String, Object>> counselingList(@RequestParam(required = false) Long studentId,
                                                     @RequestParam(required = false) Long parentId,
                                                     @RequestParam(required = false) Long teacherId,
-                                                    @RequestParam(required = false) String visibilityCode) {
-        return counselingService.getCounselingList(studentId, parentId, teacherId, visibilityCode);
+                                                    @RequestParam(required = false) String visibilityCode,
+                                                    Authentication authentication) {
+        return counselingService.getCounselingList(studentId, parentId, teacherId, visibilityCode, authentication.getName());
     }
 
     // 수강중인 학생 선택 목록 조회
@@ -51,6 +52,13 @@ public class CounselingController {
         return counselingService.getParentOptionsByStudent(studentId);
     }
 
+    // 수강중인 학생과 연결된 학부모 선택 목록 조회
+    @GetMapping("/parents")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    public List<Map<String, Object>> activeParentOptions() {
+        return counselingService.getActiveParentOptions();
+    }
+
     // 등록된 강사 선택 목록 조회
     @GetMapping("/teachers")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
@@ -61,24 +69,27 @@ public class CounselingController {
     // 상담 상세 조회
     @GetMapping("/{counselingId}")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
-    public Map<String, Object> counselingDetail(@PathVariable Long counselingId) {
-        return counselingService.getCounselingDetail(counselingId);
+    public Map<String, Object> counselingDetail(@PathVariable Long counselingId,
+                                                Authentication authentication) {
+        return counselingService.getCounselingDetail(counselingId, authentication.getName());
     }
 
     // 상담 수정
     @PutMapping("/{counselingId}")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     public String updateCounseling(@PathVariable Long counselingId,
-                                   @RequestBody CounselingVo counselingVo) {
-        counselingService.updateCounseling(counselingId, counselingVo);
+                                   @RequestBody CounselingVo counselingVo,
+                                   Authentication authentication) {
+        counselingService.updateCounseling(counselingId, counselingVo, authentication.getName());
         return "상담 수정 완료";
     }
 
     // 상담 삭제
     @DeleteMapping("/{counselingId}")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
-    public String deleteCounseling(@PathVariable Long counselingId) {
-        counselingService.deleteCounseling(counselingId);
+    public String deleteCounseling(@PathVariable Long counselingId,
+                                   Authentication authentication) {
+        counselingService.deleteCounseling(counselingId, authentication.getName());
         return "상담 삭제 완료";
     }
 }

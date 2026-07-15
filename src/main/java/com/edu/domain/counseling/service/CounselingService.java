@@ -12,17 +12,20 @@ public interface CounselingService {
     List<Map<String, Object>> getCounselingList(Long studentId,
                                                 Long parentId,
                                                 Long teacherId,
-                                                String visibilityCode);
+                                                String visibilityCode,
+                                                String loginId);
 
     List<Map<String, Object>> getActiveStudentOptions();
 
     List<Map<String, Object>> getParentOptionsByStudent(Long studentId);
 
+    List<Map<String, Object>> getActiveParentOptions();
+
     List<Map<String, Object>> getTeacherOptions();
 
-    Map<String, Object> getCounselingDetail(Long counselingId);
+    Map<String, Object> getCounselingDetail(Long counselingId, String loginId);
 
-    void updateCounseling(Long counselingId, CounselingVo counselingVo);
+    void updateCounseling(Long counselingId, CounselingVo counselingVo, String loginId);
 
-    void deleteCounseling(Long counselingId);
+    void deleteCounseling(Long counselingId, String loginId);
 }
