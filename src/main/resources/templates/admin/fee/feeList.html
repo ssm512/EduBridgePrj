@@ -168,7 +168,7 @@
       </tr>
       </thead>
       <tbody>
-      <tr th:each="fee : ${feePage.content}">
+      <tr th:each="fee : ${feePage.items}">
         <td th:text="${fee.billingMonth}">2026-07</td>
         <td th:text="${fee.studentName}">홍길동</td>
         <td th:text="${fee.className} ?: '-'">수학A반</td>
@@ -203,7 +203,7 @@
           <button type="button" disabled title="API 명세에 삭제 없음 (팀 확인 필요)">삭제</button>
         </td>
       </tr>
-      <tr th:if="${#lists.isEmpty(feePage.content)}" class="empty-row">
+      <tr th:if="${#lists.isEmpty(feePage.items)}" class="empty-row">
         <td colspan="7">조회된 회비 내역이 없습니다.</td>
       </tr>
       </tbody>

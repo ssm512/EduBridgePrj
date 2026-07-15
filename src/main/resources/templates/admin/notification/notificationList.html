@@ -89,7 +89,7 @@
       </tr>
       </thead>
       <tbody>
-      <tr th:each="noti : ${notificationPage.content}">
+      <tr th:each="noti : ${notificationPage.items}">
         <!-- 발송 전(PENDING)이면 sent_at 이 null 이라 생성 시각으로 대체 -->
         <td th:text="${#temporals.format(noti.sentAt != null ? noti.sentAt : noti.createdAt, 'yyyy-MM-dd HH:mm')}">2026-07-14 10:30</td>
         <td>
@@ -117,7 +117,7 @@
           <button type="button" disabled title="API 명세에 삭제 없음 (팀 확인 필요)">삭제</button>
         </td>
       </tr>
-      <tr th:if="${#lists.isEmpty(notificationPage.content)}" class="empty-row">
+      <tr th:if="${#lists.isEmpty(notificationPage.items)}" class="empty-row">
         <td colspan="8">조회된 알림 이력이 없습니다.</td>
       </tr>
       </tbody>
