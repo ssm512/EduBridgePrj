@@ -215,6 +215,11 @@
                c.class_name,
                g.score,
                g.rank_no,
+               (
+                   SELECT COUNT(*)
+                   FROM grades gr
+                   WHERE gr.exam_id = g.exam_id
+               ) AS rank_total,
                g.comment,
                u.name AS student_name,
                s.student_no
@@ -270,6 +275,15 @@
                 AND e.class_id = #{classId}
             </if>
         </where>
+        ORDER BY e.subject
+    </select>
+
+    <!-- 등록된 시험 과목 선택 목록 조회 -->
+    <select id="selectExamSubjectOptions" resultType="hashmap">
+        SELECT DISTINCT e.subject
+        FROM exams e
+        WHERE e.subject IS NOT NULL
+        AND e.subject != ''
         ORDER BY e.subject
     </select>
 
@@ -337,6 +351,9 @@
             </if>
             <if test="classId != null">
                 AND e.class_id = #{classId}
+            </if>
+            <if test="studentId != null">
+                AND g.student_id = #{studentId}
             </if>
         </where>
         ORDER BY e.subject, e.exam_date DESC, e.exam_id DESC, c.class_name, u.name

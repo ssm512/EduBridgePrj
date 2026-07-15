@@ -38,6 +38,7 @@
         th { background: #f8fafc; color: #0f2a5f; font-weight: 600; }
         .empty { color: #64748b; text-align: center; padding: 28px 0; }
         .score-chip { font-weight: 700; color: #1d4ed8; }
+        .rank-chip { font-weight: 700; color: #1d4ed8; }
         .chart-wrap {
             height: 300px;
             border: 1px solid #e5e7eb;
@@ -66,6 +67,14 @@
                             <option value="">전체 과목</option>
                         </select>
                     </div>
+                    <div class="field">
+                        <label for="chartType">차트 유형</label>
+                        <select id="chartType" onchange="loadGradePage()">
+                            <option value="line">선형 차트</option>
+                            <option value="bar">막대 차트</option>
+                            <option value="area">영역 차트</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="chart-wrap">
                     <canvas id="trendChart"></canvas>
@@ -84,7 +93,7 @@
                             <th>시험일시</th>
                             <th>점수</th>
                             <th>석차</th>
-                            <th>비고</th>
+                            <th>선생님 한 줄</th>
                         </tr>
                         </thead>
                         <tbody id="gradeRows">
@@ -149,8 +158,8 @@
                 <td>${escapeHtml(grade.class_name || '')}</td>
                 <td>${escapeHtml(grade.subject || '')}</td>
                 <td>${formatKoreanDateTime(grade.exam_date)}</td>
-                <td><span class="score-chip">${formatNumber(grade.score)}</span> / ${formatNumber(grade.total_score)}</td>
-                <td>${grade.rank_no ? `${grade.rank_no}등` : '-'}</td>
+                <td><span class="score-chip">${formatNumber(grade.score)}점</span> / 총점 ${formatNumber(grade.total_score)}점</td>
+                <td>${formatRank(grade)}</td>
                 <td>${escapeHtml(grade.comment || '')}</td>
             </tr>
         `).join('');
@@ -160,21 +169,27 @@
         const sorted = [...trends].sort((a, b) => new Date(a.exam_date) - new Date(b.exam_date));
         const labels = sorted.map(item => formatShortDate(item.exam_date));
         const scores = sorted.map(item => Number(item.score || 0));
+        const chartType = document.getElementById('chartType').value;
+        const isBarChart = chartType === 'bar';
+        const isAreaChart = chartType === 'area';
         const ctx = document.getElementById('trendChart');
         if (trendChart) {
             trendChart.destroy();
         }
         trendChart = new Chart(ctx, {
-            type: 'line',
+            type: isBarChart ? 'bar' : 'line',
             data: {
                 labels,
                 datasets: [{
                     label: '점수',
                     data: scores,
                     borderColor: '#2563eb',
-                    backgroundColor: 'rgba(37, 99, 235, .12)',
+                    backgroundColor: isBarChart ? 'rgba(37, 99, 235, .72)' : 'rgba(37, 99, 235, .12)',
+                    pointBackgroundColor: '#2563eb',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
                     tension: .25,
-                    fill: true
+                    fill: isAreaChart
                 }]
             },
             options: {
@@ -201,6 +216,12 @@
     function formatNumber(value) {
         if (value === null || value === undefined || value === '') return '-';
         return Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 1 });
+    }
+
+    function formatRank(grade) {
+        if (!grade.rank_no) return '-';
+        const rank = `<span class="rank-chip">${formatNumber(grade.rank_no)}등</span>`;
+        return grade.rank_total ? `${rank} / 총 ${formatNumber(grade.rank_total)}명` : rank;
     }
 
     function escapeHtml(value) {

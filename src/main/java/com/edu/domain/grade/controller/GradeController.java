@@ -234,6 +234,14 @@ public class GradeController {
         return gradeMapper.selectTrendSubjectOptions(studentId, classId);
     }
 
+    // 등록된 시험 과목 선택 목록 조회
+    // 관리자/강사가 과목명을 직접 입력하지 않고 현재 등록된 과목 중에서 선택할 때 사용한다.
+    @GetMapping("/grades/subject-options")
+    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    public List<Map<String, Object>> subjectOptions() {
+        return gradeMapper.selectExamSubjectOptions();
+    }
+
     // 반 평균 조회
     // classId를 비우면 전체 반 평균을 조회하고, subject를 입력하면 해당 과목만 평균에 포함한다.
     @GetMapping("/grades/class-averages")
@@ -248,8 +256,9 @@ public class GradeController {
     @GetMapping("/grades/subjects")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     public List<Map<String, Object>> gradesBySubject(@RequestParam String subject,
-                                                     @RequestParam(required = false) Long classId) {
-        return gradeMapper.selectGradesBySubject(subject, classId);
+                                                     @RequestParam(required = false) Long classId,
+                                                     @RequestParam(required = false) Long studentId) {
+        return gradeMapper.selectGradesBySubject(subject, classId, studentId);
     }
 
     // 선택한 시험의 수강 학생 목록과 성적 입력 상태 조회

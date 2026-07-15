@@ -88,6 +88,10 @@ public interface GradeMapper {
     List<Map<String, Object>> selectTrendSubjectOptions(@Param("studentId") Long studentId,
                                                         @Param("classId") Long classId);
 
+    // 등록된 시험 과목 선택 목록 조회
+    // 과목별 성적 조회와 반 평균 조회에서 과목을 직접 입력하지 않고 선택하게 한다.
+    List<Map<String, Object>> selectExamSubjectOptions();
+
     // 반 평균 조회
     // classId가 있으면 특정 반만 조회하고, subject가 있으면 해당 과목 시험만 평균에 포함한다.
     List<Map<String, Object>> selectClassAverageStats(@Param("classId") Long classId,
@@ -96,7 +100,8 @@ public interface GradeMapper {
     // 과목별 성적 조회
     // subject 기준으로 시험, 반, 학생별 성적 목록을 조회한다.
     List<Map<String, Object>> selectGradesBySubject(@Param("subject") String subject,
-                                                    @Param("classId") Long classId);
+                                                    @Param("classId") Long classId,
+                                                    @Param("studentId") Long studentId);
 
     // 선택한 시험의 수강 학생 목록 + 기존 성적 조회
     // 성적 입력 화면에서 학생명 기준으로 점수를 입력하기 위해 사용

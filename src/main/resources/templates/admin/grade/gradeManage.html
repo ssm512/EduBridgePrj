@@ -18,7 +18,7 @@
         }
 
         .trend-filter-layout {
-            grid-template-columns: minmax(220px, 360px) minmax(220px, 360px) minmax(220px, 420px);
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             justify-content: start;
         }
 
@@ -344,6 +344,15 @@
 
         .class-average-table-wrap {
             overflow: visible;
+        }
+
+        .class-average-chart {
+            height: 280px;
+            margin: 16px 0;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fff;
         }
 
         .grade-table {
@@ -709,7 +718,11 @@
                         <th>학생명</th>
                         <th>학생번호</th>
                         <th>점수</th>
-                        <th>비고</th>
+                        <th>
+                            선생님 한 줄
+                            <span class="help-tooltip"
+                                  data-tooltip="입력한 내용은 학생과 학부모의 성적 조회 화면에 함께 표시됩니다.">?</span>
+                        </th>
                         <th>관리</th>
                     </tr>
                     </thead>
@@ -731,7 +744,11 @@
                         <th><button type="button" class="sort-btn" title="학생명 정렬" onclick="setGradeCheckSort('student_name')">학생명 <span id="gradeSort_student_name" class="sort-indicator">↕</span></button></th>
                         <th><button type="button" class="sort-btn" title="점수 정렬" onclick="setGradeCheckSort('score')">점수 <span id="gradeSort_score" class="sort-indicator">↕</span></button></th>
                         <th><button type="button" class="sort-btn" title="석차 정렬" onclick="setGradeCheckSort('rank_no')">석차 <span id="gradeSort_rank_no" class="sort-indicator">↕</span></button></th>
-                        <th>비고</th>
+                        <th>
+                            선생님 한 줄
+                            <span class="help-tooltip"
+                                  data-tooltip="학생과 학부모에게 표시되는 선생님 코멘트입니다.">?</span>
+                        </th>
                     </tr>
                     </thead>
                     <tbody id="gradeList"></tbody>
@@ -742,11 +759,16 @@
         <section class="grade-panel">
             <h2>과목별 성적 조회</h2>
 
-            <div class="grade-layout compact-filter-layout">
+            <div class="grade-layout trend-filter-layout">
                 <div>
                     <div class="form-row">
                         <label for="subjectGradeSubject">과목</label>
-                        <input id="subjectGradeSubject" placeholder="예: 수학">
+                        <div class="class-picker">
+                            <input id="subjectGradeSubject" placeholder="과목 선택" autocomplete="off" readonly onclick="toggleSubjectMenu('subjectGradeSubjectMenu')">
+                            <input id="subjectGradeSubjectValue" type="hidden">
+                            <button type="button" class="class-picker-toggle" onclick="toggleSubjectMenu('subjectGradeSubjectMenu')">▼</button>
+                            <div id="subjectGradeSubjectMenu" class="class-picker-menu"></div>
+                        </div>
                     </div>
                 </div>
                 <div>
@@ -757,6 +779,22 @@
                             <input id="subjectGradeClassIdValue" type="hidden">
                             <button type="button" class="class-picker-toggle" onclick="toggleClassMenu('subjectGradeClassIdMenu')">▼</button>
                             <div id="subjectGradeClassIdMenu" class="class-picker-menu"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="form-row">
+                        <label for="subjectGradeStudentSearch">학생</label>
+                        <div class="class-picker">
+                            <input id="subjectGradeStudentSearch"
+                                   placeholder="비워두면 전체 학생"
+                                   autocomplete="off"
+                                   oninput="handleSubjectGradeStudentSearchInput()"
+                                   onkeydown="handleSubjectGradeStudentMenuKeydown(event)"
+                                   onclick="toggleSubjectGradeStudentMenu()">
+                            <input id="subjectGradeStudentId" type="hidden">
+                            <button type="button" class="class-picker-toggle" onclick="toggleSubjectGradeStudentMenu()">▼</button>
+                            <div id="subjectGradeStudentMenu" class="class-picker-menu"></div>
                         </div>
                     </div>
                 </div>
@@ -803,13 +841,22 @@
                 <div>
                     <div class="form-row">
                         <label for="classAverageSubject">과목</label>
-                        <input id="classAverageSubject" placeholder="비워두면 전체 과목">
+                        <div class="class-picker">
+                            <input id="classAverageSubject" placeholder="전체 과목" autocomplete="off" readonly onclick="toggleSubjectMenu('classAverageSubjectMenu')">
+                            <input id="classAverageSubjectValue" type="hidden">
+                            <button type="button" class="class-picker-toggle" onclick="toggleSubjectMenu('classAverageSubjectMenu')">▼</button>
+                            <div id="classAverageSubjectMenu" class="class-picker-menu"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="button-row">
                 <button class="grade-btn" onclick="loadClassAverageStats()">평균 조회</button>
+            </div>
+
+            <div id="classAverageChart" class="class-average-chart">
+                <div class="empty-row">반 평균을 조회하면 차트가 표시됩니다.</div>
             </div>
 
             <div class="table-wrap class-average-table-wrap">
@@ -884,6 +931,16 @@
                         </div>
                     </div>
                 </div>
+                <div>
+                    <div class="form-row">
+                        <label for="trendChartType">차트 유형</label>
+                        <select id="trendChartType" onchange="refreshGradeTrendChartType()">
+                            <option value="line">선형 차트</option>
+                            <option value="bar">막대 차트</option>
+                            <option value="area">영역 차트</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <div class="button-row">
@@ -949,9 +1006,11 @@
     // 시험 행 클릭 시 서버를 다시 조회하지 않고 이 목록에서 선택 시험을 찾는다.
     let examRows = [];
     let classOptionRows = [];
+    let subjectOptionRows = [];
     let activeStudentOptions = [];
     let trendSubjectOptions = [];
     let trendStudentMenuIndex = -1;
+    let subjectGradeStudentMenuIndex = -1;
     let gradeCheckRows = [];
     let gradeCheckSortKey = null;
     let gradeCheckSortDirection = 'asc';
@@ -970,7 +1029,10 @@
     let examSearchType = 'all';
     let examSortKey = null;
     let examSortDirection = 'asc';
+    let classAverageChart = null;
     let gradeTrendChart = null;
+    let lastGradeTrendRows = [];
+    let lastGradeTrendMode = 'student';
     const examSearchLabels = {
         all: '전체검색',
         className: '반',
@@ -1151,6 +1213,61 @@
         renderClassMenu('trendClassIdMenu', 'trendClassId', classOptions, false);
     }
 
+    // 등록된 시험 과목을 선택 메뉴에 채운다.
+    // 과목명 직접 입력을 줄여 오타로 조회가 누락되는 일을 방지한다.
+    function renderSubjectOptions() {
+        const subjects = subjectOptionRows
+            .map(row => row.subject)
+            .filter(subject => subject);
+
+        renderSubjectMenu('subjectGradeSubjectMenu', 'subjectGradeSubject', subjects, false);
+        renderSubjectMenu('classAverageSubjectMenu', 'classAverageSubject', subjects, true);
+    }
+
+    // 과목 선택 메뉴를 그린다.
+    // includeEmpty가 true면 전체 과목 조건으로 조회할 수 있게 한다.
+    function renderSubjectMenu(menuId, inputId, subjects, includeEmpty) {
+        const menu = document.getElementById(menuId);
+        menu.innerHTML = '';
+
+        if (includeEmpty) {
+            menu.innerHTML += `<button type="button" onclick="selectSubjectOption('${inputId}', '')">전체 과목</button>`;
+        }
+
+        if (subjects.length === 0) {
+            menu.innerHTML += '<div class="empty-row">등록된 과목이 없습니다.</div>';
+            return;
+        }
+
+        subjects.forEach(subject => {
+            menu.innerHTML += `
+                <button type="button" data-subject="${escapeHtml(subject)}"
+                        onclick="selectSubjectOption('${inputId}', this.dataset.subject)">
+                    ${escapeHtml(subject)}
+                </button>
+            `;
+        });
+    }
+
+    // 과목 선택 메뉴를 열고 닫는다.
+    function toggleSubjectMenu(menuId) {
+        document.querySelectorAll('.class-picker-menu').forEach(menu => {
+            if (menu.id !== menuId) {
+                menu.classList.remove('show');
+            }
+        });
+
+        document.getElementById(menuId).classList.toggle('show');
+    }
+
+    // 과목 선택 메뉴에서 고른 과목명은 화면과 hidden 값에 함께 저장한다.
+    function selectSubjectOption(inputId, subject) {
+        const displayText = subject || '전체 과목';
+        document.getElementById(inputId).value = displayText;
+        document.getElementById(inputId + 'Value').value = subject;
+        document.querySelectorAll('.class-picker-menu').forEach(menu => menu.classList.remove('show'));
+    }
+
     // 반 선택 메뉴를 그린다.
     // includeEmpty가 true면 조회 조건에서 전체 반을 선택할 수 있게 빈 값 버튼을 추가한다.
     function renderClassMenu(menuId, inputId, classOptions, includeEmpty) {
@@ -1195,6 +1312,114 @@
         if (inputId === 'trendClassId') {
             loadTrendSubjectOptions();
         }
+    }
+
+    // 과목별 성적 조회의 학생 검색어가 바뀌면 hidden student_id를 초기화한다.
+    function handleSubjectGradeStudentSearchInput() {
+        document.getElementById('subjectGradeStudentId').value = '';
+        renderSubjectGradeStudentMenu(false);
+    }
+
+    // 과목별 성적 조회 학생 선택 메뉴를 연다.
+    function toggleSubjectGradeStudentMenu() {
+        const menu = document.getElementById('subjectGradeStudentMenu');
+        document.querySelectorAll('.class-picker-menu').forEach(item => {
+            if (item.id !== 'subjectGradeStudentMenu') {
+                item.classList.remove('show');
+            }
+        });
+
+        if (menu.classList.contains('show')) {
+            menu.classList.remove('show');
+            return;
+        }
+
+        renderSubjectGradeStudentMenu(true);
+    }
+
+    // 과목별 성적 조회 학생 자동완성 목록을 렌더링한다.
+    function renderSubjectGradeStudentMenu(showAll) {
+        const menu = document.getElementById('subjectGradeStudentMenu');
+        const keyword = document.getElementById('subjectGradeStudentSearch').value.trim().toLowerCase();
+
+        if (!showAll && !keyword) {
+            menu.classList.remove('show');
+            menu.innerHTML = '';
+            subjectGradeStudentMenuIndex = -1;
+            return;
+        }
+
+        const matchedRows = activeStudentOptions.filter(row => {
+            const text = `${row.student_name || ''} ${row.student_no || ''} ${row.school_name || ''}`.toLowerCase();
+            return showAll || text.includes(keyword);
+        });
+
+        menu.innerHTML = `<button type="button" onclick="selectSubjectGradeStudent('', '')">전체 학생</button>`;
+        menu.classList.add('show');
+        subjectGradeStudentMenuIndex = -1;
+
+        if (matchedRows.length === 0) {
+            menu.innerHTML += '<div class="empty-row">검색된 수강 학생이 없습니다.</div>';
+            return;
+        }
+
+        matchedRows.forEach(row => {
+            const label = `${row.student_name || '-'}${row.student_no ? ' / ' + row.student_no : ''}`;
+            menu.innerHTML += `
+                <button type="button" data-subject-grade-student-option="true"
+                        onclick="selectSubjectGradeStudent('${row.student_id}', '${escapeHtml(label)}')">
+                    ${escapeHtml(label)}
+                </button>
+            `;
+        });
+    }
+
+    // 과목별 성적 조회 학생 목록을 방향키와 Enter로 선택할 수 있게 한다.
+    function handleSubjectGradeStudentMenuKeydown(event) {
+        const menu = document.getElementById('subjectGradeStudentMenu');
+        const options = Array.from(menu.querySelectorAll('button[data-subject-grade-student-option="true"]'));
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (!menu.classList.contains('show')) {
+                renderSubjectGradeStudentMenu(true);
+                return;
+            }
+            setSubjectGradeStudentActiveOption(Math.min(subjectGradeStudentMenuIndex + 1, options.length - 1));
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setSubjectGradeStudentActiveOption(Math.max(subjectGradeStudentMenuIndex - 1, 0));
+        } else if (event.key === 'Enter' && menu.classList.contains('show')) {
+            event.preventDefault();
+            if (options[subjectGradeStudentMenuIndex]) {
+                options[subjectGradeStudentMenuIndex].click();
+            }
+        } else if (event.key === 'Escape') {
+            menu.classList.remove('show');
+        }
+    }
+
+    // 키보드로 선택 중인 과목별 조회 학생 항목을 표시한다.
+    function setSubjectGradeStudentActiveOption(index) {
+        const menu = document.getElementById('subjectGradeStudentMenu');
+        const options = Array.from(menu.querySelectorAll('button[data-subject-grade-student-option="true"]'));
+        if (options.length === 0 || index < 0) {
+            return;
+        }
+
+        subjectGradeStudentMenuIndex = index;
+        options.forEach((option, optionIndex) => {
+            option.classList.toggle('active', optionIndex === subjectGradeStudentMenuIndex);
+        });
+
+        options[subjectGradeStudentMenuIndex].scrollIntoView({block: 'nearest'});
+    }
+
+    // 과목별 성적 조회 학생 필터 선택값 저장
+    function selectSubjectGradeStudent(studentId, label) {
+        document.getElementById('subjectGradeStudentId').value = studentId;
+        document.getElementById('subjectGradeStudentSearch').value = label;
+        document.getElementById('subjectGradeStudentMenu').classList.remove('show');
     }
 
     // 학생명 검색어에 맞춰 성적 추이 학생 선택 메뉴를 다시 그린다.
@@ -1429,6 +1654,7 @@
 
         setStatus(editingExamId ? '시험 정보를 수정했습니다.' : '시험을 등록했습니다.');
         resetExamForm();
+        await loadSubjectOptions();
         loadExams();
     }
 
@@ -1459,6 +1685,7 @@
 
         setStatus('새 시험을 등록했습니다.');
         resetExamForm();
+        await loadSubjectOptions();
         loadExams();
     }
 
@@ -1509,6 +1736,7 @@
         selectedExamId = null;
         resetExamForm();
         clearSelectedExamArea();
+        await loadSubjectOptions();
         loadExams();
     }
 
@@ -1521,7 +1749,7 @@
             '<tr><td colspan="4" class="empty-row">시험을 선택하면 입력된 성적이 표시됩니다.</td></tr>';
     }
 
-    // 반/학생 선택 목록을 먼저 불러온다.
+    // 반/학생/과목 선택 목록을 먼저 불러온다.
     // 화면에는 이름을 보여주고, 저장·조회 요청에는 숨겨둔 PK만 사용한다.
     async function loadGradeOptions() {
         const [classRes, studentRes] = await Promise.all([
@@ -1540,6 +1768,19 @@
             activeStudentOptions = await studentRes.json();
         } else {
             setStatus('학생 선택 목록을 불러오지 못했습니다.', true);
+        }
+
+        await loadSubjectOptions();
+    }
+
+    // 현재 등록된 시험 과목 목록을 불러온다.
+    async function loadSubjectOptions() {
+        const subjectRes = await fetch('/api/grades/subject-options');
+        if (subjectRes.ok) {
+            subjectOptionRows = await subjectRes.json();
+            renderSubjectOptions();
+        } else {
+            setStatus('과목 선택 목록을 불러오지 못했습니다.', true);
         }
     }
 
@@ -1983,14 +2224,15 @@
     }
 
     // 과목별 성적 조회
-    // 과목명은 필수이고, 반을 선택한 경우에만 추가 필터로 사용한다.
+    // 과목명은 필수이고, 반/학생을 선택한 경우에만 추가 필터로 사용한다.
     async function loadGradesBySubject() {
-        const subject = document.getElementById('subjectGradeSubject').value;
+        const subject = document.getElementById('subjectGradeSubjectValue').value;
         const classId = document.getElementById('subjectGradeClassIdValue').value;
+        const studentId = document.getElementById('subjectGradeStudentId').value;
         const tbody = document.getElementById('subjectGradeList');
 
         if (!subject) {
-            setStatus('과목별 성적을 조회할 과목을 입력하세요.', true);
+            setStatus('과목별 성적을 조회할 과목을 선택하세요.', true);
             return;
         }
 
@@ -1998,6 +2240,9 @@
         params.append('subject', subject);
         if (classId) {
             params.append('classId', classId);
+        }
+        if (studentId) {
+            params.append('studentId', studentId);
         }
 
         const res = await fetch('/api/grades/subjects?' + params.toString());
@@ -2035,7 +2280,7 @@
     // 반을 선택하지 않으면 전체 반을 조회하고, 과목을 입력하면 해당 과목 시험만 평균 계산에 사용한다.
     async function loadClassAverageStats() {
         const classId = document.getElementById('classAverageClassIdValue').value;
-        const subject = document.getElementById('classAverageSubject').value;
+        const subject = document.getElementById('classAverageSubjectValue').value;
         const tbody = document.getElementById('classAverageList');
 
         const params = new URLSearchParams();
@@ -2060,8 +2305,11 @@
 
         if (data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="empty-row">조회된 반 평균이 없습니다.</td></tr>';
+            showClassAverageChartMessage('조회된 반 평균이 없습니다.');
             return;
         }
+
+        renderClassAverageChart(data);
 
         data.forEach(row => {
             tbody.innerHTML += `
@@ -2078,6 +2326,83 @@
         });
     }
 
+    // 기존 반 평균 차트를 정리한다.
+    function destroyClassAverageChart() {
+        if (classAverageChart) {
+            classAverageChart.destroy();
+            classAverageChart = null;
+        }
+    }
+
+    // 반 평균 차트 영역에 안내 문구를 표시한다.
+    function showClassAverageChartMessage(message) {
+        destroyClassAverageChart();
+        document.getElementById('classAverageChart').innerHTML = `<div class="empty-row">${message}</div>`;
+    }
+
+    // 반별 평균점수를 막대 차트로 표시한다.
+    function renderClassAverageChart(data) {
+        const chart = document.getElementById('classAverageChart');
+        destroyClassAverageChart();
+        chart.innerHTML = '<canvas id="classAverageChartCanvas"></canvas>';
+
+        const labels = data.map(row => row.class_name || '-');
+        const averages = data.map(row => Number(row.average_score || 0));
+        const ctx = document.getElementById('classAverageChartCanvas');
+
+        classAverageChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: '평균점수',
+                    data: averages,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, .72)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        align: 'start',
+                        labels: {
+                            boxWidth: 12,
+                            color: '#1e3a8a',
+                            font: { weight: '700' }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const row = data[context.dataIndex];
+                                return `평균점수: ${row.average_score ?? '-'}점`;
+                            },
+                            afterLabel(context) {
+                                const row = data[context.dataIndex];
+                                return `성적 수: ${row.grade_count ?? 0}개`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: 100,
+                        grid: { color: '#e5e7eb' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
     // 성적 추이 조회 모드를 학생별/반별로 전환한다.
     function changeTrendMode() {
         const mode = getTrendMode();
@@ -2085,6 +2410,8 @@
         document.getElementById('trendClassField').style.display = mode === 'class' ? 'block' : 'none';
         document.getElementById('trendInfo').style.display = 'none';
         document.getElementById('trendInfo').innerText = '';
+        lastGradeTrendRows = [];
+        lastGradeTrendMode = mode;
         showTrendChartMessage('성적 추이를 조회하면 차트가 표시됩니다.');
         document.getElementById('trendList').innerHTML = '';
         resetTrendSubject();
@@ -2139,11 +2466,15 @@
             tbody.innerHTML = '<tr><td colspan="5" class="empty-row">조회된 성적 추이가 없습니다.</td></tr>';
             document.getElementById('trendInfo').style.display = 'none';
             document.getElementById('trendInfo').innerText = '';
+            lastGradeTrendRows = [];
+            lastGradeTrendMode = mode;
             showTrendChartMessage('조회된 성적 추이가 없습니다.');
             return;
         }
 
         renderTrendInfo(trendRows[0], mode);
+        lastGradeTrendRows = trendRows;
+        lastGradeTrendMode = mode;
         renderGradeTrendChart(trendRows, mode);
 
         trendRows.forEach(row => {
@@ -2201,7 +2532,16 @@
         document.getElementById('trendChart').innerHTML = `<div class="empty-row">${message}</div>`;
     }
 
-    // 성적 추이 데이터를 Chart.js 선형 차트로 표시한다.
+    // 차트 유형 선택값이 바뀌면 마지막 조회 결과를 같은 조건으로 다시 그린다.
+    function refreshGradeTrendChartType() {
+        if (lastGradeTrendRows.length === 0) {
+            return;
+        }
+
+        renderGradeTrendChart(lastGradeTrendRows, lastGradeTrendMode);
+    }
+
+    // 성적 추이 데이터를 선택한 Chart.js 유형으로 표시한다.
     // 시험 만점이 다를 수 있으므로 y축은 만점 대비 비율로 그리고, 점 라벨에는 실제 점수를 보여준다.
     function renderGradeTrendChart(data, mode) {
         const chart = document.getElementById('trendChart');
@@ -2212,6 +2552,9 @@
         const rates = data.map(row => Number(row.score) / Number(row.total_score || 100) * 100);
         const scoreLabels = data.map(row => `${mode === 'class' ? '평균 ' : ''}${Number(row.score).toFixed(1)}`);
         const titleText = mode === 'class' ? '반별 시험 평균 추이' : '학생별 성적 추이';
+        const chartType = document.getElementById('trendChartType').value;
+        const isBarChart = chartType === 'bar';
+        const isAreaChart = chartType === 'area';
         const ctx = document.getElementById('trendChartCanvas');
 
         const pointLabelPlugin = {
@@ -2232,14 +2575,14 @@
         };
 
         gradeTrendChart = new Chart(ctx, {
-            type: 'line',
+            type: isBarChart ? 'bar' : 'line',
             data: {
                 labels,
                 datasets: [{
                     label: titleText,
                     data: rates,
                     borderColor: '#2563eb',
-                    backgroundColor: 'rgba(37, 99, 235, .12)',
+                    backgroundColor: isBarChart ? 'rgba(37, 99, 235, .72)' : 'rgba(37, 99, 235, .12)',
                     pointBackgroundColor: '#2563eb',
                     pointBorderColor: '#ffffff',
                     pointBorderWidth: 2,
@@ -2247,7 +2590,7 @@
                     pointHoverRadius: 6,
                     borderWidth: 3,
                     tension: .25,
-                    fill: true
+                    fill: isAreaChart
                 }]
             },
             options: {
