@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>EduBridge · 시스템설정</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    :root { color-scheme: light; }
+    input, select, textarea { background:#fff; color:#111827; font-family:inherit; }
+    .page-sub { color:#6b7280; font-size:13px; margin:-6px 0 16px; }
+    .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px 18px;
+             margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .panel > h2 { margin:0 0 12px; font-size:14px; color:#1e293b; display:flex; align-items:center; gap:7px; }
+    .panel > h2::before { content:""; width:3px; height:14px; background:#1e3a8a; border-radius:2px; }
+    .tbl-wrap { border:1px solid #eef2f7; border-radius:8px; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { padding:9px 12px; text-align:left; vertical-align:middle; }
+    thead th { background:#f8fafc; color:#64748b; font-size:11.5px; font-weight:600; border-bottom:1px solid #e5e7eb; }
+    tbody tr { border-bottom:1px solid #f1f5f9; } tbody tr:last-child { border-bottom:0; }
+    tbody tr:nth-child(even) { background:#fcfcfd; }
+    td .key { font-family:monospace; font-size:12px; color:#0f172a; }
+    td input.val { padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px; font-size:13px; width:130px; }
+    td .desc { color:#475569; }
+    td .when { color:#94a3b8; font-size:11.5px; }
+    .btn { padding:6px 12px; border:0; border-radius:7px; background:#1e3a8a; color:#fff; cursor:pointer; font-size:12.5px; font-weight:600; }
+    .btn:hover { filter:brightness(1.12); }
+    .muted { color:#9ca3af; }
+    .hint { font-size:12.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:9px 11px; border-radius:8px; margin-bottom:12px; }
+    #msg { font-size:13px; margin-top:10px; font-weight:500; }
+  </style>
+</head>
+<body>
+<div th:replace="~{fragments/common :: topbar('시스템설정')}"></div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <a href="/admin/dashboard">대시보드</a>
+    <a href="/admin/members">회원관리</a>
+    <div class="group-label">반 / 수강</div>
+    <a href="/admin/classes">반관리</a>
+    <a href="/admin/enrollments">수강관리</a>
+    <div class="group-label">학생</div>
+    <a href="/admin/attendance">출석관리</a>
+    <a href="/admin/fees">회비관리</a>
+    <a href="/admin/grades">성적관리</a>
+    <div class="group-label">소통</div>
+    <a href="/admin/notices">공지관리</a>
+    <a href="/admin/counseling">상담관리</a>
+    <div class="group-label">운영</div>
+    <a href="/admin/ai">AI 리포트</a>
+    <a href="/admin/notifications">알림이력</a>
+    <a href="/admin/logs">활동로그</a>
+    <a href="/admin/settings">시스템설정</a>
+  </nav>
+
+  <main class="content">
+    <h1>시스템설정</h1>
+    <p class="page-sub">출석 허용시간·GPS 반경 등 운영 값을 여기서 바로 바꿀 수 있어요. (재배포 불필요)</p>
+
+    <div class="panel">
+      <h2>운영 설정</h2>
+      <div class="hint">출석 검증(허용시간·GPS 반경·RSSI 기준)은 저장 즉시 다음 출석 요청부터 반영됩니다.</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th style="width:230px">설정 키</th><th style="width:160px">값</th><th>설명</th><th style="width:150px">최근 수정</th><th style="width:70px">저장</th></tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="5" class="muted">불러오는 중…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="msg"></div>
+    </div>
+  </main>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script th:inline="none">
+  function csrf(){ const m=document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/); return m?decodeURIComponent(m[1]):null; }
+  async function ensureCsrf(){ if(!csrf()) await fetch('/api/auth/csrf'); return csrf(); }
+  function esc(s){ return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function fmtWhen(s){ return s ? s.replace('T',' ').slice(0,16) : '-'; }
+
+  async function loadSettings(){
+    const tb=document.getElementById('tbody');
+    const res=await fetch('/api/settings');
+    if(!res.ok){ tb.innerHTML=`<tr><td colspan="5">조회 실패 (${res.status})</td></tr>`; return; }
+    const list=await res.json();
+    if(!list.length){ tb.innerHTML='<tr><td colspan="5" class="muted">설정이 없습니다.</td></tr>'; return; }
+    tb.innerHTML=list.map(s=>`
+      <tr data-key="${esc(s.settingKey)}">
+        <td><span class="key">${esc(s.settingKey)}</span></td>
+        <td><input class="val" value="${esc(s.settingValue)}"></td>
+        <td class="desc">${esc(s.description) || '-'}</td>
+        <td class="when">${fmtWhen(s.updatedAt)}</td>
+        <td><button class="btn" onclick="saveSetting(this)">저장</button></td>
+      </tr>`).join('');
+  }
+
+  async function saveSetting(btn){
+    const tr=btn.closest('tr');
+    const key=tr.dataset.key;
+    const value=tr.querySelector('.val').value.trim();
+    const msg=document.getElementById('msg');
+    const token=await ensureCsrf();
+    const res=await fetch(`/api/settings/${encodeURIComponent(key)}`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-XSRF-TOKEN':token},
+      body:JSON.stringify({settingValue:value, description:null})
+    });
+    if(res.ok){
+      const s=await res.json();
+      tr.querySelector('.when').textContent=fmtWhen(s.updatedAt);
+      msg.textContent=`${key} 저장됨`; msg.style.color='#166534';
+    }else{
+      const d=await res.json().catch(()=>({}));
+      msg.textContent=`저장 실패 (${res.status}): ${d.message||''}`; msg.style.color='#b91c1c';
+    }
+  }
+
+  loadSettings();
+</script>
+</body>
+</html>

@@ -36,25 +36,46 @@ import java.util.List;
 @Transactional
 public class AttendanceServiceImpl implements AttendanceService {
 
-    /** 출석 허용시간(분) 기본값. TODO: system_settings(ATTENDANCE_ALLOW_MINUTES)와 연동 */
+    /** 출석 허용시간(분) 기본값 (system_settings 없을 때 폴백) */
     private static final long DEFAULT_ALLOW_MINUTES = 10;
 
-    /** GPS 인정 반경(m) 기본값. TODO: system_settings(GPS_RADIUS_METERS)와 연동 */
+    /** GPS 인정 반경(m) 기본값 (system_settings 없을 때 폴백) */
     private static final double DEFAULT_GPS_RADIUS_METERS = 70;
+
+    /** RSSI 기본 기준값 (비콘에 개별 값 없을 때 폴백) */
+    private static final int DEFAULT_RSSI_THRESHOLD = -75;
 
     private final AttendanceMapper attendanceMapper;
     private final AttendanceVerificationService verificationService;
     private final NotificationService notificationService;
     private final AttendanceFailLogService failLogService;
+    private final com.edu.domain.setting.service.SettingService settingService;
 
     public AttendanceServiceImpl(AttendanceMapper attendanceMapper,
                                  AttendanceVerificationService verificationService,
                                  NotificationService notificationService,
-                                 AttendanceFailLogService failLogService) {
+                                 AttendanceFailLogService failLogService,
+                                 com.edu.domain.setting.service.SettingService settingService) {
         this.attendanceMapper = attendanceMapper;
         this.verificationService = verificationService;
         this.notificationService = notificationService;
         this.failLogService = failLogService;
+        this.settingService = settingService;
+    }
+
+    /** 출석 허용시간(분) — system_settings(ATTENDANCE_ALLOW_MINUTES), 없으면 폴백 */
+    private long allowMinutes() {
+        return settingService.getLong("ATTENDANCE_ALLOW_MINUTES", DEFAULT_ALLOW_MINUTES);
+    }
+
+    /** GPS 인정 반경(m) — system_settings(GPS_RADIUS_METERS), 없으면 폴백 */
+    private double gpsRadiusMeters() {
+        return settingService.getDouble("GPS_RADIUS_METERS", DEFAULT_GPS_RADIUS_METERS);
+    }
+
+    /** RSSI 기본 기준값 — system_settings(RSSI_DEFAULT_THRESHOLD), 없으면 폴백 */
+    private int rssiDefaultThreshold() {
+        return settingService.getInt("RSSI_DEFAULT_THRESHOLD", DEFAULT_RSSI_THRESHOLD);
     }
 
     /**
@@ -93,7 +114,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         // 반 시작시간 대비 지각 판정 (반 정보 없으면 PRESENT로 처리 → resolveStatusByTime이 null-safe)
         ClassScheduleView schedule = attendanceMapper.findClassSchedule(request.classId());
         LocalTime startTime = schedule != null ? schedule.getStartTime() : null;
-        String statusCode = verificationService.resolveStatusByTime(startTime, now.toLocalTime(), DEFAULT_ALLOW_MINUTES);
+        String statusCode = verificationService.resolveStatusByTime(startTime, now.toLocalTime(), allowMinutes());
 
         AttendanceRecord record = AttendanceRecord.builder()
                 .studentId(studentId)
@@ -264,6 +285,138 @@ public class AttendanceServiceImpl implements AttendanceService {
         return attendanceMapper.findMyClasses(loginId);
     }
 
+    // ===== 역할별 자기 범위 조회 =====
+
+    /** 학생 본인 이력 (JWT loginId → 본인 studentId, 클라이언트 값 신뢰 안 함) */
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AttendanceResponse> getMyHistory(String loginId, LocalDate fromDate, LocalDate toDate,
+                                                         int page, int size) {
+        Long studentId = resolveStudentId(loginId);
+        return pageHistory(studentId, null, fromDate, toDate, page, size);
+    }
+
+    /** 학생 본인 요약 통계 */
+    @Override
+    @Transactional(readOnly = true)
+    public AttendanceStatisticsResponse getMyStatistics(String loginId, LocalDate fromDate, LocalDate toDate) {
+        Long studentId = resolveStudentId(loginId);
+        return getStatistics(null, studentId, fromDate, toDate);
+    }
+
+    /** 학부모 자녀 목록 */
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.edu.domain.attendance.dto.response.ChildOptionResponse> getMyChildren(String loginId) {
+        return attendanceMapper.findMyChildren(loginId);
+    }
+
+    /** 학부모 자녀 이력 (자녀 소유 검증) */
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AttendanceResponse> getChildHistory(String loginId, Long studentId,
+                                                            LocalDate fromDate, LocalDate toDate, int page, int size) {
+        verifyChild(loginId, studentId);
+        return pageHistory(studentId, null, fromDate, toDate, page, size);
+    }
+
+    /** 학부모 자녀 요약 통계 (자녀 소유 검증) */
+    @Override
+    @Transactional(readOnly = true)
+    public AttendanceStatisticsResponse getChildStatistics(String loginId, Long studentId,
+                                                           LocalDate fromDate, LocalDate toDate) {
+        verifyChild(loginId, studentId);
+        return getStatistics(null, studentId, fromDate, toDate);
+    }
+
+    // ===== 강사 담당반 스코프 =====
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ClassOptionResponse> getMyTeacherClasses(String loginId) {
+        return attendanceMapper.findMyTeacherClasses(loginId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<AttendanceResponse> getTeacherHistory(String loginId, Long classId,
+                                                              LocalDate fromDate, LocalDate toDate, String keyword,
+                                                              int page, int size) {
+        int safePage = Math.max(page, 1);
+        int safeSize = size <= 0 ? 10 : Math.min(size, 100);
+        int offset = (safePage - 1) * safeSize;
+        long total = attendanceMapper.countTeacherList(loginId, classId, fromDate, toDate, keyword);
+        List<AttendanceResponse> items = attendanceMapper
+                .findTeacherPage(loginId, classId, fromDate, toDate, keyword, safeSize, offset)
+                .stream().map(AttendanceResponse::from).toList();
+        return PageResponse.of(items, safePage, safeSize, total);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AttendanceStatisticsResponse getTeacherStatistics(String loginId, Long classId,
+                                                             LocalDate fromDate, LocalDate toDate) {
+        return toStatistics(attendanceMapper.findTeacherList(loginId, classId, fromDate, toDate, null));
+    }
+
+    @Override
+    public AttendanceResponse registerManualAsTeacher(String loginId, ManualAttendanceRequest request) {
+        verifyTeacherClass(loginId, request.classId());
+        Long createdBy = attendanceMapper.getMyUserId(loginId);   // 등록자 = 강사 본인
+        return registerManual(request, createdBy);
+    }
+
+    @Override
+    public int markAbsentAsTeacher(String loginId, Long classId, LocalDate date) {
+        verifyTeacherClass(loginId, classId);
+        return markAbsent(classId, date);
+    }
+
+    /** 해당 반이 로그인 강사의 담당반이 아니면 403 */
+    private void verifyTeacherClass(String loginId, Long classId) {
+        if (classId == null || attendanceMapper.countTeacherClass(loginId, classId) == 0) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "본인 담당 반만 처리할 수 있습니다");
+        }
+    }
+
+    /** 출석 레코드 목록 → 상태별 집계 통계 (getStatistics/강사 통계 공용) */
+    private AttendanceStatisticsResponse toStatistics(List<AttendanceRecord> records) {
+        int present = 0, late = 0, absent = 0, leave = 0;
+        for (AttendanceRecord r : records) {
+            switch (r.getStatusCode() == null ? "" : r.getStatusCode()) {
+                case "PRESENT" -> present++;
+                case "LATE"    -> late++;
+                case "ABSENT"  -> absent++;
+                case "LEAVE"   -> leave++;
+                default -> { /* 무시 */ }
+            }
+        }
+        int total = present + late + absent + leave;
+        int attended = present + late + leave;   // 결석만 제외
+        double rate = total == 0 ? 0.0 : Math.round((attended * 10000.0) / total) / 100.0;
+        return new AttendanceStatisticsResponse(present, late, absent, leave, rate);
+    }
+
+    /** 해당 student가 로그인 학부모의 자녀가 아니면 403 */
+    private void verifyChild(String loginId, Long studentId) {
+        if (studentId == null || attendanceMapper.countChildOfParent(loginId, studentId) == 0) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "본인 자녀의 출석만 조회할 수 있습니다");
+        }
+    }
+
+    /** 이력 페이징 공통 (getHistory와 동일 규칙) */
+    private PageResponse<AttendanceResponse> pageHistory(Long studentId, Long classId,
+                                                         LocalDate fromDate, LocalDate toDate, int page, int size) {
+        int safePage = Math.max(page, 1);
+        int safeSize = size <= 0 ? 10 : Math.min(size, 100);
+        int offset = (safePage - 1) * safeSize;
+        long total = attendanceMapper.countList(studentId, classId, fromDate, toDate, null);
+        List<AttendanceResponse> items = attendanceMapper
+                .findPage(studentId, classId, fromDate, toDate, null, safeSize, offset)
+                .stream().map(AttendanceResponse::from).toList();
+        return PageResponse.of(items, safePage, safeSize, total);
+    }
+
     /** ATT-08 결석 일괄 처리 */
     @Override
     public int markAbsent(Long classId, LocalDate date) {
@@ -329,8 +482,8 @@ public class AttendanceServiceImpl implements AttendanceService {
         if (!verificationService.verifyBeaconUuid(detectedUuid, beacon.getBeaconUuid())) {
             return "BEACON_UUID_MISMATCH";
         }
-        // ATT-11 RSSI
-        int threshold = beacon.getRssiThreshold() != null ? beacon.getRssiThreshold() : -75;
+        // ATT-11 RSSI (비콘 개별 기준값 우선, 없으면 설정 기본값)
+        int threshold = beacon.getRssiThreshold() != null ? beacon.getRssiThreshold() : rssiDefaultThreshold();
         if (detectedRssi == null || !verificationService.verifyRssi(detectedRssi, threshold)) {
             return "RSSI_TOO_LOW";
         }
@@ -340,7 +493,7 @@ public class AttendanceServiceImpl implements AttendanceService {
                     && verificationService.verifyGps(
                             BigDecimal.valueOf(gpsLat), BigDecimal.valueOf(gpsLng),
                             beacon.getGpsLatitude(), beacon.getGpsLongitude(),
-                            DEFAULT_GPS_RADIUS_METERS);
+                            gpsRadiusMeters());
             if (!gpsOk) {
                 return "GPS_OUT_OF_RANGE";
             }

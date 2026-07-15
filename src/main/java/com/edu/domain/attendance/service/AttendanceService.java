@@ -48,4 +48,44 @@ public interface AttendanceService {
     AttendanceStatisticsResponse getStatistics(Long classId, Long studentId, LocalDate fromDate, LocalDate toDate);
 
     Long getMyUserId(String name);
+
+    // ===== 역할별 자기 범위 조회 (본인/자녀만) =====
+
+    /** 학생 본인 출석 이력 (loginId로 본인 student 도출) */
+    PageResponse<AttendanceResponse> getMyHistory(String loginId, LocalDate fromDate, LocalDate toDate,
+                                                  int page, int size);
+
+    /** 학생 본인 출석 요약 통계 */
+    AttendanceStatisticsResponse getMyStatistics(String loginId, LocalDate fromDate, LocalDate toDate);
+
+    /** 학부모 자녀 목록 */
+    List<com.edu.domain.attendance.dto.response.ChildOptionResponse> getMyChildren(String loginId);
+
+    /** 학부모 자녀 출석 이력 (자녀 소유 검증) */
+    PageResponse<AttendanceResponse> getChildHistory(String loginId, Long studentId,
+                                                     LocalDate fromDate, LocalDate toDate, int page, int size);
+
+    /** 학부모 자녀 출석 요약 통계 (자녀 소유 검증) */
+    AttendanceStatisticsResponse getChildStatistics(String loginId, Long studentId,
+                                                    LocalDate fromDate, LocalDate toDate);
+
+    // ===== 강사 담당반 스코프 (본인 담당반만) =====
+
+    /** 강사 담당반 목록 */
+    List<ClassOptionResponse> getMyTeacherClasses(String loginId);
+
+    /** 강사 담당반 한정 이력 (classId 없으면 담당 전체 반) */
+    PageResponse<AttendanceResponse> getTeacherHistory(String loginId, Long classId,
+                                                       LocalDate fromDate, LocalDate toDate, String keyword,
+                                                       int page, int size);
+
+    /** 강사 담당반 한정 통계 */
+    AttendanceStatisticsResponse getTeacherStatistics(String loginId, Long classId,
+                                                      LocalDate fromDate, LocalDate toDate);
+
+    /** 강사 수동 출석 등록 (담당반 소유 검증 후 등록, createdBy=강사) */
+    AttendanceResponse registerManualAsTeacher(String loginId, ManualAttendanceRequest request);
+
+    /** 강사 결석 일괄 처리 (담당반 소유 검증 후 처리) */
+    int markAbsentAsTeacher(String loginId, Long classId, LocalDate date);
 }

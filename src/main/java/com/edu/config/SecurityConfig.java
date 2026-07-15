@@ -136,6 +136,10 @@ public class SecurityConfig {
                         .requestMatchers("/teacherPage/**").hasRole("TEACHER")
                         .requestMatchers("/studentPage/**").hasRole("STUDENT")
                         .requestMatchers("/parentPage/**").hasRole("PARENT")
+                        // [추가] 역할별 기능 페이지 (예: /teacher/attendance, /student/attendance, /parent/attendance)
+                        .requestMatchers("/teacher/**").hasRole("TEACHER")
+                        .requestMatchers("/student/**").hasRole("STUDENT")
+                        .requestMatchers("/parent/**").hasRole("PARENT")
 
                         // 나머지 API/페이지는 인증 필요
                         .anyRequest().authenticated()

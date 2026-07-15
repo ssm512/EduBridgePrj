@@ -8,6 +8,7 @@ import com.edu.domain.attendance.dto.request.ManualAttendanceRequest;
 import com.edu.domain.attendance.dto.request.MarkAbsentRequest;
 import com.edu.domain.attendance.dto.response.AttendanceResponse;
 import com.edu.domain.attendance.dto.response.AttendanceStatisticsResponse;
+import com.edu.domain.attendance.dto.response.ChildOptionResponse;
 import com.edu.domain.attendance.dto.response.ClassOptionResponse;
 import com.edu.domain.attendance.service.AttendanceService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -127,5 +128,114 @@ public class AttendanceController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
         return attendanceService.getStatistics(classId, studentId, fromDate, toDate);
+    }
+
+    // ===== 학생 본인 =====
+
+    /** 내 출석 이력 (학생 본인). studentId는 JWT에서 도출 */
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('STUDENT')")
+    public PageResponse<AttendanceResponse> myHistory(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+        return attendanceService.getMyHistory(authentication.getName(), fromDate, toDate, page, size);
+    }
+
+    /** 내 출석 요약 통계 (학생 본인) */
+    @GetMapping("/my/statistics")
+    @PreAuthorize("hasRole('STUDENT')")
+    public AttendanceStatisticsResponse myStatistics(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            Authentication authentication) {
+        return attendanceService.getMyStatistics(authentication.getName(), fromDate, toDate);
+    }
+
+    // ===== 학부모(자녀) =====
+
+    /** 내 자녀 목록 (학부모) */
+    @GetMapping("/my-children")
+    @PreAuthorize("hasRole('PARENT')")
+    public List<ChildOptionResponse> myChildren(Authentication authentication) {
+        return attendanceService.getMyChildren(authentication.getName());
+    }
+
+    /** 자녀 출석 이력 (학부모, 자녀 소유 검증) */
+    @GetMapping("/child/{studentId}")
+    @PreAuthorize("hasRole('PARENT')")
+    public PageResponse<AttendanceResponse> childHistory(
+            @PathVariable Long studentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+        return attendanceService.getChildHistory(authentication.getName(), studentId, fromDate, toDate, page, size);
+    }
+
+    /** 자녀 출석 요약 통계 (학부모, 자녀 소유 검증) */
+    @GetMapping("/child/{studentId}/statistics")
+    @PreAuthorize("hasRole('PARENT')")
+    public AttendanceStatisticsResponse childStatistics(
+            @PathVariable Long studentId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            Authentication authentication) {
+        return attendanceService.getChildStatistics(authentication.getName(), studentId, fromDate, toDate);
+    }
+
+    // ===== 강사(담당반 한정) =====
+
+    /** 내 담당반 목록 (강사) */
+    @GetMapping("/teacher-classes")
+    @PreAuthorize("hasRole('TEACHER')")
+    public List<ClassOptionResponse> teacherClasses(Authentication authentication) {
+        return attendanceService.getMyTeacherClasses(authentication.getName());
+    }
+
+    /** 담당반 출석 이력 (강사, 본인 반으로 서버에서 한정) */
+    @GetMapping("/teacher")
+    @PreAuthorize("hasRole('TEACHER')")
+    public PageResponse<AttendanceResponse> teacherHistory(
+            @RequestParam(required = false) Long classId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+        return attendanceService.getTeacherHistory(authentication.getName(), classId, fromDate, toDate, keyword, page, size);
+    }
+
+    /** 담당반 출석 통계 (강사, 본인 반으로 서버에서 한정) */
+    @GetMapping("/teacher/statistics")
+    @PreAuthorize("hasRole('TEACHER')")
+    public AttendanceStatisticsResponse teacherStatistics(
+            @RequestParam(required = false) Long classId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            Authentication authentication) {
+        return attendanceService.getTeacherStatistics(authentication.getName(), classId, fromDate, toDate);
+    }
+
+    /** 강사 수동 출석 등록 (담당반만 — 서버 소유 검증) */
+    @PostMapping("/teacher/manual")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('TEACHER')")
+    public AttendanceResponse teacherManual(@RequestBody ManualAttendanceRequest request,
+                                            Authentication authentication) {
+        return attendanceService.registerManualAsTeacher(authentication.getName(), request);
+    }
+
+    /** 강사 결석 일괄 처리 (담당반만 — 서버 소유 검증) */
+    @PostMapping("/teacher/mark-absent")
+    @PreAuthorize("hasRole('TEACHER')")
+    public Map<String, Integer> teacherMarkAbsent(@RequestBody MarkAbsentRequest request,
+                                                  Authentication authentication) {
+        int count = attendanceService.markAbsentAsTeacher(authentication.getName(), request.classId(), request.date());
+        return Map.of("markedAbsent", count);
     }
 }

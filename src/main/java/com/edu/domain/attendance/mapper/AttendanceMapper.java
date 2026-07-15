@@ -88,6 +88,45 @@ public interface AttendanceMapper {
     /** student_id로 학생 이름 조회 (등원/퇴실 알림 메시지용) */
     String getStudentName(@Param("studentId") Long studentId);
 
+    /** 로그인한 학부모의 자녀 목록 (student_parents 연결) */
+    java.util.List<com.edu.domain.attendance.dto.response.ChildOptionResponse>
+            findMyChildren(@Param("loginId") String loginId);
+
+    /** 해당 student가 로그인 학부모의 자녀인지 확인 (0이면 자녀 아님 → 403 처리) */
+    int countChildOfParent(@Param("loginId") String loginId, @Param("studentId") Long studentId);
+
+    // ===== 강사 담당반 스코프 (classes.teacher_id 기준, 읽기전용) =====
+
+    /** 로그인 강사가 담당하는 반 목록 */
+    java.util.List<com.edu.domain.attendance.dto.response.ClassOptionResponse>
+            findMyTeacherClasses(@Param("loginId") String loginId);
+
+    /** 해당 반이 로그인 강사의 담당반인지 확인 (0이면 담당 아님 → 403 처리, 쓰기 경로용) */
+    int countTeacherClass(@Param("loginId") String loginId, @Param("classId") Long classId);
+
+    /** 강사 담당반으로 한정한 출석 이력 전체 (통계 집계용) */
+    List<AttendanceRecord> findTeacherList(@Param("loginId") String loginId,
+                                           @Param("classId") Long classId,
+                                           @Param("fromDate") LocalDate fromDate,
+                                           @Param("toDate") LocalDate toDate,
+                                           @Param("keyword") String keyword);
+
+    /** 강사 담당반으로 한정한 출석 이력 페이지 */
+    List<AttendanceRecord> findTeacherPage(@Param("loginId") String loginId,
+                                           @Param("classId") Long classId,
+                                           @Param("fromDate") LocalDate fromDate,
+                                           @Param("toDate") LocalDate toDate,
+                                           @Param("keyword") String keyword,
+                                           @Param("size") int size,
+                                           @Param("offset") int offset);
+
+    /** 강사 담당반으로 한정한 출석 이력 건수 */
+    long countTeacherList(@Param("loginId") String loginId,
+                          @Param("classId") Long classId,
+                          @Param("fromDate") LocalDate fromDate,
+                          @Param("toDate") LocalDate toDate,
+                          @Param("keyword") String keyword);
+
     /** 로그인한 학생이 수강 중인 반 목록 (출석 대상 선택용) */
     java.util.List<com.edu.domain.attendance.dto.response.ClassOptionResponse>
             findMyClasses(@Param("loginId") String loginId);

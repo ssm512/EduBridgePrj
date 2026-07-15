@@ -36,9 +36,7 @@ public class AdminModuleController {
     @GetMapping("/logs")          // 담당 도메인: log
     public String logs(Model model)           { return placeholder(model, "활동로그", "com.edu.domain.log"); }
 
-    @GetMapping("/settings")
-    @PreAuthorize("hasAnyRole('ADMIN')") // 담당 도메인: setting
-    public String settings(Model model)       { return placeholder(model, "시스템설정", "com.edu.domain.setting"); }
+    // [제거] /settings → com.edu.domain.setting.controller.SettingPageController로 이동 (실제 화면 구현됨)
 
     @GetMapping("/ai")            // 담당 도메인: ai
     public String ai(Model model)             { return placeholder(model, "Ai 리포트", "com.edu.domain.ai"); }

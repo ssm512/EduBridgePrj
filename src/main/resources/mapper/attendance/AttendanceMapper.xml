@@ -182,6 +182,88 @@
         WHERE login_id = #{loginId}
     </select>
 
+    <!-- 로그인 학부모의 자녀 목록 -->
+    <select id="findMyChildren" resultType="com.edu.domain.attendance.dto.response.ChildOptionResponse">
+        SELECT s.student_id AS studentId, u.name AS studentName
+        FROM parents p
+        JOIN users pu           ON p.user_id      = pu.user_id
+        JOIN student_parents sp ON sp.parent_id   = p.parent_id
+        JOIN students s         ON sp.student_id  = s.student_id
+        JOIN users u            ON s.user_id      = u.user_id
+        WHERE pu.login_id = #{loginId}
+        ORDER BY u.name
+    </select>
+
+    <!-- ===== 강사 담당반 스코프 (classes.teacher_id) ===== -->
+
+    <!-- 로그인 강사의 담당반 목록 -->
+    <select id="findMyTeacherClasses" resultType="com.edu.domain.attendance.dto.response.ClassOptionResponse">
+        SELECT c.class_id AS classId, c.class_name AS className
+        FROM classes c
+        JOIN teachers t ON c.teacher_id = t.teacher_id
+        JOIN users    u ON t.user_id    = u.user_id
+        WHERE u.login_id = #{loginId}
+        ORDER BY c.class_id
+    </select>
+
+    <!-- 해당 반이 로그인 강사의 담당반인지 (쓰기 경로 소유 검증) -->
+    <select id="countTeacherClass" resultType="int">
+        SELECT COUNT(*)
+        FROM classes c
+        JOIN teachers t ON c.teacher_id = t.teacher_id
+        JOIN users    u ON t.user_id    = u.user_id
+        WHERE u.login_id = #{loginId}
+          AND c.class_id = #{classId}
+    </select>
+
+    <!-- 강사 담당반 한정 WHERE (담당반 IN 서브쿼리 + 선택 조건) -->
+    <sql id="teacherWhere">
+        <where>
+            ar.class_id IN (
+                SELECT c2.class_id FROM classes c2
+                JOIN teachers t2 ON c2.teacher_id = t2.teacher_id
+                JOIN users    u2 ON t2.user_id    = u2.user_id
+                WHERE u2.login_id = #{loginId}
+            )
+            <if test="classId != null"> AND ar.class_id = #{classId} </if>
+            <if test="fromDate != null"> AND ar.attendance_date &gt;= #{fromDate} </if>
+            <if test="toDate   != null"> AND ar.attendance_date &lt;= #{toDate}   </if>
+            <if test="keyword != null and keyword != ''"> AND u.name ILIKE '%' || #{keyword} || '%' </if>
+        </where>
+    </sql>
+
+    <select id="findTeacherList" resultType="AttendanceRecord">
+        <include refid="selectWithNames"/>
+        <include refid="teacherWhere"/>
+        ORDER BY ar.attendance_date DESC, ar.attendance_id DESC
+    </select>
+
+    <select id="findTeacherPage" resultType="AttendanceRecord">
+        <include refid="selectWithNames"/>
+        <include refid="teacherWhere"/>
+        ORDER BY ar.attendance_date DESC, ar.attendance_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countTeacherList" resultType="long">
+        SELECT COUNT(*)
+        FROM attendance_records ar
+        LEFT JOIN students s ON ar.student_id = s.student_id
+        LEFT JOIN users    u ON s.user_id     = u.user_id
+        LEFT JOIN classes  c ON ar.class_id   = c.class_id
+        <include refid="teacherWhere"/>
+    </select>
+
+    <!-- 자녀 소유 확인 (학부모-학생 연결 존재 여부) -->
+    <select id="countChildOfParent" resultType="int">
+        SELECT COUNT(*)
+        FROM parents p
+        JOIN users pu           ON p.user_id     = pu.user_id
+        JOIN student_parents sp ON sp.parent_id  = p.parent_id
+        WHERE pu.login_id = #{loginId}
+          AND sp.student_id = #{studentId}
+    </select>
+
     <!-- 활동로그 저장 (출석 실패 사유 등). created_at은 DEFAULT -->
     <insert id="insertActivityLog">
         INSERT INTO activity_logs (user_id, action_type, target_table, target_id, description)
