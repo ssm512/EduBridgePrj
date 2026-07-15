@@ -44,4 +44,10 @@ public interface NoticeService {
 
     /** 첨부파일 삭제 (명세서 외 - 첨부 관리용, ADMIN 또는 작성자 본인만) */
     void deleteFile(Long fileId, Authentication authentication);
+
+    /**
+     * 공지 대상(targetType)에 해당하는 실제 알림 수신자 user_id 목록 조회 (명세서 외 - 알림 연동용)
+     * ALL이면 활성 회원 전체, CLASS면 수강생+학부모+담당강사까지 포함해서 반환한다.
+     */
+    List<Long> resolveTargetUserIds(Long noticeId, String targetType);
 }

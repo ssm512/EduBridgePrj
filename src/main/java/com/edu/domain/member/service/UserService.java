@@ -1,6 +1,7 @@
 package com.edu.domain.member.service;
 
 import com.edu.common.dto.PageResponse;
+import com.edu.domain.member.dto.PasswordResetResponse;
 import com.edu.domain.member.dto.UserSearchRequest;
 import com.edu.domain.member.dto.UserUpdateRequest;
 import com.edu.domain.member.dto.UserDetailResponse;
@@ -18,4 +19,10 @@ public interface UserService {
 
     /** USER-03 회원 수정 (이름/이메일/연락처/상태) */
     UserDetailResponse updateUser(Long userId, UserUpdateRequest request);
+
+    /**
+     * 관리자 비밀번호 초기화 (A안)
+     * 임시 비밀번호 발급 + 다음 로그인 시 강제 변경 플래그 설정
+     */
+    PasswordResetResponse resetPassword(Long userId);
 }

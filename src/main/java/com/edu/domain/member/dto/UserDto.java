@@ -37,6 +37,9 @@ public class UserDto {
     /** 상태 (ACTIVE, INACTIVE, WITHDRAWN) */
     private String statusCode;
 
+    /** 관리자 초기화 후 비밀번호 강제 변경 필요 여부 */
+    private Boolean mustChangePassword;
+
     /** 마지막 로그인 시간 */
     private LocalDateTime lastLoginAt;
 

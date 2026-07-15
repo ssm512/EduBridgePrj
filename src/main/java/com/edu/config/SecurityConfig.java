@@ -124,7 +124,8 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/refresh",
                                 "/api/auth/logout",
-                                "/api/auth/logout-web"
+                                "/api/auth/logout-web",
+                                "/api/auth/password-reset"
                         ).permitAll()
 
                         // ===== 서버 렌더링 페이지: 역할별 접근 제어 =====

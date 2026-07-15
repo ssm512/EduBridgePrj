@@ -1,6 +1,7 @@
 package com.edu.domain.member.controller;
 
 import com.edu.common.dto.PageResponse;
+import com.edu.domain.member.dto.PasswordResetResponse;
 import com.edu.domain.member.dto.UserSearchRequest;
 import com.edu.domain.member.dto.UserUpdateRequest;
 import com.edu.domain.member.dto.UserDetailResponse;
@@ -10,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -58,5 +60,16 @@ public class UserController {
     public UserDetailResponse updateUser(@PathVariable Long userId,
                                          @Valid @RequestBody UserUpdateRequest request) {
         return userService.updateUser(userId, request);
+    }
+
+    /**
+     * POST /api/users/{userId}/password-reset - 관리자 비밀번호 초기화 (A안)
+     * 임시 비밀번호를 발급하고 해당 회원은 다음 로그인 시 비밀번호 변경이 강제된다.
+     * 임시 비밀번호는 이 응답에서 한 번만 확인 가능.
+     */
+    @PostMapping("/{userId}/password-reset")
+    @PreAuthorize("hasRole('ADMIN')")
+    public PasswordResetResponse resetPassword(@PathVariable Long userId) {
+        return userService.resetPassword(userId);
     }
 }
