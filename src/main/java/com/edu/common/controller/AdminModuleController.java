@@ -33,8 +33,7 @@ public class AdminModuleController {
     @GetMapping("/dashboard")     // 담당 도메인: dashboard
     public String dashboard(Model model)      { return placeholder(model, "대시보드", "com.edu.domain.dashboard"); }
 
-    @GetMapping("/logs")          // 담당 도메인: log
-    public String logs(Model model)           { return placeholder(model, "활동로그", "com.edu.domain.log"); }
+    // [제거] /logs → com.edu.domain.log.controller.LogPageController로 이동 (실제 화면 구현됨)
 
     // [제거] /settings → com.edu.domain.setting.controller.SettingPageController로 이동 (실제 화면 구현됨)
 
