@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.edu.domain.ai.mapper.AiMapper">
+
+    <insert id="insertAiUsageLog" useGeneratedKeys="true" keyProperty="aiLogId" keyColumn="ai_log_id">
+        INSERT INTO ai_usage_logs (
+            user_id,
+            feature_code,
+            request_prompt,
+            response_text,
+            model_name,
+            success_yn,
+            error_message
+        )
+        VALUES (
+            #{userId},
+            #{featureCode},
+            #{requestPrompt},
+            #{responseText},
+            #{modelName},
+            #{successYn},
+            #{errorMessage}
+        )
+    </insert>
+
+    <select id="selectAiUsageLogs" resultType="hashmap">
+        SELECT l.ai_log_id,
+               l.user_id,
+               u.name AS user_name,
+               l.feature_code,
+               l.request_prompt,
+               l.response_text,
+               l.model_name,
+               l.success_yn,
+               l.error_message,
+               l.created_at
+        FROM ai_usage_logs l
+        JOIN users u ON u.user_id = l.user_id
+        <where>
+            <if test="featureCode != null and featureCode != ''">
+                l.feature_code = #{featureCode}
+            </if>
+            <if test="fromDate != null and fromDate != ''">
+                AND l.created_at &gt;= CAST(#{fromDate} AS DATE)
+            </if>
+            <if test="toDate != null and toDate != ''">
+                AND l.created_at &lt; CAST(#{toDate} AS DATE) + INTERVAL '1 day'
+            </if>
+        </where>
+        ORDER BY l.created_at DESC, l.ai_log_id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectStudentReportBase" resultType="hashmap">
+        SELECT s.student_id,
+               u.name AS student_name,
+               s.student_no,
+               s.school_name,
+               s.grade_level,
+               STRING_AGG(DISTINCT c.class_name, ', ' ORDER BY c.class_name) AS class_names
+        FROM students s
+        JOIN users u ON u.user_id = s.user_id
+        LEFT JOIN enrollments e ON e.student_id = s.student_id
+                               AND e.status_code = 'ACTIVE'
+        LEFT JOIN classes c ON c.class_id = e.class_id
+        WHERE s.student_id = #{studentId}
+        GROUP BY s.student_id, u.name, s.student_no, s.school_name, s.grade_level
+    </select>
+
+    <select id="selectMonthlyAttendanceSummary" resultType="hashmap">
+        SELECT ar.status_code,
+               COUNT(*) AS count
+        FROM attendance_records ar
+        WHERE ar.student_id = #{studentId}
+        AND TO_CHAR(ar.attendance_date, 'YYYY-MM') = #{targetMonth}
+        GROUP BY ar.status_code
+        ORDER BY ar.status_code
+    </select>
+
+    <select id="selectMonthlyGradeSummary" resultType="hashmap">
+        SELECT e.exam_name,
+               e.subject,
+               e.exam_date,
+               e.total_score,
+               c.class_name,
+               g.score,
+               g.rank_no,
+               (
+                   SELECT COUNT(*)
+                   FROM grades gr
+                   WHERE gr.exam_id = g.exam_id
+               ) AS rank_total,
+               g.comment
+        FROM grades g
+        JOIN exams e ON e.exam_id = g.exam_id
+        JOIN classes c ON c.class_id = e.class_id
+        WHERE g.student_id = #{studentId}
+        AND TO_CHAR(e.exam_date, 'YYYY-MM') = #{targetMonth}
+        ORDER BY e.exam_date, e.exam_id
+    </select>
+
+    <select id="selectMonthlyFeeSummary" resultType="hashmap">
+        SELECT f.billing_month,
+               f.fee_amount,
+               f.discount_amount,
+               f.fee_amount - f.discount_amount AS billable_amount,
+               f.due_date,
+               f.status_code,
+               f.description
+        FROM fees f
+        WHERE f.student_id = #{studentId}
+        AND f.billing_month = #{targetMonth}
+        ORDER BY f.due_date, f.fee_id
+    </select>
+
+    <select id="selectMonthlyCounselingSummary" resultType="hashmap">
+        SELECT cr.counseling_date,
+               cr.counseling_type,
+               cr.visibility_code,
+               cr.content,
+               tu.name AS teacher_name,
+               cu.name AS created_by_name
+        FROM counseling_records cr
+        LEFT JOIN teachers t ON t.teacher_id = cr.teacher_id
+        LEFT JOIN users tu ON tu.user_id = t.user_id
+        JOIN users cu ON cu.user_id = cr.created_by
+        WHERE cr.student_id = #{studentId}
+        AND TO_CHAR(cr.counseling_date, 'YYYY-MM') = #{targetMonth}
+        ORDER BY cr.counseling_date, cr.counseling_id
+    </select>
+
+    <select id="selectCounselingForSummary" resultType="hashmap">
+        SELECT cr.counseling_id,
+               cr.counseling_date,
+               cr.counseling_type,
+               cr.visibility_code,
+               cr.content,
+               su.name AS student_name,
+               pu.name AS parent_name,
+               tu.name AS teacher_name,
+               cu.name AS created_by_name
+        FROM counseling_records cr
+        JOIN students s ON s.student_id = cr.student_id
+        JOIN users su ON su.user_id = s.user_id
+        LEFT JOIN parents p ON p.parent_id = cr.parent_id
+        LEFT JOIN users pu ON pu.user_id = p.user_id
+        LEFT JOIN teachers t ON t.teacher_id = cr.teacher_id
+        LEFT JOIN users tu ON tu.user_id = t.user_id
+        JOIN users cu ON cu.user_id = cr.created_by
+        WHERE cr.counseling_id = #{counselingId}
+    </select>
+
+    <select id="selectCounselingOptionsForSummary" resultType="hashmap">
+        SELECT cr.counseling_id,
+               cr.counseling_date,
+               cr.counseling_type,
+               cr.visibility_code,
+               LEFT(REPLACE(cr.content, CHR(10), ' '), 120) AS content_preview,
+               su.name AS student_name,
+               pu.name AS parent_name,
+               tu.name AS teacher_name,
+               cls.class_names,
+               cu.name AS created_by_name
+        FROM counseling_records cr
+        JOIN students s ON s.student_id = cr.student_id
+        JOIN users su ON su.user_id = s.user_id
+        LEFT JOIN parents p ON p.parent_id = cr.parent_id
+        LEFT JOIN users pu ON pu.user_id = p.user_id
+        LEFT JOIN teachers t ON t.teacher_id = cr.teacher_id
+        LEFT JOIN users tu ON tu.user_id = t.user_id
+        LEFT JOIN LATERAL (
+            SELECT STRING_AGG(DISTINCT c.class_name, ', ' ORDER BY c.class_name) AS class_names
+            FROM enrollments en
+            JOIN classes c ON c.class_id = en.class_id
+            WHERE en.student_id = cr.student_id
+            AND en.status_code = 'ACTIVE'
+        ) cls ON true
+        JOIN users cu ON cu.user_id = cr.created_by
+        <where>
+            <if test="keyword != null and keyword != ''">
+                <choose>
+                    <when test="category == 'student'">
+                        su.name ILIKE CONCAT('%', #{keyword}, '%')
+                    </when>
+                    <when test="category == 'parent'">
+                        pu.name ILIKE CONCAT('%', #{keyword}, '%')
+                    </when>
+                    <when test="category == 'teacher'">
+                        tu.name ILIKE CONCAT('%', #{keyword}, '%')
+                    </when>
+                    <when test="category == 'class'">
+                        EXISTS (
+                            SELECT 1
+                            FROM enrollments en_filter
+                            JOIN classes c_filter ON c_filter.class_id = en_filter.class_id
+                            WHERE en_filter.student_id = cr.student_id
+                            AND en_filter.status_code = 'ACTIVE'
+                            AND c_filter.class_name ILIKE CONCAT('%', #{keyword}, '%')
+                        )
+                    </when>
+                    <when test="category == 'content'">
+                        cr.content ILIKE CONCAT('%', #{keyword}, '%')
+                    </when>
+                    <otherwise>
+                        (
+                            su.name ILIKE CONCAT('%', #{keyword}, '%')
+                            OR pu.name ILIKE CONCAT('%', #{keyword}, '%')
+                            OR tu.name ILIKE CONCAT('%', #{keyword}, '%')
+                            OR cls.class_names ILIKE CONCAT('%', #{keyword}, '%')
+                            OR cr.content ILIKE CONCAT('%', #{keyword}, '%')
+                        )
+                    </otherwise>
+                </choose>
+            </if>
+        </where>
+        ORDER BY cr.counseling_date DESC, cr.counseling_id DESC
+        LIMIT 80
+    </select>
+
+    <select id="selectCounselingSearchSuggestions" resultType="hashmap">
+        <choose>
+            <when test="category == 'parent'">
+                SELECT DISTINCT pu.name AS label,
+                       pu.name AS value
+                FROM counseling_records cr
+                JOIN parents p ON p.parent_id = cr.parent_id
+                JOIN users pu ON pu.user_id = p.user_id
+                WHERE pu.name IS NOT NULL
+                <if test="keyword != null and keyword != ''">
+                    AND pu.name ILIKE CONCAT('%', #{keyword}, '%')
+                </if>
+                ORDER BY label
+                LIMIT 30
+            </when>
+            <when test="category == 'teacher'">
+                SELECT DISTINCT tu.name AS label,
+                       tu.name AS value
+                FROM counseling_records cr
+                JOIN teachers t ON t.teacher_id = cr.teacher_id
+                JOIN users tu ON tu.user_id = t.user_id
+                WHERE tu.name IS NOT NULL
+                <if test="keyword != null and keyword != ''">
+                    AND tu.name ILIKE CONCAT('%', #{keyword}, '%')
+                </if>
+                ORDER BY label
+                LIMIT 30
+            </when>
+            <when test="category == 'class'">
+                SELECT DISTINCT c.class_name AS label,
+                       c.class_name AS value
+                FROM counseling_records cr
+                JOIN enrollments en ON en.student_id = cr.student_id
+                JOIN classes c ON c.class_id = en.class_id
+                WHERE en.status_code = 'ACTIVE'
+                <if test="keyword != null and keyword != ''">
+                    AND c.class_name ILIKE CONCAT('%', #{keyword}, '%')
+                </if>
+                ORDER BY label
+                LIMIT 30
+            </when>
+            <otherwise>
+                SELECT DISTINCT su.name AS label,
+                       su.name AS value
+                FROM counseling_records cr
+                JOIN students s ON s.student_id = cr.student_id
+                JOIN users su ON su.user_id = s.user_id
+                WHERE su.name IS NOT NULL
+                <if test="keyword != null and keyword != ''">
+                    AND su.name ILIKE CONCAT('%', #{keyword}, '%')
+                </if>
+                ORDER BY label
+                LIMIT 30
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectActiveStudentOptions" resultType="hashmap">
+        SELECT DISTINCT s.student_id,
+               u.name AS student_name,
+               s.student_no,
+               s.school_name,
+               s.grade_level
+        FROM students s
+        JOIN users u ON u.user_id = s.user_id
+        JOIN enrollments e ON e.student_id = s.student_id
+        WHERE e.status_code = 'ACTIVE'
+        AND u.status_code = 'ACTIVE'
+        ORDER BY u.name, s.student_id
+    </select>
+</mapper>

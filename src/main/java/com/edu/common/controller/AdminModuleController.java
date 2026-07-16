@@ -38,9 +38,6 @@ public class AdminModuleController {
 
     // [제거] /settings → com.edu.domain.setting.controller.SettingPageController로 이동 (실제 화면 구현됨)
 
-    @GetMapping("/ai")            // 담당 도메인: ai
-    public String ai(Model model)             { return placeholder(model, "Ai 리포트", "com.edu.domain.ai"); }
-
     private String placeholder(Model model, String title, String domainPackage) {
         model.addAttribute("title", title);
         model.addAttribute("domainPackage", domainPackage);

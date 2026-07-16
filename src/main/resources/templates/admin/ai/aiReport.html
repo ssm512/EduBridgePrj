@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>AI 리포트</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .ai-layout { display: grid; gap: 16px; }
+        .ai-grid {
+            display: grid;
+            grid-template-columns: minmax(360px, 460px) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+        }
+        .panel {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 18px;
+        }
+        .panel h2 {
+            margin: 0 0 14px;
+            font-size: 17px;
+            color: #0f2a5f;
+        }
+        .tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .tab-btn {
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .tab-btn.active {
+            background: #2563eb;
+            color: #fff;
+        }
+        .form-row {
+            display: grid;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .form-row label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #374151;
+        }
+        .form-row input,
+        .form-row select,
+        .form-row textarea {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 8px 10px;
+            background: #fff;
+        }
+        .form-row textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+        .ai-btn {
+            border: 0;
+            border-radius: 6px;
+            padding: 9px 13px;
+            background: #2563eb;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .ai-btn.secondary {
+            background: #e5e7eb;
+            color: #111827;
+        }
+        .ai-btn:disabled {
+            opacity: .55;
+            cursor: wait;
+        }
+        .button-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .select-row {
+            display: grid;
+            grid-template-columns: 130px minmax(0, 1fr);
+            gap: 8px;
+        }
+        .suggest-picker {
+            position: relative;
+            display: flex;
+        }
+        .suggest-picker input {
+            padding-right: 42px;
+        }
+        .suggest-toggle {
+            width: 38px;
+            margin-left: -38px;
+            border: 0;
+            border-left: 1px solid #cbd5e1;
+            background: #f8fafc;
+            border-radius: 0 6px 6px 0;
+            cursor: pointer;
+            color: #0f2a5f;
+            font-weight: 700;
+        }
+        .suggest-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 15;
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, .16);
+            padding: 6px;
+        }
+        .suggest-menu.show { display: block; }
+        .suggest-menu button {
+            width: 100%;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            padding: 8px 9px;
+            text-align: left;
+            cursor: pointer;
+            color: #111827;
+        }
+        .suggest-menu button:hover {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        .selected-note {
+            margin: 6px 0 12px;
+            color: #475569;
+            font-size: 12px;
+        }
+        .output {
+            min-height: 380px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 14px;
+            background: #f8fafc;
+            white-space: pre-wrap;
+            line-height: 1.65;
+            color: #111827;
+            overflow: auto;
+        }
+        .tool-section { display: none; }
+        .tool-section.active { display: block; }
+        .log-toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .log-toolbar .form-row {
+            min-width: 160px;
+            margin-bottom: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 9px 8px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        th {
+            background: #f8fafc;
+            color: #0f2a5f;
+            font-weight: 700;
+        }
+        .log-table {
+            table-layout: fixed;
+        }
+        .log-table th,
+        .log-table td {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .log-table tbody tr {
+            cursor: pointer;
+        }
+        .log-table tbody tr:hover {
+            background: #eff6ff;
+        }
+        .log-date-col { width: 112px; }
+        .log-user-col { width: 62px; }
+        .log-feature-col { width: 98px; }
+        .log-success-col { width: 54px; text-align: center; }
+        .log-model-col { width: 112px; }
+        .empty {
+            text-align: center;
+            color: #64748b;
+            padding: 24px 8px;
+        }
+        .status {
+            display: none;
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            max-width: 460px;
+            z-index: 20;
+            border: 1px solid #bfdbfe;
+            border-left: 5px solid #2563eb;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #1e3a8a;
+            padding: 13px 15px;
+            box-shadow: 0 10px 26px rgba(15, 23, 42, .14);
+        }
+        .status.show { display: block; }
+        .status.error {
+            border-color: #fecaca;
+            border-left-color: #dc2626;
+            background: #fff1f2;
+            color: #991b1b;
+        }
+        @media (max-width: 1100px) {
+            .ai-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/common :: topbar('관리자')}"></div>
+<div class="shell">
+    <nav class="sidebar">
+        <a href="/admin/dashboard">대시보드</a>
+        <a href="/admin/members">회원관리</a>
+        <div class="group-label">반 / 수강</div>
+        <a href="/admin/classes">반관리</a>
+        <a href="/admin/enrollments">수강관리</a>
+        <div class="group-label">학생</div>
+        <a href="/admin/attendance">출석관리</a>
+        <a href="/admin/fees">회비관리</a>
+        <a href="/admin/grades">성적관리</a>
+        <div class="group-label">소통</div>
+        <a href="/admin/notices">공지관리</a>
+        <a href="/admin/counseling">상담관리</a>
+        <div class="group-label">운영</div>
+        <a href="/admin/ai">AI 리포트</a>
+        <a href="/admin/notifications">알림이력</a>
+        <a href="/admin/logs">활동로그</a>
+        <a href="/admin/settings">시스템설정</a>
+    </nav>
+
+    <main class="content">
+        <h1>AI 리포트</h1>
+        <p class="sub">Gemini API를 사용해 리포트 초안, 상담 요약, 공지 초안을 생성합니다.</p>
+
+        <div class="ai-layout">
+            <section class="panel">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="report" onclick="showTab('report')">학생 리포트</button>
+                    <button class="tab-btn" data-tab="counseling" onclick="showTab('counseling')">상담 요약</button>
+                    <button class="tab-btn" data-tab="notice" onclick="showTab('notice')">공지 초안</button>
+                    <button class="tab-btn" data-tab="logs" onclick="showTab('logs')">사용 로그</button>
+                </div>
+            </section>
+
+            <div class="ai-grid">
+                <section class="panel">
+                    <div id="reportSection" class="tool-section active">
+                        <h2>학생 종합 리포트</h2>
+                        <div class="form-row">
+                            <label for="studentId">학생</label>
+                            <select id="studentId"></select>
+                        </div>
+                        <div class="form-row">
+                            <label for="targetMonth">조회 월</label>
+                            <input id="targetMonth" type="month">
+                        </div>
+                        <div class="form-row">
+                            <label for="teacherComment">추가 코멘트</label>
+                            <textarea id="teacherComment" placeholder="리포트에 참고할 내용을 입력하세요"></textarea>
+                        </div>
+                        <button id="reportButton" class="ai-btn" onclick="generateMonthlyReport()">리포트 생성</button>
+                    </div>
+
+                    <div id="counselingSection" class="tool-section">
+                        <h2>상담 기록 요약</h2>
+                        <div class="form-row">
+                            <label>상담 기록 검색</label>
+                            <div class="select-row">
+                                <select id="counselingSearchCategory" onchange="loadCounselingOptions()">
+                                    <option value="">전체검색</option>
+                                    <option value="student">학생명</option>
+                                    <option value="parent">학부모명</option>
+                                    <option value="teacher">강사명</option>
+                                    <option value="class">반</option>
+                                    <option value="content">상담내용</option>
+                                </select>
+                                <div class="suggest-picker">
+                                    <input id="counselingSearchKeyword" placeholder="검색어 입력"
+                                           autocomplete="off"
+                                           oninput="handleCounselingKeywordInput()"
+                                           onfocus="loadCounselingSuggestions(false)">
+                                    <button type="button" class="suggest-toggle" onclick="toggleCounselingSuggestions()">▼</button>
+                                    <div id="counselingSuggestionMenu" class="suggest-menu"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label for="counselingSelect">상담 기록 선택</label>
+                            <select id="counselingSelect" onchange="updateSelectedCounselingNote()">
+                                <option value="">상담 기록을 선택하세요</option>
+                            </select>
+                            <div id="selectedCounselingNote" class="selected-note">상담 기록을 선택하면 직접 입력보다 선택 기록을 우선 요약합니다.</div>
+                        </div>
+                        <div class="form-row">
+                            <label for="counselingContent">직접 입력</label>
+                            <textarea id="counselingContent" placeholder="상담 기록을 선택하지 않을 때만 직접 입력 내용으로 요약합니다"></textarea>
+                        </div>
+                        <button id="counselingButton" class="ai-btn" onclick="summarizeCounseling()">상담 요약</button>
+                    </div>
+
+                    <div id="noticeSection" class="tool-section">
+                        <h2>공지사항 초안</h2>
+                        <div class="form-row">
+                            <label for="noticeTarget">공지 대상</label>
+                            <select id="noticeTarget">
+                                <option value="ALL">전체</option>
+                                <option value="CLASS">반</option>
+                                <option value="STUDENT">학생</option>
+                                <option value="PARENT">학부모</option>
+                                <option value="TEACHER">강사</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label for="noticeTone">문체</label>
+                            <input id="noticeTone" placeholder="정중하고 간결하게" value="정중하고 간결하게">
+                        </div>
+                        <div class="form-row">
+                            <label for="noticeKeywords">키워드</label>
+                            <textarea id="noticeKeywords" placeholder="예: 7월 보강 일정, 준비물, 문의 안내"></textarea>
+                        </div>
+                        <button id="noticeButton" class="ai-btn" onclick="draftNotice()">공지 초안 생성</button>
+                    </div>
+
+                    <div id="logsSection" class="tool-section">
+                        <h2>AI 사용 로그</h2>
+                        <div class="log-toolbar">
+                            <div class="form-row">
+                                <label for="logFeature">기능</label>
+                                <select id="logFeature">
+                                    <option value="">전체</option>
+                                    <option value="REPORT">REPORT</option>
+                                    <option value="COUNSELING">COUNSELING</option>
+                                    <option value="NOTICE">NOTICE</option>
+                                </select>
+                            </div>
+                            <div class="form-row">
+                                <label for="fromDate">시작일</label>
+                                <input id="fromDate" type="date">
+                            </div>
+                            <div class="form-row">
+                                <label for="toDate">종료일</label>
+                                <input id="toDate" type="date">
+                            </div>
+                            <button class="ai-btn" onclick="loadLogs()">조회</button>
+                        </div>
+                        <table class="log-table">
+                            <thead>
+                            <tr>
+                                <th class="log-date-col">일시</th>
+                                <th class="log-user-col">요청자</th>
+                                <th class="log-feature-col">기능</th>
+                                <th class="log-success-col">성공</th>
+                                <th class="log-model-col">모델</th>
+                            </tr>
+                            </thead>
+                            <tbody id="logRows">
+                            <tr><td class="empty" colspan="5">조회된 로그가 없습니다.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h2>생성 결과</h2>
+                    <div class="button-row" style="margin-bottom: 10px;">
+                        <button class="ai-btn secondary" onclick="copyOutput()">복사</button>
+                        <button class="ai-btn secondary" onclick="clearOutput()">비우기</button>
+                    </div>
+                    <div id="output" class="output">AI 생성 결과가 여기에 표시됩니다.</div>
+                </section>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div id="status" class="status"></div>
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script>
+    let counselingOptions = [];
+    let counselingSuggestions = [];
+    let counselingSearchTimer = null;
+    let aiLogs = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        document.getElementById('targetMonth').value = new Date().toISOString().slice(0, 7);
+        await loadStudents();
+        await loadCounselingOptions();
+        await loadLogs();
+    });
+
+    function getCsrfCookie() {
+        const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+        return match ? decodeURIComponent(match[1]) : null;
+    }
+
+    async function ensureCsrf() {
+        if (!getCsrfCookie()) {
+            await fetch('/api/auth/csrf');
+        }
+        return getCsrfCookie();
+    }
+
+    async function sendJson(url, body) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-XSRF-TOKEN': await ensureCsrf()
+            },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+        return response.json();
+    }
+
+    async function fetchJson(url) {
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+        return response.json();
+    }
+
+    function showTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(button => {
+            button.classList.toggle('active', button.dataset.tab === tabName);
+        });
+        document.querySelectorAll('.tool-section').forEach(section => section.classList.remove('active'));
+        document.getElementById(tabName + 'Section').classList.add('active');
+        if (tabName === 'logs') {
+            loadLogs();
+        }
+    }
+
+    async function loadStudents() {
+        const students = await fetchJson('/api/ai/students');
+        const select = document.getElementById('studentId');
+        if (!students.length) {
+            select.innerHTML = '<option value="">수강중인 학생이 없습니다</option>';
+            return;
+        }
+        select.innerHTML = students.map(student => `
+            <option value="${student.student_id}">${escapeHtml(student.student_name || '')}${student.student_no ? ` / ${escapeHtml(student.student_no)}` : ''}</option>
+        `).join('');
+    }
+
+    async function generateMonthlyReport() {
+        await runAiButton('reportButton', async () => {
+            const data = await sendJson('/api/ai/reports/monthly', {
+                studentId: Number(document.getElementById('studentId').value),
+                targetMonth: document.getElementById('targetMonth').value,
+                teacherComment: document.getElementById('teacherComment').value
+            });
+            renderOutput(data);
+            await loadLogs();
+        });
+    }
+
+    async function summarizeCounseling() {
+        await runAiButton('counselingButton', async () => {
+            const counselingId = document.getElementById('counselingSelect').value;
+            const data = await sendJson('/api/ai/counseling/summary', {
+                counselingId: counselingId ? Number(counselingId) : null,
+                content: document.getElementById('counselingContent').value
+            });
+            renderOutput(data);
+            await loadLogs();
+        });
+    }
+
+    function debouncedLoadCounselingOptions() {
+        clearTimeout(counselingSearchTimer);
+        counselingSearchTimer = setTimeout(loadCounselingOptions, 250);
+    }
+
+    function handleCounselingKeywordInput() {
+        debouncedLoadCounselingOptions();
+        loadCounselingSuggestions(true);
+    }
+
+    async function toggleCounselingSuggestions() {
+        const menu = document.getElementById('counselingSuggestionMenu');
+        if (menu.classList.contains('show')) {
+            menu.classList.remove('show');
+            return;
+        }
+        await loadCounselingSuggestions(false);
+        menu.classList.add('show');
+    }
+
+    async function loadCounselingSuggestions(onlyWhenKeywordExists) {
+        const category = document.getElementById('counselingSearchCategory')?.value;
+        const keyword = document.getElementById('counselingSearchKeyword')?.value || '';
+        const menu = document.getElementById('counselingSuggestionMenu');
+
+        if (category === 'content' || (!category && onlyWhenKeywordExists) || (onlyWhenKeywordExists && !keyword.trim())) {
+            menu.classList.remove('show');
+            menu.innerHTML = '';
+            return;
+        }
+
+        const params = new URLSearchParams();
+        params.append('category', category || 'student');
+        if (keyword) params.append('keyword', keyword);
+        counselingSuggestions = await fetchJson('/api/ai/counseling/suggestions?' + params.toString());
+        renderCounselingSuggestions();
+        if (onlyWhenKeywordExists) {
+            menu.classList.add('show');
+        }
+    }
+
+    function renderCounselingSuggestions() {
+        const menu = document.getElementById('counselingSuggestionMenu');
+        if (!counselingSuggestions.length) {
+            menu.innerHTML = '<button type="button" disabled>검색된 항목이 없습니다</button>';
+            return;
+        }
+        menu.innerHTML = counselingSuggestions.map(item => `
+            <button type="button" onclick="selectCounselingSuggestion('${escapeJs(item.value || item.label || '')}')">${escapeHtml(item.label || item.value || '')}</button>
+        `).join('');
+    }
+
+    function selectCounselingSuggestion(value) {
+        document.getElementById('counselingSearchKeyword').value = value;
+        document.getElementById('counselingSuggestionMenu').classList.remove('show');
+        loadCounselingOptions();
+    }
+
+    async function loadCounselingOptions() {
+        const params = new URLSearchParams();
+        const category = document.getElementById('counselingSearchCategory')?.value;
+        const keyword = document.getElementById('counselingSearchKeyword')?.value;
+        if (category) params.append('category', category);
+        if (keyword) params.append('keyword', keyword);
+
+        counselingOptions = await fetchJson('/api/ai/counseling/options?' + params.toString());
+        renderCounselingOptions();
+    }
+
+    function renderCounselingOptions() {
+        const select = document.getElementById('counselingSelect');
+        if (!counselingOptions.length) {
+            select.innerHTML = '<option value="">검색된 상담 기록이 없습니다</option>';
+            updateSelectedCounselingNote();
+            return;
+        }
+
+        select.innerHTML = '<option value="">상담 기록을 선택하세요</option>' + counselingOptions.map(item => `
+            <option value="${item.counseling_id}">${escapeHtml(formatCounselingOptionLabel(item))}</option>
+        `).join('');
+        updateSelectedCounselingNote();
+    }
+
+    function updateSelectedCounselingNote() {
+        const selectedId = document.getElementById('counselingSelect').value;
+        const selected = counselingOptions.find(item => String(item.counseling_id) === String(selectedId));
+        document.getElementById('selectedCounselingNote').innerText = selected
+            ? `선택됨: ${formatCounselingOptionLabel(selected)}`
+            : '상담 기록을 선택하면 직접 입력보다 선택 기록을 우선 요약합니다.';
+    }
+
+    function formatCounselingOptionLabel(item) {
+        const date = formatDateOnly(item.counseling_date);
+        const student = item.student_name || '학생';
+        const parent = item.parent_name ? ` / ${item.parent_name}` : '';
+        const teacher = item.teacher_name ? ` / ${item.teacher_name}` : '';
+        const className = item.class_names ? ` / ${item.class_names}` : '';
+        const preview = item.content_preview ? ` - ${item.content_preview}` : '';
+        return `${date} · ${student}${parent}${teacher}${className}${preview}`;
+    }
+
+    async function draftNotice() {
+        await runAiButton('noticeButton', async () => {
+            const data = await sendJson('/api/ai/notices/draft', {
+                targetType: document.getElementById('noticeTarget').value,
+                tone: document.getElementById('noticeTone').value,
+                keywords: document.getElementById('noticeKeywords').value
+            });
+            renderOutput(data);
+            await loadLogs();
+        });
+    }
+
+    async function runAiButton(buttonId, action) {
+        const button = document.getElementById(buttonId);
+        button.disabled = true;
+        try {
+            setOutput('AI 생성 중입니다...');
+            await action();
+            setStatus('AI 생성이 완료되었습니다.');
+        } catch (error) {
+            setOutput(parseError(error.message));
+            setStatus('AI 생성에 실패했습니다.', true);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    async function loadLogs() {
+        const params = new URLSearchParams();
+        const feature = document.getElementById('logFeature')?.value;
+        const fromDate = document.getElementById('fromDate')?.value;
+        const toDate = document.getElementById('toDate')?.value;
+        if (feature) params.append('featureCode', feature);
+        if (fromDate) params.append('fromDate', fromDate);
+        if (toDate) params.append('toDate', toDate);
+        params.append('limit', '30');
+
+        aiLogs = await fetchJson('/api/ai/logs?' + params.toString());
+        const tbody = document.getElementById('logRows');
+        if (!aiLogs.length) {
+            tbody.innerHTML = '<tr><td class="empty" colspan="5">조회된 로그가 없습니다.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = aiLogs.map(log => `
+            <tr onclick="showLogDetail(${log.ai_log_id})">
+                <td class="log-date-col" title="${escapeHtml(formatDateTime(log.created_at))}">${formatDateTime(log.created_at)}</td>
+                <td class="log-user-col" title="${escapeHtml(log.user_name || '')}">${escapeHtml(log.user_name || '')}</td>
+                <td class="log-feature-col" title="${escapeHtml(log.feature_code || '')}">${escapeHtml(log.feature_code || '')}</td>
+                <td class="log-success-col">${log.success_yn === 'Y' ? '성공' : '실패'}</td>
+                <td class="log-model-col" title="${escapeHtml(log.model_name || '')}">${escapeHtml(log.model_name || '')}</td>
+            </tr>
+        `).join('');
+    }
+
+    function showLogDetail(aiLogId) {
+        const log = aiLogs.find(item => Number(item.ai_log_id) === Number(aiLogId));
+        if (!log) {
+            return;
+        }
+
+        const text = [
+            `로그 ID: ${log.ai_log_id}`,
+            `요청자: ${log.user_name || '-'}`,
+            `기능: ${log.feature_code || '-'}`,
+            `성공 여부: ${log.success_yn === 'Y' ? '성공' : '실패'}`,
+            `모델: ${log.model_name || '-'}`,
+            `요청일시: ${formatDateTime(log.created_at)}`,
+            '',
+            '[요청 프롬프트]',
+            log.request_prompt || '-',
+            '',
+            '[응답 내용]',
+            log.response_text || '-',
+            log.error_message ? `\n[오류]\n${log.error_message}` : ''
+        ].join('\n');
+        setOutput(text);
+    }
+
+    function renderOutput(data) {
+        setOutput(`${data.result || ''}\n\n로그 ID: ${data.aiLogId || '-'}`);
+    }
+
+    function setOutput(text) {
+        document.getElementById('output').innerText = text;
+    }
+
+    function clearOutput() {
+        setOutput('AI 생성 결과가 여기에 표시됩니다.');
+    }
+
+    async function copyOutput() {
+        await navigator.clipboard.writeText(document.getElementById('output').innerText);
+        setStatus('생성 결과를 복사했습니다.');
+    }
+
+    function setStatus(message, isError = false) {
+        const status = document.getElementById('status');
+        status.innerText = message;
+        status.className = isError ? 'status error show' : 'status show';
+        clearTimeout(status.dataset.timerId);
+        status.dataset.timerId = setTimeout(() => {
+            status.className = 'status';
+            status.innerText = '';
+        }, 3600);
+    }
+
+    function parseError(message) {
+        try {
+            const parsed = JSON.parse(message);
+            return parsed.message || parsed.error || message;
+        } catch (e) {
+            return message;
+        }
+    }
+
+    function formatDateTime(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function formatDateOnly(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[ch]);
+    }
+
+    function escapeJs(value) {
+        return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    }
+
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.suggest-picker')) {
+            document.getElementById('counselingSuggestionMenu')?.classList.remove('show');
+        }
+    });
+</script>
+</body>
+</html>
