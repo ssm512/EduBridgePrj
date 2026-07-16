@@ -157,7 +157,7 @@
                cr.counseling_date,
                cr.counseling_type,
                cr.visibility_code,
-               LEFT(REPLACE(cr.content, CHR(10), ' '), 120) AS content_preview,
+               LEFT(REPLACE(cr.content, CHR(10), ' '), 70) AS content_preview,
                su.name AS student_name,
                pu.name AS parent_name,
                tu.name AS teacher_name,
@@ -221,6 +221,62 @@
 
     <select id="selectCounselingSearchSuggestions" resultType="hashmap">
         <choose>
+            <when test="category == null or category == ''">
+                SELECT label, value
+                FROM (
+                    SELECT DISTINCT CONCAT('학생 ', su.name) AS label,
+                           su.name AS value,
+                           1 AS sort_order
+                    FROM counseling_records cr
+                    JOIN students s ON s.student_id = cr.student_id
+                    JOIN users su ON su.user_id = s.user_id
+                    WHERE su.name IS NOT NULL
+                    <if test="keyword != null and keyword != ''">
+                        AND su.name ILIKE CONCAT('%', #{keyword}, '%')
+                    </if>
+
+                    UNION
+
+                    SELECT DISTINCT CONCAT('학부모 ', pu.name) AS label,
+                           pu.name AS value,
+                           2 AS sort_order
+                    FROM counseling_records cr
+                    JOIN parents p ON p.parent_id = cr.parent_id
+                    JOIN users pu ON pu.user_id = p.user_id
+                    WHERE pu.name IS NOT NULL
+                    <if test="keyword != null and keyword != ''">
+                        AND pu.name ILIKE CONCAT('%', #{keyword}, '%')
+                    </if>
+
+                    UNION
+
+                    SELECT DISTINCT CONCAT('강사 ', tu.name) AS label,
+                           tu.name AS value,
+                           3 AS sort_order
+                    FROM counseling_records cr
+                    JOIN teachers t ON t.teacher_id = cr.teacher_id
+                    JOIN users tu ON tu.user_id = t.user_id
+                    WHERE tu.name IS NOT NULL
+                    <if test="keyword != null and keyword != ''">
+                        AND tu.name ILIKE CONCAT('%', #{keyword}, '%')
+                    </if>
+
+                    UNION
+
+                    SELECT DISTINCT CONCAT('반 ', c.class_name) AS label,
+                           c.class_name AS value,
+                           4 AS sort_order
+                    FROM counseling_records cr
+                    JOIN enrollments en ON en.student_id = cr.student_id
+                    JOIN classes c ON c.class_id = en.class_id
+                    WHERE en.status_code = 'ACTIVE'
+                    <if test="keyword != null and keyword != ''">
+                        AND c.class_name ILIKE CONCAT('%', #{keyword}, '%')
+                    </if>
+                ) suggestions
+                ORDER BY sort_order, label
+                LIMIT 30
+            </when>
             <when test="category == 'parent'">
                 SELECT DISTINCT pu.name AS label,
                        pu.name AS value
@@ -288,5 +344,100 @@
         WHERE e.status_code = 'ACTIVE'
         AND u.status_code = 'ACTIVE'
         ORDER BY u.name, s.student_id
+    </select>
+
+    <select id="selectGradeStudentOptions" resultType="hashmap">
+        SELECT DISTINCT s.student_id,
+               u.name AS student_name,
+               s.student_no,
+               s.school_name,
+               s.grade_level,
+               STRING_AGG(DISTINCT c.class_name, ', ' ORDER BY c.class_name) AS class_names
+        FROM students s
+        JOIN users u ON u.user_id = s.user_id
+        JOIN grades g ON g.student_id = s.student_id
+        JOIN exams ex ON ex.exam_id = g.exam_id
+        LEFT JOIN enrollments en ON en.student_id = s.student_id
+                                AND en.status_code = 'ACTIVE'
+        LEFT JOIN classes c ON c.class_id = en.class_id
+        <where>
+            u.status_code = 'ACTIVE'
+            <if test="keyword != null and keyword != ''">
+                AND
+                <choose>
+                    <when test="category == 'studentNo'">
+                        s.student_no ILIKE CONCAT('%', #{keyword}, '%')
+                    </when>
+                    <when test="category == 'class'">
+                        EXISTS (
+                            SELECT 1
+                            FROM enrollments en_filter
+                            JOIN classes c_filter ON c_filter.class_id = en_filter.class_id
+                            WHERE en_filter.student_id = s.student_id
+                            AND en_filter.status_code = 'ACTIVE'
+                            AND c_filter.class_name ILIKE CONCAT('%', #{keyword}, '%')
+                        )
+                    </when>
+                    <otherwise>
+                        u.name ILIKE CONCAT('%', #{keyword}, '%')
+                    </otherwise>
+                </choose>
+            </if>
+        </where>
+        GROUP BY s.student_id, u.name, s.student_no, s.school_name, s.grade_level
+        ORDER BY u.name, s.student_id
+        LIMIT 80
+    </select>
+
+    <select id="selectGradeSubjectOptions" resultType="hashmap">
+        SELECT DISTINCT ex.subject
+        FROM grades g
+        JOIN exams ex ON ex.exam_id = g.exam_id
+        WHERE g.student_id = #{studentId}
+        AND ex.subject IS NOT NULL
+        AND ex.subject != ''
+        ORDER BY ex.subject
+    </select>
+
+    <select id="selectGradeClassOptions" resultType="hashmap">
+        SELECT DISTINCT c.class_id,
+               c.class_name
+        FROM grades g
+        JOIN students s ON s.student_id = g.student_id
+        JOIN users u ON u.user_id = s.user_id
+        JOIN enrollments en ON en.student_id = s.student_id
+                           AND en.status_code = 'ACTIVE'
+        JOIN classes c ON c.class_id = en.class_id
+        WHERE u.status_code = 'ACTIVE'
+        <if test="keyword != null and keyword != ''">
+            AND c.class_name ILIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        ORDER BY c.class_name
+        LIMIT 50
+    </select>
+
+    <select id="selectStudentGradeAnalysisRows" resultType="hashmap">
+        SELECT ex.exam_name,
+               ex.subject,
+               ex.exam_date,
+               ex.total_score,
+               c.class_name,
+               g.score,
+               g.rank_no,
+               (
+                   SELECT COUNT(*)
+                   FROM grades gr
+                   WHERE gr.exam_id = g.exam_id
+               ) AS rank_total,
+               ROUND((g.score / NULLIF(ex.total_score, 0)) * 100, 1) AS achievement_rate,
+               g.comment
+        FROM grades g
+        JOIN exams ex ON ex.exam_id = g.exam_id
+        JOIN classes c ON c.class_id = ex.class_id
+        WHERE g.student_id = #{studentId}
+        <if test="subject != null and subject != ''">
+            AND ex.subject = #{subject}
+        </if>
+        ORDER BY ex.exam_date, ex.exam_id
     </select>
 </mapper>

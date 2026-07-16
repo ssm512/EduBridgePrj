@@ -1,6 +1,7 @@
 package com.edu.domain.ai.service;
 
 import com.edu.domain.ai.dto.request.CounselingSummaryRequest;
+import com.edu.domain.ai.dto.request.GradeAnalysisRequest;
 import com.edu.domain.ai.dto.request.MonthlyReportRequest;
 import com.edu.domain.ai.dto.request.NoticeDraftRequest;
 import com.edu.domain.ai.dto.response.AiGenerateResponse;
@@ -16,9 +17,17 @@ public interface AiService {
 
     AiGenerateResponse draftNotice(NoticeDraftRequest request, String loginId);
 
+    AiGenerateResponse analyzeGrades(GradeAnalysisRequest request, String loginId);
+
     List<Map<String, Object>> getAiUsageLogs(String featureCode, String fromDate, String toDate, Integer limit);
 
     List<Map<String, Object>> getStudentOptions();
+
+    List<Map<String, Object>> getGradeStudentOptions(String category, String keyword);
+
+    List<Map<String, Object>> getGradeSubjectOptions(Long studentId);
+
+    List<Map<String, Object>> getGradeClassOptions(String keyword);
 
     List<Map<String, Object>> getCounselingOptions(String category, String keyword);
 

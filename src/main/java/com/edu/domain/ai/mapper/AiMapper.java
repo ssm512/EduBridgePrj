@@ -51,4 +51,18 @@ public interface AiMapper {
 
     // AI 리포트 화면의 학생 선택 목록을 조회한다.
     List<Map<String, Object>> selectActiveStudentOptions();
+
+    // 성적 분석 화면에서 학생명, 학생번호, 반 기준으로 학생 후보를 조회한다.
+    List<Map<String, Object>> selectGradeStudentOptions(@Param("category") String category,
+                                                        @Param("keyword") String keyword);
+
+    // 성적 분석 화면에서 선택 학생이 응시한 과목 목록을 조회한다.
+    List<Map<String, Object>> selectGradeSubjectOptions(@Param("studentId") Long studentId);
+
+    // 성적 분석 화면에서 반 기준 검색에 사용할 반 후보를 조회한다.
+    List<Map<String, Object>> selectGradeClassOptions(@Param("keyword") String keyword);
+
+    // 성적 분석에 사용할 학생의 시험별 성적 이력을 조회한다.
+    List<Map<String, Object>> selectStudentGradeAnalysisRows(@Param("studentId") Long studentId,
+                                                             @Param("subject") String subject);
 }

@@ -1,6 +1,7 @@
 package com.edu.domain.ai.service.impl;
 
 import com.edu.domain.ai.dto.request.CounselingSummaryRequest;
+import com.edu.domain.ai.dto.request.GradeAnalysisRequest;
 import com.edu.domain.ai.dto.request.MonthlyReportRequest;
 import com.edu.domain.ai.dto.request.NoticeDraftRequest;
 import com.edu.domain.ai.dto.response.AiGenerateResponse;
@@ -120,14 +121,51 @@ public class AiServiceImpl implements AiService {
     }
 
     @Override
+    public AiGenerateResponse analyzeGrades(GradeAnalysisRequest request, String loginId) {
+        UserDto loginUser = getLoginUser(loginId);
+        if (request == null || request.getStudentId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "성적 분석 대상 학생을 선택해 주세요.");
+        }
+
+        Map<String, Object> student = aiMapper.selectStudentReportBase(request.getStudentId());
+        if (student == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "학생 정보를 찾을 수 없습니다.");
+        }
+
+        List<Map<String, Object>> gradeRows =
+                aiMapper.selectStudentGradeAnalysisRows(request.getStudentId(), request.getSubject());
+        if (gradeRows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "분석할 성적 데이터가 없습니다.");
+        }
+
+        String prompt = buildGradeAnalysisPrompt(student, gradeRows, request);
+        return generateAndLog(loginUser.getUserId(), "GRADE", prompt);
+    }
+
+    @Override
     public List<Map<String, Object>> getAiUsageLogs(String featureCode, String fromDate, String toDate, Integer limit) {
-        int safeLimit = limit == null ? 30 : Math.max(1, Math.min(limit, 100));
+        int safeLimit = limit == null ? 150 : Math.max(1, Math.min(limit, 300));
         return aiMapper.selectAiUsageLogs(featureCode, fromDate, toDate, safeLimit);
     }
 
     @Override
     public List<Map<String, Object>> getStudentOptions() {
         return aiMapper.selectActiveStudentOptions();
+    }
+
+    @Override
+    public List<Map<String, Object>> getGradeStudentOptions(String category, String keyword) {
+        return aiMapper.selectGradeStudentOptions(category, keyword);
+    }
+
+    @Override
+    public List<Map<String, Object>> getGradeSubjectOptions(Long studentId) {
+        return aiMapper.selectGradeSubjectOptions(studentId);
+    }
+
+    @Override
+    public List<Map<String, Object>> getGradeClassOptions(String keyword) {
+        return aiMapper.selectGradeClassOptions(keyword);
     }
 
     @Override
@@ -237,5 +275,85 @@ public class AiServiceImpl implements AiService {
                 counseling,
                 request.getTeacherComment() == null ? "" : request.getTeacherComment()
         );
+    }
+
+    private String buildGradeAnalysisPrompt(Map<String, Object> student,
+                                            List<Map<String, Object>> gradeRows,
+                                            GradeAnalysisRequest request) {
+        String subject = request.getSubject() == null || request.getSubject().isBlank()
+                ? "전체 과목"
+                : request.getSubject();
+        String focus = request.getAnalysisFocus() == null ? "" : request.getAnalysisFocus();
+
+        return """
+                EduBridge 학원 관리자가 학생의 성적 변화와 지도 방향을 빠르게 파악할 수 있도록 분석해 주세요.
+                없는 데이터는 추측하지 말고, 제공된 성적 데이터에 근거해서만 작성해 주세요.
+                DB 컬럼명이나 원본 필드명은 출력하지 말고, 학원 관리자가 이해하기 쉬운 말로 바꿔 주세요.
+                LaTeX 수식 문법($\\rightarrow$ 등)은 사용하지 말고, 변화 표시는 일반 화살표(→) 또는 문장으로 표현해 주세요.
+
+                분석 대상:
+                %s
+
+                분석 과목:
+                %s
+
+                성적 데이터:
+                %s
+
+                관리자 추가 요청:
+                %s
+
+                출력 형식:
+                ### 1. 성적 변화 요약
+                ### 2. 상승/하락/유지 구간
+                ### 3. 과목별 강점과 보완점
+                ### 4. 석차와 달성률 관점의 해석
+                ### 5. 선생님 한 줄 코멘트
+                ### 6. 다음 지도 방향
+                """.formatted(formatStudentForPrompt(student), subject, formatGradeRowsForPrompt(gradeRows), focus);
+    }
+
+    private String formatStudentForPrompt(Map<String, Object> student) {
+        return """
+                학생명: %s
+                학생번호: %s
+                학교: %s
+                학년: %s
+                수강 반: %s
+                """.formatted(
+                value(student, "student_name"),
+                value(student, "student_no"),
+                value(student, "school_name"),
+                value(student, "grade_level"),
+                value(student, "class_names")
+        );
+    }
+
+    private String formatGradeRowsForPrompt(List<Map<String, Object>> gradeRows) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < gradeRows.size(); i++) {
+            Map<String, Object> row = gradeRows.get(i);
+            builder.append(i + 1).append(". ")
+                    .append("시험일: ").append(value(row, "exam_date"))
+                    .append(", 시험명: ").append(value(row, "exam_name"))
+                    .append(", 과목: ").append(value(row, "subject"))
+                    .append(", 반: ").append(value(row, "class_name"))
+                    .append(", 점수: ").append(value(row, "score")).append("점")
+                    .append(" / 총점 ").append(value(row, "total_score")).append("점")
+                    .append(", 석차: ").append(value(row, "rank_no")).append("등")
+                    .append(" / 총 ").append(value(row, "rank_total")).append("명")
+                    .append(", 달성률: ").append(value(row, "achievement_rate")).append("%");
+            String comment = value(row, "comment");
+            if (!comment.isBlank() && !"-".equals(comment)) {
+                builder.append(", 선생님 한 줄: ").append(comment);
+            }
+            builder.append('\n');
+        }
+        return builder.toString();
+    }
+
+    private String value(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        return value == null ? "-" : String.valueOf(value);
     }
 }
