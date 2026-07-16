@@ -34,6 +34,8 @@ a { text-decoration: none; color: inherit; }
 .shell { display: flex; min-height: calc(100vh - 56px); }
 .sidebar {
   width: 220px;
+  min-width: 220px;
+  flex: 0 0 220px;
   background: #fff;
   border-right: 1px solid #e5e7eb;
   padding: 16px 0;
@@ -53,7 +55,7 @@ a { text-decoration: none; color: inherit; }
 }
 .sidebar a:hover { background: #eef2ff; border-left-color: #6366f1; color: #1e3a8a; }
 
-.content { flex: 1; padding: 28px 32px; }
+.content { flex: 1; min-width: 0; padding: 28px 32px; }
 .content h1 { margin: 0 0 4px; font-size: 22px; }
 .content .sub { color: #6b7280; margin: 0 0 24px; font-size: 14px; }
 

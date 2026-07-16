@@ -140,6 +140,18 @@
         ORDER BY u.name, t.teacher_id
     </select>
 
+    <!-- 로그인 ID로 현재 강사 정보 조회 -->
+    <select id="selectTeacherByLoginId" resultType="hashmap">
+        SELECT t.teacher_id,
+               u.user_id,
+               u.name AS teacher_name,
+               t.subject
+        FROM teachers t
+        JOIN users u ON u.user_id = t.user_id
+        WHERE u.login_id = #{loginId}
+        AND u.status_code = 'ACTIVE'
+    </select>
+
     <!-- 상담 상세 조회 -->
     <select id="selectCounselingDetail" resultType="hashmap">
         SELECT cr.counseling_id,          -- 상담 ID
@@ -192,15 +204,7 @@
         visibility_code = #{counselingVo.visibilityCode}        -- 공개 범위 수정
         WHERE counseling_id = #{counselingVo.counselingId}
         <if test="viewerRoleCode != 'ADMIN'">
-            AND (
-                created_by = #{viewerUserId}
-                OR EXISTS (
-                    SELECT 1
-                    FROM teachers viewer_teacher
-                    WHERE viewer_teacher.teacher_id = counseling_records.teacher_id
-                    AND viewer_teacher.user_id = #{viewerUserId}
-                )
-            )
+            AND created_by = #{viewerUserId}
         </if>
     </update>
 
@@ -209,15 +213,7 @@
         DELETE FROM counseling_records
         WHERE counseling_id = #{counselingId}
         <if test="viewerRoleCode != 'ADMIN'">
-            AND (
-                created_by = #{viewerUserId}
-                OR EXISTS (
-                    SELECT 1
-                    FROM teachers viewer_teacher
-                    WHERE viewer_teacher.teacher_id = counseling_records.teacher_id
-                    AND viewer_teacher.user_id = #{viewerUserId}
-                )
-            )
+            AND created_by = #{viewerUserId}
         </if>
     </delete>
 

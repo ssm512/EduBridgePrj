@@ -23,6 +23,8 @@ public interface CounselingService {
 
     List<Map<String, Object>> getTeacherOptions();
 
+    Map<String, Object> getLoginTeacherInfo(String loginId);
+
     Map<String, Object> getCounselingDetail(Long counselingId, String loginId);
 
     void updateCounseling(Long counselingId, CounselingVo counselingVo, String loginId);

@@ -51,6 +51,12 @@
             resize: vertical;
         }
 
+        #teacherName {
+            background: #f1f5f9;
+            color: #475569;
+            cursor: not-allowed;
+        }
+
         .counseling-form-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(220px, 1fr));
@@ -171,7 +177,7 @@
 
         .filter-grid {
             display: grid;
-            grid-template-columns: 280px 220px 170px 160px 160px;
+            grid-template-columns: 280px 220px 170px 160px;
             gap: 10px;
             flex: 0 1 auto;
         }
@@ -471,35 +477,40 @@
         .status.show {
             display: block;
         }
+
+        .page-actions {
+            margin-bottom: 16px;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .back-btn:hover {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
     </style>
 </head>
 <body>
 
-<div th:replace="~{fragments/common :: topbar('관리자')}"></div>
+<div th:replace="~{fragments/common :: topbar('강사')}"></div>
 
 <div class="shell">
-    <nav class="sidebar">
-        <a href="/admin/dashboard">대시보드</a>
-        <a href="/admin/members">회원관리</a>
-        <div class="group-label">반 / 수강</div>
-        <a href="/admin/classes">반관리</a>
-        <a href="/admin/enrollments">수강관리</a>
-        <div class="group-label">학생</div>
-        <a href="/admin/attendance">출석관리</a>
-        <a href="/admin/fees">회비관리</a>
-        <a href="/admin/grades">성적관리</a>
-        <div class="group-label">소통</div>
-        <a href="/admin/notices">공지관리</a>
-        <a href="/admin/counseling">상담관리</a>
-        <div class="group-label">운영</div>
-        <a href="/admin/ai">AI 리포트</a>
-        <a href="/admin/notifications">알림이력</a>
-        <a href="/admin/logs">활동로그</a>
-        <a href="/admin/settings">시스템설정</a>
-    </nav>
-
     <main class="content">
-        <h1>상담관리</h1>
+        <div class="page-actions">
+            <button type="button" class="back-btn" onclick="location.href='/teacherPage'">뒤로가기</button>
+        </div>
+        <h1>상담기록</h1>
         <p class="sub">학생명으로 상담 대상을 선택하면 연결된 학부모가 자동으로 채워집니다.</p>
 
         <div id="status" class="status"></div>
@@ -530,10 +541,9 @@
                     </div>
 
                     <div class="form-row">
-                        <label for="teacherId">강사 선택</label>
-                        <select id="teacherId">
-                            <option value="">강사 선택</option>
-                        </select>
+                        <label for="teacherName">강사</label>
+                        <input id="teacherName" placeholder="현재 로그인 강사" readonly>
+                        <input id="teacherId" type="hidden">
                     </div>
 
                     <div class="form-row">
@@ -581,6 +591,7 @@
 
                 <input id="filterStudentId" type="hidden">
                 <input id="filterParentId" type="hidden">
+                <input id="filterTeacherId" type="hidden">
 
                 <div class="filter-toolbar">
                     <div class="filter-grid">
@@ -603,12 +614,6 @@
                                 <button type="button" class="picker-toggle" onclick="toggleParentMenu('filterParentMenu', 'filterParentSearch')">▼</button>
                                 <div id="filterParentMenu" class="picker-menu"></div>
                             </div>
-                        </div>
-                        <div class="form-row">
-                            <label for="filterTeacherId">강사</label>
-                            <select id="filterTeacherId">
-                                <option value="">전체 강사</option>
-                            </select>
                         </div>
                         <div class="form-row">
                             <label for="filterVisibilityCode">공개 범위</label>
@@ -689,6 +694,7 @@
     let studentOptions = [];
     let parentOptions = [];
     let teacherOptions = [];
+    let currentTeacher = null;
     let studentMenuIndexes = {};
     let parentMenuIndexes = {};
 
@@ -757,7 +763,7 @@
         const [studentRes, parentRes, teacherRes] = await Promise.all([
             fetch('/api/counseling/students'),
             fetch('/api/counseling/parents'),
-            fetch('/api/counseling/teachers')
+            fetch('/api/counseling/my-teacher')
         ]);
 
         if (!studentRes.ok || !parentRes.ok || !teacherRes.ok) {
@@ -767,9 +773,21 @@
 
         studentOptions = await studentRes.json();
         parentOptions = await parentRes.json();
-        teacherOptions = await teacherRes.json();
-        renderTeacherSelect('teacherId', '강사 선택');
-        renderTeacherSelect('filterTeacherId', '전체 강사');
+        currentTeacher = await teacherRes.json();
+        teacherOptions = [currentTeacher];
+        applyCurrentTeacherFields();
+    }
+
+    // 강사 화면에서는 현재 로그인한 강사를 자동으로 입력하고 변경하지 못하게 한다.
+    function applyCurrentTeacherFields() {
+        if (!currentTeacher) {
+            return;
+        }
+
+        const subjectText = currentTeacher.subject ? ' / ' + currentTeacher.subject : '';
+        document.getElementById('teacherId').value = currentTeacher.teacher_id || '';
+        document.getElementById('teacherName').value = (currentTeacher.teacher_name || '') + subjectText;
+        document.getElementById('filterTeacherId').value = currentTeacher.teacher_id || '';
     }
 
     // 학생명 입력값이 직접 바뀌면 내부 ID를 비워 잘못된 학생 저장을 막는다.
@@ -1183,7 +1201,7 @@
         document.getElementById('studentSearch').value = '';
         document.getElementById('parentId').value = '';
         document.getElementById('parentName').value = '';
-        document.getElementById('teacherId').value = '';
+        applyCurrentTeacherFields();
         setCounselingDateValue('');
         document.getElementById('counselingType').value = 'STUDENT';
         document.getElementById('visibilityCode').value = 'PRIVATE';
@@ -1240,6 +1258,7 @@
 
         visibleRows.forEach(row => {
             const content = row.content || '';
+            const manageable = canManageCounseling(row);
 
             tbody.innerHTML += `
                 <tr onclick="openCounselingContentModal(${row.counseling_id}, event)">
@@ -1257,13 +1276,18 @@
                     <td>${escapeHtml(row.created_by_name || '')}</td>
                     <td>
                         <div class="row-actions">
-                            <button type="button" class="row-action-btn" onclick="editCounselingFromRow(${row.counseling_id}, event)">수정</button>
-                            <button type="button" class="row-action-btn danger" onclick="deleteCounseling(${row.counseling_id}, event)">삭제</button>
+                            ${manageable ? `<button type="button" class="row-action-btn" onclick="editCounselingFromRow(${row.counseling_id}, event)">수정</button>` : '-'}
+                            ${manageable ? `<button type="button" class="row-action-btn danger" onclick="deleteCounseling(${row.counseling_id}, event)">삭제</button>` : ''}
                         </div>
                     </td>
                 </tr>
             `;
         });
+    }
+
+    // 강사는 본인이 작성한 상담 기록만 수정/삭제할 수 있다.
+    function canManageCounseling(row) {
+        return currentTeacher && Number(row.created_by) === Number(currentTeacher.user_id);
     }
 
     // 행의 수정 버튼을 누르면 목록 클릭과 동일하게 수정 폼을 채운다.
@@ -1276,6 +1300,11 @@
     function selectCounseling(counselingId) {
         const selected = counselingRows.find(row => Number(row.counseling_id) === Number(counselingId));
         if (!selected) {
+            return;
+        }
+
+        if (!canManageCounseling(selected)) {
+            setStatus('본인이 작성한 상담 기록만 수정하거나 삭제할 수 있습니다.', true);
             return;
         }
 
@@ -1329,7 +1358,7 @@
         document.getElementById('filterStudentSearch').value = '';
         document.getElementById('filterParentId').value = '';
         document.getElementById('filterParentSearch').value = '';
-        document.getElementById('filterTeacherId').value = '';
+        applyCurrentTeacherFields();
         document.getElementById('filterVisibilityCode').value = '';
         document.getElementById('filterCounselingType').value = '';
         loadCounselingList();

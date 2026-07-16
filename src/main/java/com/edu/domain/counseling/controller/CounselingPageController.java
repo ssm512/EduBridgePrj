@@ -13,4 +13,11 @@ public class CounselingPageController {
     public String counselingManagePage() {
         return "admin/counseling/counselingManage";
     }
+
+    // 강사 홈에서 접근하는 상담 기록 화면
+    @GetMapping("/teacherPage/counseling")
+    @PreAuthorize("hasRole('TEACHER')")
+    public String teacherCounselingManagePage() {
+        return "teacher/counseling/counselingManage";
+    }
 }

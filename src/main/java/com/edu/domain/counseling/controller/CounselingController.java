@@ -66,6 +66,13 @@ public class CounselingController {
         return counselingService.getTeacherOptions();
     }
 
+    // 현재 로그인한 강사 정보 조회
+    @GetMapping("/my-teacher")
+    @PreAuthorize("hasRole('TEACHER')")
+    public Map<String, Object> myTeacher(Authentication authentication) {
+        return counselingService.getLoginTeacherInfo(authentication.getName());
+    }
+
     // 상담 상세 조회
     @GetMapping("/{counselingId}")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
