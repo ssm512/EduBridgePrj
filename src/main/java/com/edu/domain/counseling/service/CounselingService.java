@@ -15,6 +15,10 @@ public interface CounselingService {
                                                 String visibilityCode,
                                                 String loginId);
 
+    List<Map<String, Object>> getParentChildren(String loginId);
+
+    List<Map<String, Object>> getSharedCounselingListForParent(String loginId, Long studentId);
+
     List<Map<String, Object>> getActiveStudentOptions();
 
     List<Map<String, Object>> getParentOptionsByStudent(Long studentId);
@@ -22,6 +26,8 @@ public interface CounselingService {
     List<Map<String, Object>> getActiveParentOptions();
 
     List<Map<String, Object>> getTeacherOptions();
+
+    Map<String, Object> getLoginTeacherInfo(String loginId);
 
     Map<String, Object> getCounselingDetail(Long counselingId, String loginId);
 

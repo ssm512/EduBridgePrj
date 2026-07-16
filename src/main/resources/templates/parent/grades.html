@@ -6,6 +6,19 @@
     <link rel="stylesheet" href="/css/common.css">
     <style>
         .grade-page { display: grid; gap: 16px; }
+        .page-actions { margin-bottom: 16px; }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .back-btn:hover { background: #dbeafe; color: #1d4ed8; }
         .grade-panel {
             background: #fff;
             border: 1px solid #e5e7eb;
@@ -60,6 +73,9 @@
 <div th:replace="~{fragments/common :: topbar('학부모')}"></div>
 <div class="shell">
     <main class="content">
+        <div class="page-actions">
+            <button type="button" class="back-btn" onclick="location.href='/parentPage'">뒤로가기</button>
+        </div>
         <h1>자녀 성적</h1>
         <p class="sub">자녀의 시험 점수와 과목별 성적 추이를 확인합니다.</p>
 

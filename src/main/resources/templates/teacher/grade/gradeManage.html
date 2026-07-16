@@ -12,6 +12,28 @@
             align-items: start;
         }
 
+        .page-actions {
+            margin-bottom: 16px;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .back-btn:hover {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
         .compact-filter-layout {
             grid-template-columns: minmax(220px, 360px) minmax(220px, 420px);
             justify-content: start;
@@ -596,13 +618,10 @@
 <div th:replace="~{fragments/common :: topbar('강사')}"></div>
 
 <div class="shell">
-    <nav class="sidebar">
-        <a href="/teacherPage">강사 홈</a>
-        <a href="/teacherPage/grades">성적입력</a>
-        <a href="/teacherPage/notices">공지사항</a>
-    </nav>
-
     <main class="content">
+        <div class="page-actions">
+            <button type="button" class="back-btn" onclick="location.href='/teacherPage'">뒤로가기</button>
+        </div>
         <h1>성적입력</h1>
         <p class="sub">시험을 등록하고, 시험을 선택한 뒤 수강 학생별 점수를 입력합니다.</p>
 
