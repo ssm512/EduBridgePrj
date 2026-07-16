@@ -14,8 +14,6 @@ import com.edu.common.util.CookieUtil;
 import com.edu.domain.member.mapper.UserMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.apache.ibatis.annotations.Param;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;

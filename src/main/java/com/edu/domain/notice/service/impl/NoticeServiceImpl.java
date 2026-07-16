@@ -129,7 +129,10 @@ public class NoticeServiceImpl implements NoticeService {
         );
     }
 
-    /** NOT-04 공지 수정 (대상 목록은 삭제 후 재등록으로 교체) */
+    /**
+     * NOT-04 공지 수정 (대상 목록은 삭제 후 재등록으로 교체)
+     * [수정 2026-07-16] deleteNotice와 동일하게 이미 삭제(DELETED)된 공지는 수정 불가(409) 처리
+     */
     @Override
     @Transactional
     public NoticeResponse updateNotice(Long noticeId, NoticeUpdateRequest request, Authentication authentication) {
@@ -137,6 +140,10 @@ public class NoticeServiceImpl implements NoticeService {
         NoticeQueryContext ctx = resolveContext(authentication);
         NoticeVo notice = findNoticeOrThrow(noticeId);
         checkWritable(notice, ctx);
+
+        if ("DELETED".equals(notice.getNoticeStatus())) {
+            throw new ApiException(HttpStatus.CONFLICT, "삭제된 공지는 수정할 수 없습니다");
+        }
 
         notice.setTitle(request.title());
         notice.setContent(request.content());
@@ -320,11 +327,23 @@ public class NoticeServiceImpl implements NoticeService {
         throw new ApiException(HttpStatus.FORBIDDEN, "본인이 작성한 공지만 수정/삭제할 수 있습니다");
     }
 
-    /** targetType != ALL인데 대상이 비어 있으면 400 */
+    /**
+     * targetType != ALL인데 대상이 비어 있으면 400
+     * [수정 2026-07-16] targetIds가 실제 존재하는 대상(class/student/parent/teacher)인지도 함께 검증 (400)
+     * notice_targets.target_ref_id에 FK 제약이 없어 서비스 레벨에서 막아야 함
+     */
     private void validateTargets(String targetType, List<Long> targetIds) {
         if (!"ALL".equals(targetType) && (targetIds == null || targetIds.isEmpty())) {
             throw new ApiException(HttpStatus.BAD_REQUEST,
                     "targetType=" + targetType + "일 때는 targetIds가 1개 이상 필요합니다");
+        }
+        if (!"ALL".equals(targetType)) {
+            List<Long> distinctIds = targetIds.stream().distinct().toList();
+            long existing = noticeMapper.countExistingTargets(targetType, distinctIds);
+            if (existing != distinctIds.size()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST,
+                        "존재하지 않는 대상이 targetIds에 포함되어 있습니다");
+            }
         }
     }
 

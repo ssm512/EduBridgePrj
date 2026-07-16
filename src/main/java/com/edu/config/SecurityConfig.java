@@ -1,5 +1,6 @@
 package com.edu.config;
 
+import com.edu.domain.member.mapper.UserMapper;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -19,6 +20,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
@@ -31,7 +33,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, UserMapper userMapper) throws Exception {
         http
                 // ===== CSRF 활성화 (Double Submit Cookie 방식) =====
                 // 세션이 없는(STATELESS) JWT API에서도 CSRF 방어를 켠다.
@@ -152,6 +154,11 @@ public class SecurityConfig {
                         .authenticationEntryPoint(new HtmlAwareAuthenticationEntryPoint())
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 )
+
+                // [추가 2026-07-16] 관리자 초기화 계정(must_change_password=TRUE)은 비밀번호를
+                // 바꾸기 전까지 /api/**를 못 쓰게 서버에서 강제한다 (코드점검 우선순위3-1 대응).
+                // JWT 인증이 SecurityContext에 채워진 뒤에 돌아야 하므로 그 필터 바로 뒤에 붙인다.
+                .addFilterAfter(new MustChangePasswordFilter(userMapper), BearerTokenAuthenticationFilter.class)
 
                 // 인증 안 된 요청: 브라우저는 로그인("/")으로, API는 401
                 .exceptionHandling(ex -> ex

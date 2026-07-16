@@ -10,6 +10,7 @@ import com.edu.domain.classroom.service.ClassService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -57,11 +58,15 @@ public class ClassController {
 
     /**
      * CLS-03 GET /api/classes/{classId} - 반 상세 조회 (수강 학생 목록 포함)
+     * [수정 2026-07-16] TEACHER는 본인 담당반만 조회 가능하도록 소유권 검증 추가 (ADMIN은 전체 허용)
      */
     @GetMapping("/{classId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
-    public ClassDetailResponse getClass(@PathVariable Long classId) {
-        return classService.getClass(classId);
+    public ClassDetailResponse getClass(@PathVariable Long classId, Authentication authentication) {
+        if (hasRole(authentication, "ROLE_ADMIN")) {
+            return classService.getClass(classId);
+        }
+        return classService.getClassForTeacher(classId, authentication.getName());
     }
 
     /**
@@ -72,5 +77,22 @@ public class ClassController {
     public ClassResponse updateClass(@PathVariable Long classId,
                                      @Valid @RequestBody ClassUpdateRequest request) {
         return classService.updateClass(classId, request);
+    }
+
+    /**
+     * [추가 2026-07-16] GET /api/classes/my - 로그인 강사의 담당반 목록 (teacher/classes 화면)
+     * 상태/키워드 + 페이징, classes.teacher_id를 로그인 강사로 서버에서 한정
+     */
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('TEACHER')")
+    public PageResponse<ClassResponse> getMyClasses(@ModelAttribute ClassSearchRequest cond,
+                                                     Authentication authentication) {
+        return classService.getMyClasses(authentication.getName(), cond);
+    }
+
+    /** Authentication 권한 보유 여부 확인 */
+    private boolean hasRole(Authentication authentication, String role) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> role.equals(authority.getAuthority()));
     }
 }

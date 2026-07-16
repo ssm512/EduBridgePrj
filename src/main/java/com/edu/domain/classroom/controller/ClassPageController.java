@@ -18,4 +18,14 @@ public class ClassPageController {
     public String classesPage() {
         return "admin/classroom/classes";
     }
+
+    /**
+     * [추가 2026-07-16] GET /teacher/classes - 강사 본인 담당반 화면
+     * 데이터는 화면 로드 후 JS(fetch)가 /api/classes/my, /api/classes/{classId}를 호출해 채운다.
+     */
+    @GetMapping("/teacher/classes")
+    @PreAuthorize("hasRole('TEACHER')")
+    public String myClassesPage() {
+        return "teacher/classes";
+    }
 }

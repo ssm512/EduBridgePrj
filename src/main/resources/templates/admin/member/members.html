@@ -122,7 +122,7 @@
       <button id="tabParent" onclick="switchTab('parent')">학부모</button>
     </div>
 
-    <!-- [전체 회원] 검색 툴바 : GET /users 파라미터와 1:1 대응 -->
+    <!-- [전체 회원] 검색 툴바 : GET /api/users 파라미터와 1:1 대응 -->
     <div class="toolbar" id="userToolbar">
       <select id="fRole">
         <option value="">권한 전체</option>
@@ -142,7 +142,7 @@
       <button class="btn secondary" id="btnReset">초기화</button>
     </div>
 
-    <!-- [강사] 검색 툴바 : GET /teachers 파라미터와 1:1 대응 -->
+    <!-- [강사] 검색 툴바 : GET /api/teachers 파라미터와 1:1 대응 -->
     <div class="toolbar" id="teacherToolbar" style="display:none;">
       <input type="text" id="tKeyword" placeholder="이름 / 로그인ID / 담당과목 검색">
       <button class="btn" id="btnTSearch">검색</button>
@@ -151,7 +151,7 @@
       <button class="btn" id="btnTCreate">+ 강사 등록</button>
     </div>
 
-    <!-- [학생] 검색 툴바 : GET /students 파라미터와 1:1 대응 -->
+    <!-- [학생] 검색 툴바 : GET /api/students 파라미터와 1:1 대응 -->
     <div class="toolbar" id="studentToolbar" style="display:none;">
       <input type="text" id="sKeyword" placeholder="이름 / 로그인ID / 학번 검색">
       <button class="btn" id="btnSSearch">검색</button>
@@ -160,7 +160,7 @@
       <button class="btn" id="btnSCreate">+ 학생 등록</button>
     </div>
 
-    <!-- [학부모] 검색 툴바 : GET /parents 파라미터와 1:1 대응 -->
+    <!-- [학부모] 검색 툴바 : GET /api/parents 파라미터와 1:1 대응 -->
     <div class="toolbar" id="parentToolbar" style="display:none;">
       <input type="text" id="pKeyword" placeholder="이름 / 로그인ID / 연락처 검색">
       <button class="btn" id="btnPSearch">검색</button>
@@ -182,7 +182,7 @@
   </main>
 </div>
 
-<!-- 회원 수정 모달 : PUT /users/{userId} -->
+<!-- 회원 수정 모달 : PUT /api/users/{userId} -->
 <div class="modal-back" id="userModalBack">
   <div class="modal">
     <h2>회원 수정</h2>
@@ -206,7 +206,7 @@
   </div>
 </div>
 
-<!-- 강사 등록 모달 : POST /teachers (TEA-01) -->
+<!-- 강사 등록 모달 : POST /api/teachers (TEA-01) -->
 <div class="modal-back" id="tCreateModalBack">
   <div class="modal">
     <h2>강사 등록</h2>
@@ -229,7 +229,7 @@
   </div>
 </div>
 
-<!-- 학부모 등록 모달 : POST /parents (PAR-01) -->
+<!-- 학부모 등록 모달 : POST /api/parents (PAR-01) -->
 <div class="modal-back" id="pCreateModalBack">
   <div class="modal">
     <h2>학부모 등록</h2>
@@ -251,7 +251,7 @@
   </div>
 </div>
 
-<!-- 학부모 수정 모달 : PUT /parents/{parentId} (명세서 외 추가) -->
+<!-- 학부모 수정 모달 : PUT /api/parents/{parentId} (명세서 외 추가) -->
 <div class="modal-back" id="pEditModalBack">
   <div class="modal">
     <h2>학부모 수정</h2>
@@ -268,7 +268,7 @@
   </div>
 </div>
 
-<!-- 학생 등록 모달 : POST /students (STU-01) -->
+<!-- 학생 등록 모달 : POST /api/students (STU-01) -->
 <div class="modal-back" id="sCreateModalBack">
   <div class="modal">
     <h2>학생 등록</h2>
@@ -297,7 +297,7 @@
   </div>
 </div>
 
-<!-- 학생 상세/수정 모달 : GET /students/{id} + PUT /students/{id} (STU-03, STU-04) -->
+<!-- 학생 상세/수정 모달 : GET /api/students/{id} + PUT /api/students/{id} (STU-03, STU-04) -->
 <div class="modal-back" id="sDetailModalBack">
   <div class="modal" style="width: 520px;">
     <h2>학생 상세</h2>
@@ -354,7 +354,7 @@
   </div>
 </div>
 
-<!-- 강사 수정 모달 : PUT /teachers/{teacherId} (TEA-03) -->
+<!-- 강사 수정 모달 : PUT /api/teachers/{teacherId} (TEA-03) -->
 <div class="modal-back" id="tEditModalBack">
   <div class="modal">
     <h2>강사 수정</h2>
@@ -376,13 +376,13 @@
 <script>
   /* ===== 회원관리 화면 로직 =====
      [전체 회원 탭]
-       - 목록: GET /users?roleCode=&statusCode=&keyword=&page=&size=  (USER-01)
-       - 상세: 행 클릭 시 GET /users/{userId}                          (USER-02)
-       - 수정: PUT /users/{userId}                                     (USER-03)
+       - 목록: GET /api/users?roleCode=&statusCode=&keyword=&page=&size=  (USER-01)
+       - 상세: 행 클릭 시 GET /api/users/{userId}                          (USER-02)
+       - 수정: PUT /api/users/{userId}                                     (USER-03)
      [강사 탭]
-       - 등록: POST /teachers                                          (TEA-01)
-       - 목록: GET /teachers?keyword=&page=&size=                      (TEA-02)
-       - 수정: PUT /teachers/{teacherId}                               (TEA-03)
+       - 등록: POST /api/teachers                                          (TEA-01)
+       - 목록: GET /api/teachers?keyword=&page=&size=                      (TEA-02)
+       - 수정: PUT /api/teachers/{teacherId}                               (TEA-03)
      쓰기 요청(POST/PUT)은 X-XSRF-TOKEN 헤더 필요. 인증은 ACCESS_TOKEN 쿠키(JWT). */
 
   const ROLE_LABEL   = { ADMIN: '관리자', TEACHER: '강사', STUDENT: '학생', PARENT: '학부모' };
@@ -782,7 +782,7 @@
       </tr>`).join('');
   }
 
-  /* --- 학부모 수정 (PUT /parents/{id}) --- */
+  /* --- 학부모 수정 (PUT /api/parents/{id}) --- */
   function openParentEditModal(parentId) {
     const p = parentCache[parentId];
     if (!p) return;

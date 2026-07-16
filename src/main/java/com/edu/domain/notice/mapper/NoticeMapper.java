@@ -56,6 +56,13 @@ public interface NoticeMapper {
     /** 공지 대상 목록 조회 (대상 이름 포함) */
     List<NoticeTargetVo> selectTargets(@Param("noticeId") Long noticeId);
 
+    /**
+     * [추가 2026-07-16] targetIds 중 실제로 존재하는 대상(class/student/parent/teacher) 개수
+     * 등록/수정 전 유효성 검증용 (반환값이 distinct targetIds 크기와 다르면 존재하지 않는 ID 포함)
+     */
+    long countExistingTargets(@Param("targetType") String targetType,
+                              @Param("targetIds") List<Long> targetIds);
+
     // ===== 읽음 (notice_reads) =====
 
     /** NOT-08 읽음 처리 (INSERT, 이미 있으면 UPDATE — UPSERT) */
