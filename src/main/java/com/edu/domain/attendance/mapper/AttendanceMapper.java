@@ -111,6 +111,9 @@ public interface AttendanceMapper {
     List<Long> findEndedClasses(@Param("dayCode") String dayCode,
                                 @Param("cutoff") java.time.LocalTime cutoff);
 
+    /** 가장 최근 출석기록 일자 (없으면 null) — 재가동 백필 시작점 판단용 */
+    java.time.LocalDate findLatestAttendanceDate();
+
     /** 강사 담당반으로 한정한 출석 이력 전체 (통계 집계용) */
     List<AttendanceRecord> findTeacherList(@Param("loginId") String loginId,
                                            @Param("classId") Long classId,

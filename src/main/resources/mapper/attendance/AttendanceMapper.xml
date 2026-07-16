@@ -264,6 +264,11 @@
           AND sp.student_id = #{studentId}
     </select>
 
+    <!-- 재가동 백필 시작점: 가장 최근 출석기록 일자 (없으면 null) -->
+    <select id="findLatestAttendanceDate" resultType="java.time.LocalDate">
+        SELECT MAX(attendance_date) FROM attendance_records
+    </select>
+
     <!-- 결석 자동화: 오늘 요일 수업 + 종료 후 cutoff 지난 ACTIVE 반 -->
     <select id="findEndedClasses" resultType="long">
         SELECT class_id

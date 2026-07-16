@@ -107,6 +107,29 @@
           <tbody id="verifyBody"><tr><td colspan="4" class="muted">불러오는 중…</td></tr></tbody>
         </table>
       </div>
+
+      <!-- 결석 자동 채우기(백필) -->
+      <div class="panel">
+        <h2>결석 자동 채우기 기간</h2>
+        <p class="hint">
+          서버가 꺼져 있던 동안 빠진 <b>결석</b>을, 다시 켤 때 자동으로 소급해서 채워 주는 기능입니다.
+          아래 일수 <b>이내</b>로 꺼져 있었다면, 켤 때 그 기간의 결석이 자동으로 기록됩니다.
+          평소엔 <b>7일</b>이면 충분하고 손댈 일이 거의 없습니다. <b>0</b>으로 두면 이 기능을 끕니다.
+        </p>
+        <div style="font-size:12.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a;
+             padding:9px 11px; border-radius:8px; margin-bottom:12px;">
+          ⚠ 이 값을 크게 늘리면, 서버가 오래 꺼졌다 켜질 때 <b>지난 여러 날의 결석이 한꺼번에 기록</b>되고
+          <b>학부모 결석 알림이 몰려서 발송</b>될 수 있습니다. 꼭 필요할 때만 신중히 변경하세요.
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-end;">
+          <div>
+            <label style="display:block; font-size:12px; color:#475569; margin-bottom:4px;">기간 (일)</label>
+            <input class="num" type="number" min="0" step="1" id="num_ABSENT_BACKFILL_DAYS">
+          </div>
+          <button class="btn" onclick="saveBackfill()">저장</button>
+          <span id="when_ABSENT_BACKFILL_DAYS" class="muted" style="font-size:11.5px;"></span>
+        </div>
+      </div>
     </section>
 
     <div id="msg"></div>
@@ -153,6 +176,30 @@
     renderNumericRows('autoBody', AUTO_NUM_KEYS);
     renderHolidayEditors();
     checkHolidayWarn();
+    renderBackfill();
+  }
+
+  // ── 결석 백필 기간 (경고 + 확인 후 저장) ──
+  function renderBackfill(){
+    const s = map['ABSENT_BACKFILL_DAYS'];
+    const inp = document.getElementById('num_ABSENT_BACKFILL_DAYS');
+    const when = document.getElementById('when_ABSENT_BACKFILL_DAYS');
+    inp.value = s ? s.settingValue : '7';   // 미시드 대비 기본 7
+    if (when) when.textContent = (s && s.updatedAt) ? ('최근 수정 ' + s.updatedAt.replace('T',' ').slice(0,16)) : '';
+  }
+  async function saveBackfill(){
+    const v = document.getElementById('num_ABSENT_BACKFILL_DAYS').value.trim();
+    if (v === '' || isNaN(v) || Number(v) < 0 || !Number.isInteger(Number(v))) {
+      msg('0 이상의 정수를 입력하세요', false); return;
+    }
+    const ok = confirm(
+      '결석 자동 채우기 기간을 ' + v + '일로 변경합니다.\n\n' +
+      '이렇게 하면 다음에 서버가 오래 꺼졌다 켜질 때 지난 ' + v + '일의 결석이 소급 기록되고,\n' +
+      '학부모 결석 알림이 몰려서 발송될 수 있습니다.\n\n정말 변경하시겠습니까?'
+    );
+    if (!ok) return;
+    await putSetting('ABSENT_BACKFILL_DAYS', v, '결석 자동 채우기 기간 저장됨');
+    renderBackfill();
   }
 
   // 올해 개별공휴일(HOLIDAYS)이 없으면 경고 배너 (서버 리마인더와 동일 취지)
