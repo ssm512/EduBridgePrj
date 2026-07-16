@@ -28,4 +28,10 @@ public interface SettingService {
 
     /** 실수값 (없거나 파싱 실패 시 기본값) */
     double getDouble(String key, double defaultValue);
+
+    /**
+     * 해당 날짜가 휴일(수업 없는 날)인지 — 결석 자동화 스킵 판정.
+     * 우선순위: HOLIDAYS_EXCLUDE(정상수업 예외) > HOLIDAYS(개별) > HOLIDAYS_RECURRING(MM-DD 매년).
+     */
+    boolean isHoliday(java.time.LocalDate date);
 }

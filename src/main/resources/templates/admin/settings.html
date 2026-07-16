@@ -7,25 +7,40 @@
   <style>
     :root { color-scheme: light; }
     input, select, textarea { background:#fff; color:#111827; font-family:inherit; }
-    .page-sub { color:#6b7280; font-size:13px; margin:-6px 0 16px; }
+    .page-sub { color:#6b7280; font-size:13px; margin:-6px 0 14px; }
+    .tabs { display:flex; gap:4px; border-bottom:2px solid #e5e7eb; margin-bottom:16px; }
+    .tab { padding:9px 18px; border:0; background:none; cursor:pointer; font-size:14px; font-weight:600;
+           color:#94a3b8; border-bottom:2px solid transparent; margin-bottom:-2px; }
+    .tab:hover { color:#475569; } .tab.active { color:#1e3a8a; border-bottom-color:#1e3a8a; }
     .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px 18px;
              margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-    .panel > h2 { margin:0 0 12px; font-size:14px; color:#1e293b; display:flex; align-items:center; gap:7px; }
+    .panel > h2 { margin:0 0 4px; font-size:14px; color:#1e293b; display:flex; align-items:center; gap:7px; }
     .panel > h2::before { content:""; width:3px; height:14px; background:#1e3a8a; border-radius:2px; }
-    .tbl-wrap { border:1px solid #eef2f7; border-radius:8px; overflow:hidden; }
+    .panel .hint { color:#6b7280; font-size:12px; margin:0 0 12px; }
     table { width:100%; border-collapse:collapse; font-size:13px; }
     th, td { padding:9px 12px; text-align:left; vertical-align:middle; }
     thead th { background:#f8fafc; color:#64748b; font-size:11.5px; font-weight:600; border-bottom:1px solid #e5e7eb; }
     tbody tr { border-bottom:1px solid #f1f5f9; } tbody tr:last-child { border-bottom:0; }
-    tbody tr:nth-child(even) { background:#fcfcfd; }
-    td .key { font-family:monospace; font-size:12px; color:#0f172a; }
-    td input.val { padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px; font-size:13px; width:130px; }
-    td .desc { color:#475569; }
-    td .when { color:#94a3b8; font-size:11.5px; }
+    .lbl { font-weight:600; color:#1e293b; }
+    .key { font-family:monospace; font-size:11px; color:#94a3b8; }
+    .num { padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px; font-size:13px; width:110px; }
+    .desc { color:#475569; font-size:12.5px; }
     .btn { padding:6px 12px; border:0; border-radius:7px; background:#1e3a8a; color:#fff; cursor:pointer; font-size:12.5px; font-weight:600; }
     .btn:hover { filter:brightness(1.12); }
+    .btn.sub { background:#64748b; color:#fff; }
     .muted { color:#9ca3af; }
-    .hint { font-size:12.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:9px 11px; border-radius:8px; margin-bottom:12px; }
+
+    .hblock { border:1px solid #eef2f7; border-radius:10px; padding:13px 14px; margin-bottom:12px; background:#fcfcfd; }
+    .hblock .hb-title { font-weight:600; font-size:13px; color:#1e293b; }
+    .hblock .hb-sub { color:#94a3b8; font-size:11.5px; margin:2px 0 10px; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; min-height:26px; }
+    .chip { display:inline-flex; align-items:center; gap:6px; background:#e0e7ff; color:#3730a3;
+            border-radius:999px; padding:4px 6px 4px 11px; font-size:12.5px; font-weight:600; }
+    .chip button { border:0; background:#c7d2fe; color:#3730a3; width:17px; height:17px; border-radius:50%;
+                   cursor:pointer; font-size:12px; line-height:1; display:flex; align-items:center; justify-content:center; }
+    .chip button:hover { background:#a5b4fc; }
+    .add-row { display:flex; gap:6px; align-items:center; }
+    .add-row input { padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px; font-size:13px; }
     #msg { font-size:13px; margin-top:10px; font-weight:500; }
   </style>
 </head>
@@ -55,23 +70,46 @@
 
   <main class="content">
     <h1>시스템설정</h1>
-    <p class="page-sub">출석 허용시간·GPS 반경 등 운영 값을 여기서 바로 바꿀 수 있어요. (재배포 불필요)</p>
+    <p class="page-sub">출석 검증값과 자동출석·휴일 규칙을 여기서 관리합니다. (저장 즉시 반영, 재배포 불필요)</p>
 
-    <div class="panel">
-      <h2>운영 설정</h2>
-      <div class="hint">출석 검증(허용시간·GPS 반경·RSSI 기준)은 저장 즉시 다음 출석 요청부터 반영됩니다.</div>
-      <div class="tbl-wrap">
+    <div class="tabs">
+      <button class="tab active" data-tab="auto"   onclick="showTab('auto')">자동출석 · 휴일</button>
+      <button class="tab" data-tab="verify" onclick="showTab('verify')">출석 검증 (비콘·GPS)</button>
+    </div>
+
+    <!-- 탭: 자동출석 · 휴일 -->
+    <section class="tab-panel" id="tab-auto" >
+      <div class="panel">
+        <h2>결석 자동처리</h2>
+        <p class="hint">수업 종료 후 아래 시간이 지나면 미출석자를 자동 결석 처리합니다. (5분 주기 폴링)</p>
         <table>
-          <thead>
-            <tr><th style="width:230px">설정 키</th><th style="width:160px">값</th><th>설명</th><th style="width:150px">최근 수정</th><th style="width:70px">저장</th></tr>
-          </thead>
-          <tbody id="tbody">
-            <tr><td colspan="5" class="muted">불러오는 중…</td></tr>
-          </tbody>
+          <thead><tr><th style="width:280px">항목</th><th style="width:150px">값</th><th>설명</th><th style="width:70px">저장</th></tr></thead>
+          <tbody id="autoBody"><tr><td colspan="4" class="muted">불러오는 중…</td></tr></tbody>
         </table>
       </div>
-      <div id="msg"></div>
-    </div>
+
+      <div class="panel">
+        <h2>휴일 관리</h2>
+        <p class="hint">휴일에는 결석 자동처리가 실행되지 않습니다. 날짜를 골라 추가하고, 칩의 ×로 삭제합니다. (변경 즉시 저장)</p>
+        <div id="holidayWarn" style="display:none; font-size:12.5px; color:#b45309; background:#fffbeb;
+             border:1px solid #fde68a; padding:9px 11px; border-radius:8px; margin-bottom:12px; font-weight:600;"></div>
+        <div id="holidayEditors"></div>
+      </div>
+    </section>
+
+    <!-- 탭: 출석 검증 -->
+    <section class="tab-panel" id="tab-verify" hidden>
+      <div class="panel">
+        <h2>출석 검증 값</h2>
+        <p class="hint">자동 출석 요청의 지각 판정·GPS 반경·RSSI 기준입니다. 비콘 개별 RSSI 값이 있으면 그게 우선합니다.</p>
+        <table>
+          <thead><tr><th style="width:280px">항목</th><th style="width:150px">값</th><th>설명</th><th style="width:70px">저장</th></tr></thead>
+          <tbody id="verifyBody"><tr><td colspan="4" class="muted">불러오는 중…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div id="msg"></div>
   </main>
 </div>
 
@@ -80,42 +118,141 @@
   function csrf(){ const m=document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/); return m?decodeURIComponent(m[1]):null; }
   async function ensureCsrf(){ if(!csrf()) await fetch('/api/auth/csrf'); return csrf(); }
   function esc(s){ return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-  function fmtWhen(s){ return s ? s.replace('T',' ').slice(0,16) : '-'; }
+  function ymd(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
+  function msg(t, ok){ const e=document.getElementById('msg'); e.textContent=t; e.style.color=ok?'#166534':'#b91c1c'; }
 
-  async function loadSettings(){
-    const tb=document.getElementById('tbody');
-    const res=await fetch('/api/settings');
-    if(!res.ok){ tb.innerHTML=`<tr><td colspan="5">조회 실패 (${res.status})</td></tr>`; return; }
-    const list=await res.json();
-    if(!list.length){ tb.innerHTML='<tr><td colspan="5" class="muted">설정이 없습니다.</td></tr>'; return; }
-    tb.innerHTML=list.map(s=>`
-      <tr data-key="${esc(s.settingKey)}">
-        <td><span class="key">${esc(s.settingKey)}</span></td>
-        <td><input class="val" value="${esc(s.settingValue)}"></td>
-        <td class="desc">${esc(s.description) || '-'}</td>
-        <td class="when">${fmtWhen(s.updatedAt)}</td>
-        <td><button class="btn" onclick="saveSetting(this)">저장</button></td>
-      </tr>`).join('');
+  function showTab(name){
+    ['verify','auto'].forEach(t=>document.getElementById('tab-'+t).hidden=(t!==name));
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   }
 
-  async function saveSetting(btn){
-    const tr=btn.closest('tr');
-    const key=tr.dataset.key;
-    const value=tr.querySelector('.val').value.trim();
-    const msg=document.getElementById('msg');
+  // 항목별 친화적 라벨
+  const LABELS = {
+    ATTENDANCE_ALLOW_MINUTES: '출석 허용시간 (분)',
+    GPS_RADIUS_METERS:        'GPS 인정 반경 (m)',
+    RSSI_DEFAULT_THRESHOLD:   'RSSI 기본 기준값',
+    ABSENT_DELAY_MINUTES:     '결석 처리 지연 (분)'
+  };
+  const VERIFY_KEYS = ['ATTENDANCE_ALLOW_MINUTES','GPS_RADIUS_METERS','RSSI_DEFAULT_THRESHOLD'];
+  const AUTO_NUM_KEYS = ['ABSENT_DELAY_MINUTES'];
+  // 휴일: [키, 타입(date|mmdd), 제목, 부제]
+  const HOLIDAY_EDITORS = [
+    ['HOLIDAYS_RECURRING','mmdd','매년 반복 공휴일 (양력 고정)','신정·삼일절 등. 날짜를 고르면 월·일만 사용해 매년 자동 적용'],
+    ['HOLIDAYS','date','개별 공휴일 · 임시휴강','설날/추석 등 음력 공휴일, 대체공휴일, 임시휴강. 지난 날짜는 자동 정리'],
+    ['HOLIDAYS_EXCLUDE','date','정상수업 예외','반복 공휴일이지만 이날은 수업하는 경우. 지난 날짜는 자동 정리']
+  ];
+  const HOLIDAY_TYPE = { HOLIDAYS_RECURRING:'mmdd', HOLIDAYS:'date', HOLIDAYS_EXCLUDE:'date' };
+
+  let map = {};   // key → setting
+
+  async function loadSettings(){
+    const res=await fetch('/api/settings');
+    if(!res.ok){ msg(`설정 조회 실패 (${res.status})`, false); return; }
+    map={}; (await res.json()).forEach(s=>map[s.settingKey]=s);
+    renderNumericRows('verifyBody', VERIFY_KEYS);
+    renderNumericRows('autoBody', AUTO_NUM_KEYS);
+    renderHolidayEditors();
+    checkHolidayWarn();
+  }
+
+  // 올해 개별공휴일(HOLIDAYS)이 없으면 경고 배너 (서버 리마인더와 동일 취지)
+  function checkHolidayWarn(){
+    const year = new Date().getFullYear();
+    const csv = map['HOLIDAYS']?.settingValue || '';
+    const has = csv.split(',').map(s=>s.trim()).some(s=>s.startsWith(year+'-'));
+    const el = document.getElementById('holidayWarn');
+    if (has) { el.style.display='none'; return; }
+    el.style.display='block';
+    el.textContent = `⚠ ${year}년 개별 공휴일이 등록되지 않았습니다. 설날·추석 등 음력 공휴일과 임시휴강을 등록해 주세요. (미등록 시 해당일 결석이 잘못 자동처리될 수 있습니다.)`;
+  }
+
+  function numRow(key){
+    const s=map[key]; if(!s) return '';
+    return `<tr>
+      <td><div class="lbl">${LABELS[key] || key}</div><span class="key">${key}</span></td>
+      <td><input class="num" type="number" step="any" id="num_${key}" value="${esc(s.settingValue)}"></td>
+      <td class="desc">${esc(s.description) || '-'}</td>
+      <td><button class="btn" onclick="saveNumeric('${key}')">저장</button></td>
+    </tr>`;
+  }
+  function renderNumericRows(bodyId, keys){
+    const rows=keys.map(numRow).filter(Boolean).join('');
+    document.getElementById(bodyId).innerHTML = rows || '<tr><td colspan="4" class="muted">항목 없음</td></tr>';
+  }
+
+  async function saveNumeric(key){
+    const v=document.getElementById('num_'+key).value.trim();
+    if(v===''){ msg('값을 입력하세요', false); return; }
+    await putSetting(key, v, `${LABELS[key]||key} 저장됨`);
+  }
+
+  // ── 휴일 편집기 ──
+  function parseList(key){
+    const csv=map[key]?.settingValue || '';
+    return csv.split(',').map(x=>x.trim()).filter(Boolean);
+  }
+  function normalize(arr, type){
+    let out=[...new Set(arr)];
+    if(type==='date'){ const today=ymd(new Date()); out=out.filter(d=>d>=today); }
+    out.sort();
+    return out;
+  }
+
+  function renderHolidayEditors(){
+    document.getElementById('holidayEditors').innerHTML = HOLIDAY_EDITORS.map(([key,type,title,sub])=>`
+      <div class="hblock">
+        <div class="hb-title">${title} <span class="key">${key}</span></div>
+        <div class="hb-sub">${sub}</div>
+        <div class="chips" id="chips_${key}"></div>
+        <div class="add-row">
+          <input type="date" id="add_${key}">
+          <button class="btn sub" onclick="addHoliday('${key}')">추가</button>
+        </div>
+      </div>`).join('');
+    HOLIDAY_EDITORS.forEach(([key,type])=>renderChips(key, type));
+  }
+
+  function renderChips(key, type){
+    const arr=normalize(parseList(key), type);
+    const box=document.getElementById('chips_'+key);
+    box.innerHTML = arr.length
+      ? arr.map(v=>`<span class="chip">${v}<button onclick="removeHoliday('${key}','${v}')" aria-label="삭제">×</button></span>`).join('')
+      : '<span class="muted" style="font-size:12px">등록된 날짜 없음</span>';
+  }
+
+  async function addHoliday(key){
+    const type=HOLIDAY_TYPE[key];
+    const inp=document.getElementById('add_'+key);
+    let v=inp.value;
+    if(!v){ msg('날짜를 선택하세요', false); return; }
+    if(type==='mmdd') v=v.slice(5);           // YYYY-MM-DD → MM-DD (월·일만)
+    const arr=normalize([...parseList(key), v], type);
+    await putSetting(key, arr.join(','), '휴일 추가됨');
+    inp.value='';
+  }
+
+  async function removeHoliday(key, val){
+    const type=HOLIDAY_TYPE[key];
+    const arr=normalize(parseList(key).filter(x=>x!==val), type);
+    await putSetting(key, arr.join(','), '휴일 삭제됨');
+  }
+
+  // 공통 저장: PUT → map 갱신 → 관련 화면 재렌더
+  async function putSetting(key, value, okMsg){
     const token=await ensureCsrf();
-    const res=await fetch(`/api/settings/${encodeURIComponent(key)}`,{
+    const res=await fetch('/api/settings/'+encodeURIComponent(key),{
       method:'PUT',
       headers:{'Content-Type':'application/json','X-XSRF-TOKEN':token},
       body:JSON.stringify({settingValue:value, description:null})
     });
     if(res.ok){
-      const s=await res.json();
-      tr.querySelector('.when').textContent=fmtWhen(s.updatedAt);
-      msg.textContent=`${key} 저장됨`; msg.style.color='#166534';
+      map[key]=await res.json();
+      if(HOLIDAY_TYPE[key]) renderChips(key, HOLIDAY_TYPE[key]);
+      if(key==='HOLIDAYS') checkHolidayWarn();
+      msg(okMsg || `${key} 저장됨`, true);
     }else{
       const d=await res.json().catch(()=>({}));
-      msg.textContent=`저장 실패 (${res.status}): ${d.message||''}`; msg.style.color='#b91c1c';
+      msg(`저장 실패 (${res.status}): ${d.message||''}`, false);
     }
   }
 

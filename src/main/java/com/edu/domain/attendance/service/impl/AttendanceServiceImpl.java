@@ -148,6 +148,9 @@ public class AttendanceServiceImpl implements AttendanceService {
         if (record == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "오늘 등원 기록이 없어 퇴실할 수 없습니다");
         }
+        if (record.getStatusCode().equals("ABSENT")) {
+            throw new ApiException(HttpStatus.CONFLICT, "금일 결석 처리 된 강의입니다.");
+        }
         // 퇴실 중복 방지
         if (record.getCheckOutAt() != null) {
             throw new ApiException(HttpStatus.CONFLICT, "이미 퇴실 처리되었습니다");

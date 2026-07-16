@@ -264,6 +264,16 @@
           AND sp.student_id = #{studentId}
     </select>
 
+    <!-- 결석 자동화: 오늘 요일 수업 + 종료 후 cutoff 지난 ACTIVE 반 -->
+    <select id="findEndedClasses" resultType="long">
+        SELECT class_id
+        FROM classes
+        WHERE status_code = 'ACTIVE'
+          AND end_time IS NOT NULL
+          AND end_time &lt;= #{cutoff}
+          AND (days_of_week IS NULL OR days_of_week LIKE '%' || #{dayCode} || '%')
+    </select>
+
     <!-- 활동로그 저장 (출석 실패 사유 등). created_at은 DEFAULT -->
     <insert id="insertActivityLog">
         INSERT INTO activity_logs (user_id, action_type, target_table, target_id, description)

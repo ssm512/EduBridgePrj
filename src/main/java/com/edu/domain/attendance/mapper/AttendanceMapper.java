@@ -104,6 +104,13 @@ public interface AttendanceMapper {
     /** 해당 반이 로그인 강사의 담당반인지 확인 (0이면 담당 아님 → 403 처리, 쓰기 경로용) */
     int countTeacherClass(@Param("loginId") String loginId, @Param("classId") Long classId);
 
+    /**
+     * 결석 자동화용: 오늘 요일에 수업이 있고 종료시각이 cutoff 이전인 ACTIVE 반 목록.
+     * days_of_week가 NULL이면 매일 수업으로 간주.
+     */
+    List<Long> findEndedClasses(@Param("dayCode") String dayCode,
+                                @Param("cutoff") java.time.LocalTime cutoff);
+
     /** 강사 담당반으로 한정한 출석 이력 전체 (통계 집계용) */
     List<AttendanceRecord> findTeacherList(@Param("loginId") String loginId,
                                            @Param("classId") Long classId,

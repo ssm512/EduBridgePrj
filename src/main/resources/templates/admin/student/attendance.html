@@ -281,7 +281,7 @@
     const dt = new Date(d + 'T00:00:00');
     return isNaN(dt) ? d : `${d}(${WEEKDAYS[dt.getDay()]})`;
   }
-  function checkTypeName(t) { return t === 'AUTO' ? '자동' : t === 'MANUAL' ? '수동' : (t ?? ''); }
+  function checkTypeName(t) { return t === 'AUTO' ? '비콘' : t === 'MANUAL' ? '수동' : (t ?? ''); }
   // 로컬 기준 yyyy-MM-dd (toISOString은 UTC라 하루 밀릴 수 있어 사용 안 함)
   function ymd(d) {
     const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');

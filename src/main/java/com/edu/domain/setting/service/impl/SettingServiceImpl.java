@@ -9,7 +9,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class SettingServiceImpl implements SettingService {
@@ -69,5 +73,36 @@ public class SettingServiceImpl implements SettingService {
         String v = getValue(key);
         if (v == null) return defaultValue;
         try { return Double.parseDouble(v.trim()); } catch (NumberFormatException e) { return defaultValue; }
+    }
+
+    private static final DateTimeFormatter MMDD = DateTimeFormatter.ofPattern("MM-dd");
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isHoliday(LocalDate date) {
+        if (parseDates("HOLIDAYS_EXCLUDE").contains(date)) return false;   // 정상수업 예외가 최우선
+        if (parseDates("HOLIDAYS").contains(date)) return true;           // 개별 공휴일/임시휴강
+        return parseTokens("HOLIDAYS_RECURRING").contains(date.format(MMDD)); // 양력 고정(매년)
+    }
+
+    /** CSV(YYYY-MM-DD) → LocalDate 집합 (형식 오류 항목은 무시) */
+    private Set<LocalDate> parseDates(String key) {
+        Set<LocalDate> out = new HashSet<>();
+        for (String s : parseTokens(key)) {
+            try { out.add(LocalDate.parse(s)); } catch (Exception ignore) { /* 잘못된 형식 무시 */ }
+        }
+        return out;
+    }
+
+    /** CSV 문자열 → 공백/빈값 제거한 토큰 집합 */
+    private Set<String> parseTokens(String key) {
+        String v = getValue(key);
+        Set<String> out = new HashSet<>();
+        if (v == null || v.isBlank()) return out;
+        for (String s : v.split(",")) {
+            String t = s.trim();
+            if (!t.isEmpty()) out.add(t);
+        }
+        return out;
     }
 }

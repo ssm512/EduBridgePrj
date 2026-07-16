@@ -36,4 +36,10 @@
         VALUES (#{userId}, #{actionType}, #{targetTable}, #{description})
     </insert>
 
+    <!-- 공휴일 리마인더 수신자: 활성 관리자 -->
+    <select id="findAdminUserIds" resultType="long">
+        SELECT user_id FROM users
+        WHERE role_code = 'ADMIN' AND status_code = 'ACTIVE'
+    </select>
+
 </mapper>

@@ -34,4 +34,7 @@ public interface SettingMapper {
                           @Param("actionType") String actionType,
                           @Param("targetTable") String targetTable,
                           @Param("description") String description);
+
+    /** 활성 관리자(ADMIN) user_id 목록 — 공휴일 등록 리마인더 수신자 */
+    List<Long> findAdminUserIds();
 }
