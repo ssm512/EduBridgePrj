@@ -38,6 +38,21 @@ public class CounselingController {
         return counselingService.getCounselingList(studentId, parentId, teacherId, visibilityCode, authentication.getName());
     }
 
+    // 학부모에게 연결된 자녀 목록 조회
+    @GetMapping("/parent/children")
+    @PreAuthorize("hasRole('PARENT')")
+    public List<Map<String, Object>> parentChildren(Authentication authentication) {
+        return counselingService.getParentChildren(authentication.getName());
+    }
+
+    // 학부모가 볼 수 있도록 공유된 자녀 상담 기록 조회
+    @GetMapping("/parent/records")
+    @PreAuthorize("hasRole('PARENT')")
+    public List<Map<String, Object>> parentSharedCounselingList(@RequestParam(required = false) Long studentId,
+                                                                Authentication authentication) {
+        return counselingService.getSharedCounselingListForParent(authentication.getName(), studentId);
+    }
+
     // 수강중인 학생 선택 목록 조회
     @GetMapping("/students")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")

@@ -27,7 +27,7 @@ public class CounselingServiceImpl implements CounselingService {
     public CounselingVo createCounseling(CounselingVo counselingVo, String loginId) {
         UserDto loginUser = getLoginUser(loginId);
         applyLoginTeacherIfNeeded(counselingVo, loginId, loginUser);
-        counselingVo.setCreatedBy(loginUser.getUserId());  // 현재 로그인한 사용자 ID를 등록자 ID로 저장
+        counselingVo.setCreatedBy(loginUser.getUserId());
         counselingMapper.insertCounseling(counselingVo);
         return counselingVo;
     }
@@ -41,6 +41,16 @@ public class CounselingServiceImpl implements CounselingService {
         UserDto loginUser = getLoginUser(loginId);
         return counselingMapper.selectCounselingList(studentId, parentId, teacherId, visibilityCode,
                 loginUser.getUserId(), loginUser.getRoleCode());
+    }
+
+    @Override
+    public List<Map<String, Object>> getParentChildren(String loginId) {
+        return counselingMapper.selectParentChildrenByLoginId(loginId);
+    }
+
+    @Override
+    public List<Map<String, Object>> getSharedCounselingListForParent(String loginId, Long studentId) {
+        return counselingMapper.selectSharedCounselingListForParent(loginId, studentId);
     }
 
     @Override

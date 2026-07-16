@@ -23,6 +23,13 @@ public interface CounselingMapper {
                                                    @Param("viewerUserId") Long viewerUserId,
                                                    @Param("viewerRoleCode") String viewerRoleCode);
 
+    // 로그인 학부모에게 연결된 자녀 목록을 조회한다.
+    List<Map<String, Object>> selectParentChildrenByLoginId(@Param("loginId") String loginId);
+
+    // 학부모에게 공유로 공개된 자녀 상담 기록만 조회한다.
+    List<Map<String, Object>> selectSharedCounselingListForParent(@Param("loginId") String loginId,
+                                                                  @Param("studentId") Long studentId);
+
     // 수강중인 학생 목록 조회
     // 상담 등록 화면에서 학생명 자동완성 목록으로 사용한다.
     List<Map<String, Object>> selectActiveStudentOptions();

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>상담 확인</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .page-actions { margin-bottom: 16px; }
+        .back-btn {
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .back-btn:hover { background: #dbeafe; color: #1d4ed8; }
+        .counseling-page { display: grid; gap: 16px; }
+        .panel {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 18px;
+        }
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .field {
+            display: grid;
+            gap: 6px;
+            min-width: 260px;
+        }
+        .field label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f2a5f;
+        }
+        select {
+            height: 36px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 0 10px;
+            background: #fff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            table-layout: fixed;
+        }
+        th, td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 10px 8px;
+            text-align: left;
+            vertical-align: middle;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        th {
+            background: #f8fafc;
+            color: #0f2a5f;
+            font-weight: 700;
+        }
+        tbody tr { cursor: pointer; }
+        tbody tr:hover { background: #eff6ff; }
+        .date-col { width: 130px; }
+        .name-col { width: 110px; }
+        .type-col { width: 90px; }
+        .content-col { width: auto; }
+        .empty {
+            color: #64748b;
+            text-align: center;
+            padding: 26px 8px;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 35;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, .34);
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            width: min(720px, calc(100vw - 32px));
+            max-height: min(620px, calc(100vh - 48px));
+            overflow-y: auto;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, .24);
+            padding: 20px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 17px;
+        }
+        .modal-close {
+            border: 0;
+            border-radius: 6px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            padding: 7px 10px;
+            font-weight: 700;
+        }
+        .modal-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 14px;
+            margin-bottom: 14px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            font-size: 13px;
+        }
+        .modal-meta div {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .modal-meta strong {
+            display: inline-block;
+            min-width: 58px;
+            color: #475569;
+        }
+        .modal-body {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 14px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            color: #111827;
+        }
+        @media (max-width: 720px) {
+            .content { padding: 20px 16px; }
+            .table-wrap { overflow-x: auto; }
+            table { min-width: 760px; }
+            .modal-meta { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div th:replace="~{fragments/common :: topbar('학부모')}"></div>
+<div class="shell">
+    <main class="content">
+        <div class="page-actions">
+            <button type="button" class="back-btn" onclick="location.href='/parentPage'">뒤로가기</button>
+        </div>
+        <h1>상담 확인</h1>
+        <p class="sub">강사 또는 관리자가 공유로 등록한 자녀 상담 내용만 확인할 수 있습니다.</p>
+
+        <div class="counseling-page">
+            <section class="panel">
+                <div class="toolbar">
+                    <div class="field">
+                        <label for="childSelect">자녀</label>
+                        <select id="childSelect" onchange="loadCounselingList()"></select>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th class="date-col">상담일</th>
+                            <th class="name-col">학생</th>
+                            <th class="name-col">학부모</th>
+                            <th class="name-col">강사</th>
+                            <th class="type-col">유형</th>
+                            <th class="content-col">내용</th>
+                        </tr>
+                        </thead>
+                        <tbody id="counselingRows">
+                        <tr><td class="empty" colspan="6">자녀를 선택하면 공유된 상담 내용이 표시됩니다.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+
+<div id="detailModalOverlay" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="detailModalTitle">상담 상세</h3>
+            <button type="button" class="modal-close" onclick="closeDetailModal()">닫기</button>
+        </div>
+        <div id="detailModalMeta" class="modal-meta"></div>
+        <div id="detailModalBody" class="modal-body"></div>
+    </div>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script>
+    let children = [];
+    let counselingRows = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadChildren();
+    });
+
+    async function fetchJson(url) {
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+        return response.json();
+    }
+
+    async function loadChildren() {
+        children = await fetchJson('/api/counseling/parent/children');
+        const select = document.getElementById('childSelect');
+        if (!children.length) {
+            select.innerHTML = '<option value="">연결된 자녀가 없습니다</option>';
+            renderEmpty('연결된 자녀가 없습니다.');
+            return;
+        }
+
+        select.innerHTML = children.map(child => `
+            <option value="${child.student_id}">${escapeHtml(child.student_name || '')}${child.student_no ? ` / ${escapeHtml(child.student_no)}` : ''}</option>
+        `).join('');
+        await loadCounselingList();
+    }
+
+    async function loadCounselingList() {
+        const studentId = document.getElementById('childSelect').value;
+        if (!studentId) {
+            renderEmpty('자녀를 선택해 주세요.');
+            return;
+        }
+
+        counselingRows = await fetchJson(`/api/counseling/parent/records?studentId=${encodeURIComponent(studentId)}`);
+        renderCounselingRows();
+    }
+
+    function renderCounselingRows() {
+        const tbody = document.getElementById('counselingRows');
+        if (!counselingRows.length) {
+            renderEmpty('공유된 상담 내용이 없습니다.');
+            return;
+        }
+
+        tbody.innerHTML = counselingRows.map(row => `
+            <tr onclick="openDetailModal(${row.counseling_id})">
+                <td>${formatKoreanDate(row.counseling_date)}</td>
+                <td>${escapeHtml(row.student_name || '')}</td>
+                <td>${escapeHtml(row.parent_name || '')}</td>
+                <td>${escapeHtml(row.teacher_name || '-')}</td>
+                <td>${formatCounselingType(row.counseling_type)}</td>
+                <td>${escapeHtml(row.content || '')}</td>
+            </tr>
+        `).join('');
+    }
+
+    function renderEmpty(message) {
+        document.getElementById('counselingRows').innerHTML = `<tr><td class="empty" colspan="6">${escapeHtml(message)}</td></tr>`;
+    }
+
+    function openDetailModal(counselingId) {
+        const selected = counselingRows.find(row => Number(row.counseling_id) === Number(counselingId));
+        if (!selected) {
+            return;
+        }
+
+        document.getElementById('detailModalTitle').innerText = `${selected.student_name || '학생'} 상담 상세`;
+        document.getElementById('detailModalMeta').innerHTML = `
+            <div><strong>상담일</strong>${escapeHtml(formatKoreanDate(selected.counseling_date) || '-')}</div>
+            <div><strong>학생</strong>${escapeHtml(selected.student_name || '-')}</div>
+            <div><strong>학부모</strong>${escapeHtml(selected.parent_name || '-')}</div>
+            <div><strong>강사</strong>${escapeHtml(selected.teacher_name || '-')}</div>
+            <div><strong>유형</strong>${escapeHtml(formatCounselingType(selected.counseling_type))}</div>
+            <div><strong>등록자</strong>${escapeHtml(selected.created_by_name || '-')}</div>
+        `;
+        document.getElementById('detailModalBody').innerText = selected.content || '';
+        document.getElementById('detailModalOverlay').classList.add('show');
+    }
+
+    function closeDetailModal() {
+        document.getElementById('detailModalOverlay').classList.remove('show');
+    }
+
+    function formatCounselingType(type) {
+        return type === 'PARENT' ? '학부모 상담' : '학생 상담';
+    }
+
+    function formatKoreanDate(value) {
+        if (!value) {
+            return '';
+        }
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return value;
+        }
+        return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[ch]);
+    }
+
+    document.addEventListener('click', event => {
+        if (event.target.id === 'detailModalOverlay') {
+            closeDetailModal();
+        }
+    });
+</script>
+</body>
+</html>
