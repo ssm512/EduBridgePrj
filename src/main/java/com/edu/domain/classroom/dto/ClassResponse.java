@@ -22,7 +22,9 @@ public record ClassResponse(
         String statusCode,
         int activeStudentCount,
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        /** 수업 요일 CSV (MON~SUN). null이면 매일 */
+        String daysOfWeek
 ) {
     public static ClassResponse from(ClassDto c) {
         return new ClassResponse(
@@ -36,7 +38,8 @@ public record ClassResponse(
                 c.getEndTime(),
                 c.getStatusCode(),
                 c.getActiveStudentCount(),
-                c.getCreatedAt()
+                c.getCreatedAt(),
+                c.getDaysOfWeek()
         );
     }
 }

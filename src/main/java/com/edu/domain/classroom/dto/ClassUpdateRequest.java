@@ -33,6 +33,10 @@ public record ClassUpdateRequest(
 
         @NotBlank(message = "상태코드는 필수입니다")
         @Pattern(regexp = "ACTIVE|CLOSED", message = "상태코드는 ACTIVE/CLOSED 중 하나여야 합니다")
-        String statusCode
+        String statusCode,
+
+        /** 수업 요일 CSV (MON,TUE,...,SUN). null/빈값이면 매일 */
+        @Size(max = 30, message = "요일 값이 너무 깁니다")
+        String daysOfWeek
 ) {
 }

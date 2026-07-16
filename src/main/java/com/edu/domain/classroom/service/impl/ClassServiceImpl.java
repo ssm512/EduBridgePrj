@@ -50,6 +50,7 @@ public class ClassServiceImpl implements ClassService {
                 .classroom(request.classroom())
                 .startTime(request.startTime())
                 .endTime(request.endTime())
+                .daysOfWeek(request.daysOfWeek())
                 .build();
         classMapper.insertClass(clazz);   // useGeneratedKeys로 classId 채워짐
 
@@ -102,6 +103,7 @@ public class ClassServiceImpl implements ClassService {
         clazz.setStartTime(request.startTime());
         clazz.setEndTime(request.endTime());
         clazz.setStatusCode(request.statusCode());
+        clazz.setDaysOfWeek(request.daysOfWeek());
         classMapper.updateClass(clazz);
 
         if (closing) {
