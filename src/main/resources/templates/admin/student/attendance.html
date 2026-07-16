@@ -359,7 +359,8 @@
         tbody.innerHTML = `<tr><td colspan="5" style="color:#9ca3af;">수강생 없음</td></tr>`;
         document.getElementById('rosterPager').innerHTML = ''; return;
       }
-      renderRosterPage(1);
+      rosterPage = 1;
+      await refreshRosterRecords();   // 그날 기록 반영(있으면 읽기전용) 후 렌더
     } catch (e) {
       rosterAll = [];
       document.getElementById('rosterPager').innerHTML = '';
@@ -371,10 +372,32 @@
 
   // 반 출석부 명단은 /api/classes/{id}(신상민님 API)가 전체를 주므로 화면단에서 페이징
   let rosterAll = [];
+  let rosterRecords = {};   // studentId → 그날 출석기록 (있으면 읽기전용)
+  let rosterPage = 1;
   const ROSTER_SIZE = 10;
+  function statusName(c) { return ({PRESENT:'출석',LATE:'지각',ABSENT:'결석',LEAVE:'조퇴'})[c] || (c ?? ''); }
+  function fmtHM(s) { return s ? s.slice(11,16) : '-'; }
+
+  // 선택 반+날짜의 기존 출석기록을 받아 맵으로 (있는 학생은 읽기전용 처리)
+  async function refreshRosterRecords() {
+    const classId = document.getElementById('classSel').value;
+    const date = document.getElementById('sheetDate').value;
+    rosterRecords = {};
+    if (classId && date) {
+      const qs = new URLSearchParams({ classId, fromDate: date, toDate: date, page: 1, size: 500 });
+      const res = await fetch('/api/attendance?' + qs.toString());
+      if (res.ok) {
+        const data = await res.json();
+        (data.items ?? []).forEach(r => { rosterRecords[r.studentId] = r; });
+      }
+    }
+    renderRosterPage(rosterPage);
+  }
+
   function renderRosterPage(page) {
     const totalPages = Math.max(1, Math.ceil(rosterAll.length / ROSTER_SIZE));
     const p = Math.min(Math.max(page, 1), totalPages);
+    rosterPage = p;
     const slice = rosterAll.slice((p - 1) * ROSTER_SIZE, p * ROSTER_SIZE);
     document.getElementById('roster').innerHTML = slice.map(s => rosterRow(s.studentId, s.name ?? '')).join('');
     renderPager('rosterPager',
@@ -384,6 +407,18 @@
   function rosterRow(studentId, name) {
     const idCell = studentId !== '' ? `${name || ''} <span style="color:#9ca3af">(#${studentId})</span>`
                                     : `<input type="number" style="width:80px" placeholder="학생ID" class="rid">`;
+    const rec = studentId !== '' ? rosterRecords[studentId] : null;
+    if (rec) {
+      // 이미 오늘 기록 있음 → 읽기전용 (수정/삭제는 아래 '출석 이력'에서)
+      return `<tr>
+        <td>${idCell}</td>
+        <td><span class="tag ${rec.statusCode ?? ''}">${statusName(rec.statusCode)}</span></td>
+        <td>${fmtHM(rec.checkedAt)}</td>
+        <td>${fmtHM(rec.checkOutAt)}</td>
+        <td><span class="muted" style="font-size:11px;">기록됨</span></td>
+      </tr>`;
+    }
+    // 기록 없음 → 입력 가능
     return `<tr>
       <td>${idCell}</td>
       <td><select class="rstatus">${statusOptions('PRESENT')}</select></td>
@@ -412,7 +447,7 @@
       body: JSON.stringify({ studentId, classId, attendanceDate: date, statusCode: status,
                              checkInAt: checkIn, checkOutAt: checkOut })
     });
-    if (res.ok) { msg.textContent = `학생 ${studentId} 저장됨`; msg.style.color='#166534'; loadHistory(); }
+    if (res.ok) { msg.textContent = `학생 ${studentId} 저장됨`; msg.style.color='#166534'; refreshRosterRecords(); loadHistory(); }
     else { const d = await res.json().catch(()=>({})); msg.textContent = `저장 실패 (${res.status}): ${d.message||''}`; msg.style.color='#b91c1c'; }
   }
 
