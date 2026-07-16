@@ -103,4 +103,11 @@
          WHERE user_id = #{userId}
     </update>
 
+    <!-- [추가 2026-07-16] MustChangePasswordFilter 전용 경량 조회 -->
+    <select id="selectMustChangePasswordByLoginId" resultType="boolean">
+        SELECT must_change_password
+          FROM users
+         WHERE login_id = #{loginId}
+    </select>
+
 </mapper>

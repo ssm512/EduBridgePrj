@@ -84,4 +84,45 @@
          WHERE class_id = #{classId}
     </update>
 
+    <!-- [추가 2026-07-16] 로그인 강사 담당반 한정 WHERE (검색조건 포함) -->
+    <sql id="myClassCondition">
+        <where>
+            c.teacher_id = (SELECT t.teacher_id FROM teachers t
+                              JOIN users u ON u.user_id = t.user_id
+                             WHERE u.login_id = #{loginId})
+            <if test="cond.statusCode != null and cond.statusCode != ''">
+                AND c.status_code = #{cond.statusCode}
+            </if>
+            <if test="cond.keyword != null and cond.keyword != ''">
+                AND (c.class_name ILIKE '%' || #{cond.keyword} || '%'
+                  OR c.subject    ILIKE '%' || #{cond.keyword} || '%')
+            </if>
+        </where>
+    </sql>
+
+    <!-- [추가 2026-07-16] 로그인 강사의 담당반 목록 (상태/키워드 + 페이징) -->
+    <select id="selectMyClasses" resultType="com.edu.domain.classroom.dto.ClassDto">
+        <include refid="selectJoin"/>
+        <include refid="myClassCondition"/>
+         ORDER BY c.class_id DESC
+         LIMIT #{cond.size} OFFSET #{cond.offset}
+    </select>
+
+    <!-- [추가 2026-07-16] 로그인 강사의 담당반 전체 건수 (페이징용) -->
+    <select id="countMyClasses" resultType="long">
+        SELECT COUNT(*)
+          FROM classes c
+        <include refid="myClassCondition"/>
+    </select>
+
+    <!-- [추가 2026-07-16] 해당 반이 로그인 강사의 담당반인지 (상세조회 소유권 검증) -->
+    <select id="existsTeacherClass" resultType="int">
+        SELECT COUNT(*)
+          FROM classes c
+          JOIN teachers t ON c.teacher_id = t.teacher_id
+          JOIN users    u ON t.user_id    = u.user_id
+         WHERE u.login_id = #{loginId}
+           AND c.class_id = #{classId}
+    </select>
+
 </mapper>

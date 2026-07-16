@@ -217,6 +217,31 @@
          ORDER BY t.target_id
     </select>
 
+    <!-- [추가 2026-07-16] targetIds 중 실제 존재하는 대상 개수 (등록/수정 전 유효성 검증용) -->
+    <select id="countExistingTargets" resultType="long">
+        <choose>
+            <when test='targetType == "CLASS"'>
+                SELECT COUNT(*) FROM classes WHERE class_id IN
+                <foreach collection="targetIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+            <when test='targetType == "STUDENT"'>
+                SELECT COUNT(*) FROM students WHERE student_id IN
+                <foreach collection="targetIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+            <when test='targetType == "PARENT"'>
+                SELECT COUNT(*) FROM parents WHERE parent_id IN
+                <foreach collection="targetIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+            <when test='targetType == "TEACHER"'>
+                SELECT COUNT(*) FROM teachers WHERE teacher_id IN
+                <foreach collection="targetIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+            <otherwise>
+                SELECT 0
+            </otherwise>
+        </choose>
+    </select>
+
     <!-- ===== NOT-08 읽음 처리 (UPSERT) ===== -->
     <insert id="upsertRead">
         INSERT INTO notice_reads (notice_id, user_id, read_yn, read_at)

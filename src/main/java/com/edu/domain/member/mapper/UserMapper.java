@@ -70,4 +70,11 @@ public interface UserMapper {
      */
     int resetPassword(@Param("userId") Long userId,
                       @Param("password") String password);
+
+    /**
+     * [추가 2026-07-16] 강제 비밀번호 변경 여부만 조회 (요청마다 검사하는 MustChangePasswordFilter 전용)
+     * selectByLoginId는 비밀번호 해시까지 통째로 읽어와서 매 요청마다 쓰기엔 무겁다.
+     * 사용자가 없으면 null.
+     */
+    Boolean selectMustChangePasswordByLoginId(@Param("loginId") String loginId);
 }

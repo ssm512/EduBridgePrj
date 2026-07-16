@@ -11,6 +11,7 @@ import com.edu.domain.classroom.dto.EnrollmentSearchRequest;
 import com.edu.domain.classroom.mapper.ClassMapper;
 import com.edu.domain.classroom.mapper.EnrollmentMapper;
 import com.edu.domain.classroom.service.EnrollmentService;
+import com.edu.domain.member.dto.student.StudentDto;
 import com.edu.domain.member.mapper.StudentMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -42,9 +43,13 @@ public class EnrollmentServiceImpl implements EnrollmentService {
     @Override
     @Transactional
     public EnrollmentResponse enroll(EnrollmentCreateRequest request) {
-        if (studentMapper.selectByStudentId(request.studentId()) == null) {
+        StudentDto student = studentMapper.selectByStudentId(request.studentId());
+        if (student == null) {
             throw new ApiException(HttpStatus.NOT_FOUND,
                     "학생을 찾을 수 없습니다. studentId=" + request.studentId());
+        }
+        if (!"ACTIVE".equals(student.getStatusCode())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "재원중(ACTIVE) 학생만 수강 등록할 수 있습니다");
         }
         ClassDto clazz = classMapper.selectByClassId(request.classId());
         if (clazz == null) {

@@ -206,8 +206,9 @@
     const res = await fetch('/api/students?page=1&size=100');
     if (!res.ok) return;
     const data = await res.json();
+    // 등록 모달에는 재원중(ACTIVE)인 학생만 (탈퇴/휴원 학생 신규 등록 방지)
     document.getElementById('cStudent').innerHTML =
-      data.items.map(s =>
+      data.items.filter(s => s.statusCode === 'ACTIVE').map(s =>
         `<option value="${s.studentId}">${esc(s.name)} (${esc(s.studentNo) || '학번없음'})</option>`).join('');
   }
 

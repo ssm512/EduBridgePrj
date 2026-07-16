@@ -34,6 +34,20 @@ spring:
       max-file-size: 100MB
       max-request-size: 1000MB
 
+  # [추가 2026-07-16] 메일 발송(SMTP) 설정 - app.mail.enabled=true일 때만 SmtpMailService가 사용
+  # MAIL_* 환경변수가 비어 있어도(.env 미설정) 기본값(enabled=false)이라 개발 중엔 ConsoleMailService 그대로 동작
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
   type-aliases-package: com.edu.domain
@@ -47,6 +61,10 @@ app:
     access-token-minutes: 30
     refresh-token-days: 7
 
+  mail:
+    # true로 바꾸고 위 spring.mail 값(MAIL_HOST 등)을 채우면 SmtpMailService가 ConsoleMailService를 대체한다
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:no-reply@edubridge.local}
+
 part1:
   upload-path: ${UPLOAD_PATH}
-

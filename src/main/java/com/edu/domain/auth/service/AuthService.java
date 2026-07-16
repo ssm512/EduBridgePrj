@@ -185,18 +185,24 @@ public class AuthService {
      * 셀프 비밀번호 재설정 (로그인 화면의 "비밀번호 재설정" 버튼).
      * 아이디 + 이메일이 모두 일치하면:
      * 임시 비밀번호 생성(영문+숫자) → BCrypt 저장 + 강제 변경 플래그
-     * → 기존 Refresh Token 전부 폐기 → 이메일 발송 (개발 단계: 콘솔 출력).
+     * → 기존 Refresh Token 전부 폐기 → 이메일 발송 (app.mail.enabled에 따라 SMTP 또는 콘솔 출력).
      *
      * 계정 존재 여부를 노출하지 않기 위해 일치하지 않아도 예외 없이 조용히 종료한다.
      * (컨트롤러는 항상 동일한 응답을 반환)
+     *
+     * [수정 2026-07-16] V6 마이그레이션에서 이메일이 없던 계정은 {loginId}@noemail.local로
+     * 백필되었다 - 이 주소는 실제로 존재하지 않아 메일을 보낼 수 없으므로, 계정을 찾았더라도
+     * 여기서 같이 걸러서 "일치하지 않음"과 동일하게 조용히 종료한다(비밀번호를 바꿔놓고
+     * 알릴 방법이 없는 잠금 상태 방지 + 계정 존재 여부 비노출 유지).
      */
     public void requestPasswordReset(PasswordResetRequest request) {
         UserDto user = userMapper.selectByLoginId(request.loginId());
         if (user == null
                 || user.getEmail() == null
                 || !user.getEmail().equalsIgnoreCase(request.email().trim())
-                || "WITHDRAWN".equals(user.getStatusCode())) {
-            return;   // 불일치/탈퇴 계정: 아무 일도 하지 않음
+                || "WITHDRAWN".equals(user.getStatusCode())
+                || isPlaceholderEmail(user.getEmail())) {
+            return;   // 불일치/탈퇴/발송 불가 계정: 아무 일도 하지 않음
         }
 
         String tempPassword = TempPasswordUtil.create();
@@ -204,6 +210,11 @@ public class AuthService {
         refreshTokenService.revokeAllForUser(user.getUserId());
 
         mailService.sendTempPassword(user.getEmail(), user.getName(), tempPassword);
+    }
+
+    /** V6에서 백필된 placeholder 이메일(login_id@noemail.local)인지 - 실제 발송 불가 */
+    private boolean isPlaceholderEmail(String email) {
+        return email != null && email.endsWith("@noemail.local");
     }
 
     private AuthResponse issueTokens(UserDto user) {
