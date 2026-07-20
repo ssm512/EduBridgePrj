@@ -293,6 +293,10 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Transactional(readOnly = true)
     public List<com.edu.domain.attendance.dto.response.TodayClassResponse> getMyTodayClasses(String loginId) {
         java.time.LocalDate today = java.time.LocalDate.now();
+        // 학원 전체 휴일(공휴일/임시휴강)이면 오늘 수업 없음 → 빈 목록
+        if (settingService.isHoliday(today)) {
+            return java.util.Collections.emptyList();
+        }
         String dayCode = today.getDayOfWeek()
                 .getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)
                 .toUpperCase(java.util.Locale.ENGLISH);

@@ -156,7 +156,7 @@
   const WEEKDAYS=['일','월','화','수','목','금','토'];
   function toInput(s){ return s ? s.replace(' ','T').slice(0,16) : ''; }
   function fmtDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); return isNaN(dt)?d:`${d}(${WEEKDAYS[dt.getDay()]})`; }
-  function checkTypeName(t){ return t==='AUTO'?'자동':t==='MANUAL'?'수동':(t ?? ''); }
+  function checkTypeName(t){ return t==='AUTO'?'비콘':t==='MANUAL'?'수동':(t ?? ''); }
   function statusName(c){ return ({PRESENT:'출석',LATE:'지각',ABSENT:'결석',LEAVE:'조퇴'})[c] || (c ?? ''); }
   function statusOptions(sel){ return STATUSES.map(([v,l])=>`<option value="${v}" ${v===sel?'selected':''}>${l}</option>`).join(''); }
   function ymd(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}

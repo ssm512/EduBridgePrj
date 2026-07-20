@@ -156,10 +156,14 @@
         ORDER BY c.class_id
     </select>
 
-    <!-- 앱 오늘 수업: 오늘 요일 수업 있는 본인 반 + 그날 출석기록 -->
+    <!-- 앱 오늘 수업: 오늘 요일 수업 있는 본인 반 + 반정보(강사/시간/강의실) + 그날 출석기록 -->
     <select id="findMyTodayClasses" resultType="com.edu.domain.attendance.dto.response.TodayClassResponse">
         SELECT c.class_id     AS classId,
                c.class_name   AS className,
+               tu.name        AS teacherName,
+               c.classroom    AS classroom,
+               c.start_time   AS startTime,
+               c.end_time     AS endTime,
                ar.status_code AS statusCode,
                ar.checked_at  AS checkedAt,
                ar.check_out_at AS checkOutAt
@@ -167,6 +171,8 @@
         JOIN classes  c ON e.class_id   = c.class_id
         JOIN students s ON e.student_id = s.student_id
         JOIN users    u ON s.user_id    = u.user_id
+        LEFT JOIN teachers t ON c.teacher_id = t.teacher_id
+        LEFT JOIN users    tu ON t.user_id   = tu.user_id
         LEFT JOIN attendance_records ar
                ON ar.student_id = e.student_id
               AND ar.class_id   = c.class_id
