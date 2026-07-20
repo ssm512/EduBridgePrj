@@ -202,26 +202,36 @@
     <!-- FEE-08 납부 예정 알림 대상: 지정일에 기한이 도래하는 미완납 회비.
          status_code 는 PAID 여부만 신뢰(완납 시 항상 PAID 로 갱신됨) -->
     <select id="selectFeesDueOn" resultType="com.edu.domain.fee.dto.response.FeeNotificationTargetResponse">
-        SELECT fee_id,
-               student_id,
-               billing_month,
-               due_date,
-               fee_amount - discount_amount AS billable_amount
-          FROM fees
-         WHERE due_date = #{dueDate}
-           AND status_code &lt;&gt; 'PAID'
+        SELECT f.fee_id,
+               f.student_id,
+               f.billing_month,
+               f.due_date,
+               f.fee_amount - f.discount_amount AS billable_amount,
+               u.name       AS student_name,
+               c.class_name AS class_name
+          FROM fees f
+          JOIN students s ON s.student_id = f.student_id
+          JOIN users u    ON u.user_id    = s.user_id
+          LEFT JOIN classes c ON c.class_id = f.class_id
+         WHERE f.due_date = #{dueDate}
+           AND f.status_code &lt;&gt; 'PAID'
     </select>
 
     <!-- FEE-09 미납 알림 대상: 기한이 지난 미완납 회비 (FEE-07 미납 조회와 동일 조건) -->
     <select id="selectOverdueUnpaidFees" resultType="com.edu.domain.fee.dto.response.FeeNotificationTargetResponse">
-        SELECT fee_id,
-               student_id,
-               billing_month,
-               due_date,
-               fee_amount - discount_amount AS billable_amount
-          FROM fees
-         WHERE due_date &lt; CURRENT_DATE
-           AND status_code &lt;&gt; 'PAID'
+        SELECT f.fee_id,
+               f.student_id,
+               f.billing_month,
+               f.due_date,
+               f.fee_amount - f.discount_amount AS billable_amount,
+               u.name       AS student_name,
+               c.class_name AS class_name
+          FROM fees f
+          JOIN students s ON s.student_id = f.student_id
+          JOIN users u    ON u.user_id    = s.user_id
+          LEFT JOIN classes c ON c.class_id = f.class_id
+         WHERE f.due_date &lt; CURRENT_DATE
+           AND f.status_code &lt;&gt; 'PAID'
     </select>
 
     <!-- FEE-14 접근 제어: 해당 회비가 이 학부모(user_id)의 자녀 것인지.

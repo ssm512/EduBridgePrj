@@ -18,6 +18,8 @@ import java.time.LocalDate;
 public class FeeNotificationTargetResponse {
     private Long feeId;
     private Long studentId;
+    private String studentName;    // 알림 제목에 자녀 구분용 (dedup 키를 fee별로 유니크하게)
+    private String className;      // 반별 구분용 (반이 없으면 null)
     private String billingMonth;
     private LocalDate dueDate;
     private Long billableAmount;   // fee_amount - discount_amount
