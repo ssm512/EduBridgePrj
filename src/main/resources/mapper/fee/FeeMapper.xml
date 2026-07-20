@@ -253,4 +253,14 @@
         )
     </select>
 
+    <select id="existsFeeForStudent" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fees f
+              JOIN students s ON s.student_id = f.student_id
+             WHERE f.fee_id  = #{feeId}
+               AND s.user_id = #{studentUserId}
+        )
+    </select>
+
 </mapper>
