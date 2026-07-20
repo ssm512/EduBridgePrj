@@ -18,18 +18,12 @@ public class PageController {
     /** 로그인 후 진입점: 역할에 맞는 화면으로 리다이렉트 */
     @GetMapping("/home")
     public String home(Authentication authentication) {
-        if (hasRole(authentication, "ROLE_ADMIN"))   return "redirect:/adminPage";
+        if (hasRole(authentication, "ROLE_ADMIN"))   return "redirect:/admin/dashboard";
         if (hasRole(authentication, "ROLE_TEACHER")) return "redirect:/teacherPage";
         if (hasRole(authentication, "ROLE_STUDENT")) return "redirect:/studentPage";
         if (hasRole(authentication, "ROLE_PARENT"))  return "redirect:/parentPage";
         // 알 수 없는 권한이면 로그인으로
         return "redirect:/";
-    }
-
-    /** 관리자 메인 */
-    @GetMapping("/adminPage")
-    public String admin() {
-        return "admin/index";
     }
 
     /** 강사 메인 */

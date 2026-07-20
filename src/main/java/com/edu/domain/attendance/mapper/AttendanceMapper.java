@@ -111,6 +111,9 @@ public interface AttendanceMapper {
     List<Long> findEndedClasses(@Param("dayCode") String dayCode,
                                 @Param("cutoff") java.time.LocalTime cutoff);
 
+    /** 가장 최근 출석기록 일자 (없으면 null) — 재가동 백필 시작점 판단용 */
+    java.time.LocalDate findLatestAttendanceDate();
+
     /** 강사 담당반으로 한정한 출석 이력 전체 (통계 집계용) */
     List<AttendanceRecord> findTeacherList(@Param("loginId") String loginId,
                                            @Param("classId") Long classId,
@@ -138,9 +141,23 @@ public interface AttendanceMapper {
     java.util.List<com.edu.domain.attendance.dto.response.ClassOptionResponse>
             findMyClasses(@Param("loginId") String loginId);
 
+    /** 앱 오늘 수업: 오늘 요일에 수업 있는 본인 반 + 그날 출석기록(LEFT JOIN) */
+    java.util.List<com.edu.domain.attendance.dto.response.TodayClassResponse>
+            findMyTodayClasses(@Param("loginId") String loginId,
+                               @Param("dayCode") String dayCode,
+                               @Param("date") java.time.LocalDate date);
+
     /** 결석 대상: 해당 반의 ACTIVE 수강생 중 그 날짜에 출석 기록이 없는 student_id 목록 */
     java.util.List<Long> findAbsentCandidates(@Param("classId") Long classId,
                                               @Param("date") java.time.LocalDate date);
+
+    /**
+     * 강사 앱 "오늘 우리 반 현황" 로스터: 해당 반 ACTIVE 수강생 전원 + 그 날짜 출석기록(LEFT JOIN).
+     * 출석기록이 없으면 statusCode=null(미출석)로 내려간다.
+     */
+    java.util.List<com.edu.domain.attendance.dto.response.ClassRosterEntryResponse>
+            findClassRosterForDate(@Param("classId") Long classId,
+                                   @Param("date") java.time.LocalDate date);
 
     String getClassName(@Param("classId") Long classId);
 

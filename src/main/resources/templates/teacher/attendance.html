@@ -70,7 +70,8 @@
     <!-- 출석부 -->
     <section class="tab-panel" id="tab-sheet">
     <div class="panel">
-      <h2>반 출석부</h2>
+      <h2>반 출석부 (오늘 현황 · 조회 전용)</h2>
+      <p class="page-sub" style="margin:-2px 0 10px;">출결은 학생 앱으로 자동 기록됩니다. 강사는 조회만 가능하고, 결석은 <b>수업 종료 후</b> 아래 버튼으로 일괄 처리할 수 있어요. (개별 수정은 관리자)</p>
       <div class="row" style="margin-bottom:12px;">
         <div class="f" id="classPickWrap"><label>반</label>
           <select id="classSel"><option value="">불러오는 중…</option></select>
@@ -82,8 +83,8 @@
       <div id="rosterNote"></div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>학생</th><th>상태</th><th>입실</th><th>퇴실</th><th>저장</th></tr></thead>
-          <tbody id="roster"><tr><td colspan="5" class="muted">반을 고르고 명단을 불러오세요.</td></tr></tbody>
+          <thead><tr><th>학생</th><th>상태</th><th>입실</th><th>퇴실</th></tr></thead>
+          <tbody id="roster"><tr><td colspan="4" class="muted">반을 고르고 명단을 불러오세요.</td></tr></tbody>
         </table>
       </div>
       <div id="rosterPager" class="pager"></div>
@@ -137,7 +138,7 @@
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>학생</th><th>반</th><th>날짜</th><th>상태</th><th>유형</th><th>입실/퇴실 · 관리</th></tr></thead>
+          <thead><tr><th>학생</th><th>반</th><th>날짜</th><th>상태</th><th>유형</th><th>입실/퇴실</th></tr></thead>
           <tbody id="tbody"><tr><td colspan="6" class="muted">조회를 눌러 이력을 불러오세요.</td></tr></tbody>
         </table>
       </div>
@@ -155,7 +156,7 @@
   const WEEKDAYS=['일','월','화','수','목','금','토'];
   function toInput(s){ return s ? s.replace(' ','T').slice(0,16) : ''; }
   function fmtDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); return isNaN(dt)?d:`${d}(${WEEKDAYS[dt.getDay()]})`; }
-  function checkTypeName(t){ return t==='AUTO'?'자동':t==='MANUAL'?'수동':(t ?? ''); }
+  function checkTypeName(t){ return t==='AUTO'?'비콘':t==='MANUAL'?'수동':(t ?? ''); }
   function statusName(c){ return ({PRESENT:'출석',LATE:'지각',ABSENT:'결석',LEAVE:'조퇴'})[c] || (c ?? ''); }
   function statusOptions(sel){ return STATUSES.map(([v,l])=>`<option value="${v}" ${v===sel?'selected':''}>${l}</option>`).join(''); }
   function ymd(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
@@ -202,59 +203,63 @@
     }
   }
 
-  let rosterAll=[]; const ROSTER_SIZE=10;
+  let rosterAll=[]; let rosterRecords={}; let rosterPage=1; const ROSTER_SIZE=10;
+  function fmtHM(s){ return s ? s.slice(11,16) : '-'; }
   async function loadRoster(){
     const classId=document.getElementById('classSel').value;
     const tbody=document.getElementById('roster');
-    if(!classId){ tbody.innerHTML='<tr><td colspan="5">반을 먼저 선택/입력하세요.</td></tr>'; return; }
+    if(!classId){ tbody.innerHTML='<tr><td colspan="4">반을 먼저 선택하세요.</td></tr>'; return; }
     try{
       const res=await fetch(`/api/classes/${classId}`);
       if(!res.ok) throw new Error(res.status);
       const data=await res.json();
       rosterAll=(data.students??[]).filter(s=>s.statusCode==='ACTIVE');
-      if(!rosterAll.length){ tbody.innerHTML='<tr><td colspan="5" class="muted">수강생 없음</td></tr>'; document.getElementById('rosterPager').innerHTML=''; return; }
-      renderRosterPage(1);
+      if(!rosterAll.length){ tbody.innerHTML='<tr><td colspan="4" class="muted">수강생 없음</td></tr>'; document.getElementById('rosterPager').innerHTML=''; return; }
+      rosterPage=1;
+      await refreshRosterRecords();   // 그날 기록 반영 후 렌더 (조회 전용)
     }catch(e){
       rosterAll=[]; document.getElementById('rosterPager').innerHTML='';
-      document.getElementById('rosterNote').innerHTML+=`<div class="note">명단을 불러오지 못했습니다 (${e}). 학생ID를 직접 넣어 등록하세요.</div>`;
-      tbody.innerHTML=rosterRow('','');
+      tbody.innerHTML=`<tr><td colspan="4" class="muted">명단을 불러오지 못했습니다 (${e}).</td></tr>`;
     }
+  }
+  // 담당반 스코프 API로 그날 기록 조회 → 있는 학생은 읽기전용
+  async function refreshRosterRecords(){
+    const classId=document.getElementById('classSel').value;
+    const date=document.getElementById('sheetDate').value;
+    rosterRecords={};
+    if(classId && date){
+      const qs=new URLSearchParams({ classId, fromDate:date, toDate:date, page:1, size:500 });
+      const res=await fetch('/api/attendance/teacher?'+qs.toString());
+      if(res.ok){ const data=await res.json(); (data.items??[]).forEach(r=>{ rosterRecords[r.studentId]=r; }); }
+    }
+    renderRosterPage(rosterPage);
   }
   function renderRosterPage(page){
     const totalPages=Math.max(1, Math.ceil(rosterAll.length/ROSTER_SIZE));
     const p=Math.min(Math.max(page,1), totalPages);
+    rosterPage=p;
     const slice=rosterAll.slice((p-1)*ROSTER_SIZE, p*ROSTER_SIZE);
     document.getElementById('roster').innerHTML=slice.map(s=>rosterRow(s.studentId, s.name ?? '')).join('');
     renderPager('rosterPager', {page:p,totalPages,totalCount:rosterAll.length}, 'renderRosterPage');
   }
+  // 강사 출석부는 조회 전용: 온 학생/안 온 학생을 한눈에. (임의 입력 불가 — 관리자만)
   function rosterRow(studentId, name){
-    const idCell=studentId!=='' ? `${name||''} <span style="color:#9ca3af">(#${studentId})</span>`
-                                : `<input type="number" style="width:80px" placeholder="학생ID" class="rid">`;
+    const nameCell = `${name||''} <span style="color:#9ca3af">(#${studentId})</span>`;
+    const rec = rosterRecords[studentId];
+    if(rec){
+      return `<tr>
+        <td>${nameCell}</td>
+        <td><span class="tag ${rec.statusCode ?? ''}">${statusName(rec.statusCode)}</span></td>
+        <td>${fmtHM(rec.checkedAt)}</td>
+        <td>${fmtHM(rec.checkOutAt)}</td>
+      </tr>`;
+    }
     return `<tr>
-      <td>${idCell}</td>
-      <td><select class="rstatus">${statusOptions('PRESENT')}</select></td>
-      <td><input type="datetime-local" class="rin"></td>
-      <td><input type="datetime-local" class="rout"></td>
-      <td><button class="btn sm" onclick="saveRow(this)">저장</button></td>
+      <td>${nameCell}</td>
+      <td><span class="muted">미출석</span></td>
+      <td>-</td>
+      <td>-</td>
     </tr>`;
-  }
-  async function saveRow(btn){
-    const tr=btn.closest('tr');
-    const idInput=tr.querySelector('.rid');
-    const studentId=idInput?Number(idInput.value):Number((tr.children[0].textContent.match(/#(\d+)/)||[])[1]);
-    const classId=Number(document.getElementById('classSel').value);
-    const status=tr.querySelector('.rstatus').value;
-    const date=document.getElementById('sheetDate').value||null;
-    const checkIn=tr.querySelector('.rin').value||null;
-    const checkOut=tr.querySelector('.rout').value||null;
-    const msg=document.getElementById('msg');
-    if(!studentId||!classId){ msg.textContent='학생ID/반ID 확인'; msg.style.color='#b91c1c'; return; }
-    const token=await ensureCsrf();
-    const res=await fetch('/api/attendance/teacher/manual',{method:'POST',
-      headers:{'Content-Type':'application/json','X-XSRF-TOKEN':token},
-      body:JSON.stringify({studentId,classId,attendanceDate:date,statusCode:status,checkInAt:checkIn,checkOutAt:checkOut})});
-    if(res.ok){ msg.textContent=`학생 ${studentId} 저장됨`; msg.style.color='#166534'; }
-    else{ const d=await res.json().catch(()=>({})); msg.textContent=`저장 실패 (${res.status}): ${d.message||''}`; msg.style.color='#b91c1c'; }
   }
   async function markAbsent(){
     const classId=Number(document.getElementById('classSel').value);
@@ -265,7 +270,7 @@
     const token=await ensureCsrf();
     const res=await fetch('/api/attendance/teacher/mark-absent',{method:'POST',
       headers:{'Content-Type':'application/json','X-XSRF-TOKEN':token},body:JSON.stringify({classId,date})});
-    if(res.ok){ const d=await res.json(); msg.textContent=`결석 처리 완료: ${d.markedAbsent}명`; msg.style.color='#166534'; }
+    if(res.ok){ const d=await res.json(); msg.textContent=`결석 처리 완료: ${d.markedAbsent}명`; msg.style.color='#166534'; refreshRosterRecords(); }
     else{ const d=await res.json().catch(()=>({})); msg.textContent=`결석 처리 실패 (${res.status}): ${d.message||''}`; msg.style.color='#b91c1c'; }
   }
 
@@ -322,30 +327,9 @@
         <td>${fmtDate(a.attendanceDate)}</td>
         <td><span class="tag ${a.statusCode ?? ''}">${statusName(a.statusCode)}</span></td>
         <td>${checkTypeName(a.checkType)}</td>
-        <td>
-          <div class="manage">
-            <select class="e-status">${statusOptions(a.statusCode)}</select>
-            <span class="lbl">입실</span><input type="datetime-local" class="e-in" value="${toInput(a.checkedAt)}">
-            <span class="lbl">퇴실</span><input type="datetime-local" class="e-out" value="${toInput(a.checkOutAt)}">
-            <button class="btn sm" onclick="updateRow(this, ${a.attendanceId})">수정</button>
-            <button class="btn sm danger" onclick="deleteRow(${a.attendanceId})">삭제</button>
-          </div>
-        </td>
+        <td>${fmtHM(a.checkedAt)} / ${fmtHM(a.checkOutAt)}</td>
       </tr>`).join('');
     renderPager('histPager', data, 'loadHistory');
-  }
-  async function updateRow(btn, id){
-    const tr=btn.closest('tr');
-    const body={statusCode:tr.querySelector('.e-status').value, checkInAt:tr.querySelector('.e-in').value||null, checkOutAt:tr.querySelector('.e-out').value||null};
-    const token=await ensureCsrf();
-    const res=await fetch(`/api/attendance/${id}`,{method:'PUT',headers:{'Content-Type':'application/json','X-XSRF-TOKEN':token},body:JSON.stringify(body)});
-    if(res.ok) loadHistory(1); else alert(`수정 실패 (${res.status})`);
-  }
-  async function deleteRow(id){
-    if(!confirm('이 출석기록을 삭제할까요?')) return;
-    const token=await ensureCsrf();
-    const res=await fetch(`/api/attendance/${id}`,{method:'DELETE',headers:{'X-XSRF-TOKEN':token}});
-    if(res.ok||res.status===204) loadHistory(1); else alert(`삭제 실패 (${res.status})`);
   }
 
   document.getElementById('sheetDate').value=ymd(new Date());

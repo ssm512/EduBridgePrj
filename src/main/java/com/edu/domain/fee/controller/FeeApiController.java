@@ -57,10 +57,20 @@ public class FeeApiController {
      * 서버가 JWT userId 로 항상 덮어쓴다(직원=null 전체 조회, PARENT=본인 강제).
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT', 'STUDENT')")
     public PageResponse<FeeListResponse> getFeeList(@ModelAttribute FeeSearchRequest search,
                                                     JwtAuthenticationToken authentication) {
-        search.setParentUserId(isStaff(authentication) ? null : currentUserId(authentication));
+        // 보안 스코핑: 직원=전체, 학부모=본인 자녀, 학생=본인 (클라이언트 입력 무시)
+        if (isStaff(authentication)) {
+            search.setParentUserId(null);
+            search.setStudentUserId(null);
+        } else if (isStudent(authentication)) {
+            search.setStudentUserId(currentUserId(authentication));
+            search.setParentUserId(null);
+        } else { // PARENT
+            search.setParentUserId(currentUserId(authentication));
+            search.setStudentUserId(null);
+        }
         return feeService.getFeeList(search);
     }
 
@@ -156,5 +166,11 @@ public class FeeApiController {
         return authentication.getAuthorities().stream()
                 .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority())
                         || "ROLE_TEACHER".equals(auth.getAuthority()));
+    }
+
+    /** 학생 여부 - 학생 본인 회비 스코핑용 */
+    private boolean isStudent(JwtAuthenticationToken authentication) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(auth -> "ROLE_STUDENT".equals(auth.getAuthority()));
     }
 }

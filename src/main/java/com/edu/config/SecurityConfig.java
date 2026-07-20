@@ -134,7 +134,6 @@ public class SecurityConfig {
                         // 로그인 후 진입점(디스패처). 인증만 되어 있으면 됨.
                         .requestMatchers("/home").authenticated()
                         // 각 역할 전용 화면 (JWT roles 클레임의 ROLE_XXX 권한으로 검사)
-                        .requestMatchers("/adminPage/**").hasRole("ADMIN")
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/teacherPage/**").hasRole("TEACHER")
                         .requestMatchers("/studentPage/**").hasRole("STUDENT")

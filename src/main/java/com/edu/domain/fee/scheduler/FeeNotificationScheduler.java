@@ -18,9 +18,14 @@ import java.util.List;
  * - 스케줄러 자체에는 트랜잭션을 걸지 않는다. 학생별 알림 생성은
  *   notificationService.notifyParentsOfStudentOnce() 가 각각 독립 트랜잭션으로 처리하므로,
  *   한 학생 처리가 실패해도 나머지 학생 알림은 그대로 나간다 (배치 내성).
- * - 중복 방지: 알림 제목에 "종류(예정/미납) + 청구월" 을 박고, 같은 제목이 이미 있으면
- *   건너뛴다 (팀 결정: 청구월 기준 1회). 예정/미납은 제목이 달라 서로를 막지 않는다.
- * - 회비 등록 시 나가는 1회성 "납부 안내"(FeeServiceImpl.createFee) 와도 제목이 달라 충돌 없음.
+ * - 중복 방지: 알림 제목에 "종류(예정/미납) + 청구월 + 학생명(+반명)" 을 박고, 같은 제목이
+ *   이미 있으면 건너뛴다. 학생명/반명을 넣는 이유는 dedup 키를 fee(학생·반)별로 유니크하게
+ *   만들기 위함 — 같은 학부모의 자녀가 여럿이거나, 한 학생이 반별로 여러 회비를 가진 경우에도
+ *   각각 1회씩 나간다. 반복 실행 시 같은 fee 면 제목이 동일해 스킵되므로 멱등은 유지된다.
+ *   (엣지: 같은 학생·같은 반·같은 달에 성격이 다른 회비가 여러 건이면 제목이 겹칠 수 있음.
+ *    그때까지 분리하려면 제목에 due_date/feeId 를 추가.)
+ * - 예정/미납은 접두어가 달라 서로를 막지 않고, 회비 등록 시 나가는 1회성 "납부 안내"
+ *   (FeeServiceImpl.createFee) 와도 제목이 달라 충돌 없음.
  */
 @Component
 public class FeeNotificationScheduler {
@@ -50,7 +55,7 @@ public class FeeNotificationScheduler {
 
         int created = 0;
         for (FeeNotificationTargetResponse t : targets) {
-            String title = "[납부예정] " + t.getBillingMonth() + " 회비";
+            String title = "[납부예정] " + t.getBillingMonth() + " 회비" + targetSuffix(t);
             String message = t.getBillingMonth() + " 회비 " + t.getBillableAmount()
                     + "원의 납부 기한이 " + t.getDueDate() + "입니다. 기한 내 납부 부탁드립니다.";
             try {
@@ -75,9 +80,9 @@ public class FeeNotificationScheduler {
 
         int created = 0;
         for (FeeNotificationTargetResponse t : targets) {
-            String title = "[미납] " + t.getBillingMonth() + " 회비";
+            String title = "[미납] " + t.getBillingMonth() + " 회비" + targetSuffix(t);
             String message = t.getBillingMonth() + " 회비 " + t.getBillableAmount()
-                    + "원이 미납 상태입니다. (납부 기한: " + t.getDueDate() + ") 빠른 납부 부탁드립니다.";
+                    + "원이 미납 상태입니다. (납부 기한: " + t.getDueDate() + ") 빠른 납부 부탁드립니다. 이미 납부한 경우에도 알림이 전송 될 수 있으니, 양해 부탁드립니다.";
             try {
                 created += notificationService.notifyParentsOfStudentOnce(
                         t.getStudentId(), "FEE", title, message);
@@ -87,5 +92,18 @@ public class FeeNotificationScheduler {
         }
         log.info("FEE-09 미납 알림 배치 완료 - 대상 {}건, 생성 {}건", targets.size(), created);
         return created;
+    }
+
+    /**
+     * 알림 제목 뒤에 붙일 학생·반 식별 문자열 ("- 홍길동 (수학반)").
+     * dedup 키(user_id, type, title)를 fee(학생·반)별로 유니크하게 만들어,
+     * 자녀가 여럿이거나 반별 회비가 여러 건이어도 각각 1회씩 나가게 한다.
+     */
+    private String targetSuffix(FeeNotificationTargetResponse t) {
+        String suffix = " - " + t.getStudentName();
+        if (t.getClassName() != null && !t.getClassName().isBlank()) {
+            suffix += " (" + t.getClassName() + ")";
+        }
+        return suffix;
     }
 }

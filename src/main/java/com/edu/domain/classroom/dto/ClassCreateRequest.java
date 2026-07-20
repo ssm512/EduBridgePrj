@@ -28,6 +28,10 @@ public record ClassCreateRequest(
         LocalTime startTime,
 
         /** 수업 종료 시간 (HH:mm) */
-        LocalTime endTime
+        LocalTime endTime,
+
+        /** 수업 요일 CSV (MON,TUE,...,SUN). null/빈값이면 매일 */
+        @Size(max = 30, message = "요일 값이 너무 깁니다")
+        String daysOfWeek
 ) {
 }

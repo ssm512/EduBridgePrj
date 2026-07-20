@@ -41,6 +41,9 @@ public class ClassDto {
     /** 운영 상태 (ACTIVE/CLOSED) */
     private String statusCode;
 
+    /** 수업 요일 CSV (MON~SUN). null이면 매일 */
+    private String daysOfWeek;
+
     /** 등록일 */
     private LocalDateTime createdAt;
 

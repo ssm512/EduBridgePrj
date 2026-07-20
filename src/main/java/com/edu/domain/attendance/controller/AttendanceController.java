@@ -71,10 +71,17 @@ public class AttendanceController {
         return attendanceService.getMyClasses(authentication.getName());
     }
 
-    /** ATT-02 수동 출석 등록 (관리자/강사) */
+    /** 앱 오늘 수업: 오늘 요일 수업 있는 본인 반 + 오늘 출석상태 (학생) */
+    @GetMapping("/my-today")
+    @PreAuthorize("hasRole('STUDENT')")
+    public List<com.edu.domain.attendance.dto.response.TodayClassResponse> myToday(Authentication authentication) {
+        return attendanceService.getMyTodayClasses(authentication.getName());
+    }
+
+    /** ATT-02 수동 출석 등록 (관리자 전용 — 강사는 임의 입력 불가) */
     @PostMapping("/manual")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public AttendanceResponse manual(@RequestBody ManualAttendanceRequest request,
                                      Authentication authentication) {
         Long createdBy = attendanceService.getMyUserId(authentication.getName());
@@ -95,25 +102,25 @@ public class AttendanceController {
         return attendanceService.getHistory(studentId, classId, fromDate, toDate, keyword, page, size);
     }
 
-    /** ATT-04 출석 수정 (관리자/강사) */
+    /** ATT-04 출석 수정 (관리자 전용) */
     @PutMapping("/{attendanceId}")
-    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public AttendanceResponse update(@PathVariable Long attendanceId,
                                      @RequestBody AttendanceUpdateRequest request) {
         return attendanceService.update(attendanceId, request);
     }
 
-    /** ATT-04 출석 삭제 (관리자/강사) */
+    /** ATT-04 출석 삭제 (관리자 전용) */
     @DeleteMapping("/{attendanceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(@PathVariable Long attendanceId) {
         attendanceService.delete(attendanceId);
     }
 
-    /** ATT-08 결석 일괄 처리 (관리자/강사): 반+날짜의 미기록 수강생을 ABSENT로 */
+    /** ATT-08 결석 일괄 처리 (관리자 전용; 강사는 /teacher/mark-absent 사용) */
     @PostMapping("/mark-absent")
-    @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Integer> markAbsent(@RequestBody MarkAbsentRequest request) {
         int count = attendanceService.markAbsent(request.classId(), request.date());
         return Map.of("markedAbsent", count);
@@ -221,21 +228,20 @@ public class AttendanceController {
         return attendanceService.getTeacherStatistics(authentication.getName(), classId, fromDate, toDate);
     }
 
-    /** 강사 수동 출석 등록 (담당반만 — 서버 소유 검증) */
-    @PostMapping("/teacher/manual")
-    @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('TEACHER')")
-    public AttendanceResponse teacherManual(@RequestBody ManualAttendanceRequest request,
-                                            Authentication authentication) {
-        return attendanceService.registerManualAsTeacher(authentication.getName(), request);
-    }
-
-    /** 강사 결석 일괄 처리 (담당반만 — 서버 소유 검증) */
+    /** 강사 결석 일괄 처리 (담당반만 + 수업 종료 후에만 — 서버 검증) */
     @PostMapping("/teacher/mark-absent")
     @PreAuthorize("hasRole('TEACHER')")
     public Map<String, Integer> teacherMarkAbsent(@RequestBody MarkAbsentRequest request,
                                                   Authentication authentication) {
         int count = attendanceService.markAbsentAsTeacher(authentication.getName(), request.classId(), request.date());
         return Map.of("markedAbsent", count);
+    }
+
+    /** 강사 앱 오늘 우리 반 로스터 (담당반만, 미출석 포함) */
+    @GetMapping("/teacher/today-roster")
+    @PreAuthorize("hasRole('TEACHER')")
+    public List<com.edu.domain.attendance.dto.response.ClassRosterEntryResponse> teacherTodayRoster(
+            @RequestParam Long classId, Authentication authentication) {
+        return attendanceService.getTeacherClassRosterToday(authentication.getName(), classId);
     }
 }

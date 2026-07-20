@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 활동로그 매퍼. map-underscore-to-camel-case=true -->
+<mapper namespace="com.edu.domain.log.mapper.LogMapper">
+
+    <sql id="searchWhere">
+        <where>
+            <if test="cond.actionType != null and cond.actionType != ''">
+                AND l.action_type = #{cond.actionType}
+            </if>
+            <if test="cond.fromDate != null">
+                AND l.created_at::date &gt;= #{cond.fromDate}
+            </if>
+            <if test="cond.toDate != null">
+                AND l.created_at::date &lt;= #{cond.toDate}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findList" resultType="com.edu.domain.log.vo.ActivityLog">
+        SELECT l.activity_log_id, l.user_id, l.action_type, l.target_table, l.target_id,
+               l.ip_address, l.user_agent, l.description, l.created_at,
+               u.name AS user_name
+        FROM activity_logs l
+        LEFT JOIN users u ON l.user_id = u.user_id
+        <include refid="searchWhere"/>
+        ORDER BY l.activity_log_id DESC
+        LIMIT #{cond.size} OFFSET #{cond.offset}
+    </select>
+
+    <select id="countList" resultType="long">
+        SELECT COUNT(*)
+        FROM activity_logs l
+        <include refid="searchWhere"/>
+    </select>
+
+    <select id="findActionTypes" resultType="string">
+        SELECT DISTINCT action_type FROM activity_logs ORDER BY action_type
+    </select>
+
+</mapper>
