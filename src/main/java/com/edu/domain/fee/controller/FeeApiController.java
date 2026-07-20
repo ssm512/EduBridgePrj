@@ -53,14 +53,15 @@ public class FeeApiController {
      * GET /api/v1/fees - 회비 목록/납부 이력 조회 (FEE-06) + 미납 조회 (FEE-07)
      * ?studentId=&billingMonth=YYYY-MM&statusCode=&overdueOnly=true&page=1&size=10
      * overdueOnly=true 면 납부 기한이 지난 미완납 건만 조회 (FEE-07)
-     * FEE-14: PARENT 는 본인 자녀 회비만 조회. parentUserId 는 클라이언트 입력을 신뢰하지 않고
-     * 서버가 JWT userId 로 항상 덮어쓴다(직원=null 전체 조회, PARENT=본인 강제).
+     * FEE-14: PARENT 는 본인 자녀 회비만, STUDENT 는 본인 회비만 조회.
+     * parentUserId/studentUserId 는 클라이언트 입력을 신뢰하지 않고 서버가 JWT userId 로 항상 덮어쓴다
+     * (직원(ADMIN/TEACHER)은 둘 다 null 로 두어 전체 조회).
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT', 'STUDENT')")
     public PageResponse<FeeListResponse> getFeeList(@ModelAttribute FeeSearchRequest search,
                                                     JwtAuthenticationToken authentication) {
-        search.setParentUserId(isStaff(authentication) ? null : currentUserId(authentication));
+        applyScoping(search, authentication);
         return feeService.getFeeList(search);
     }
 
@@ -107,12 +108,20 @@ public class FeeApiController {
      * 취소분 포함, 최신순. POST 와 경로는 같지만 HTTP 메서드가 달라 매핑 충돌 없음.
      */
     @GetMapping("/{feeId}/payments")
-    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT', 'STUDENT')")
     public List<FeePaymentHistoryResponse> getPaymentHistory(@PathVariable Long feeId,
                                                              JwtAuthenticationToken authentication) {
-        // FEE-14: PARENT 는 본인 자녀 회비만. 직원은 null 로 넘겨 제한 없음.
-        Long parentUserId = isStaff(authentication) ? null : currentUserId(authentication);
-        return feeService.getPaymentHistory(feeId, parentUserId);
+        // FEE-14: PARENT 는 본인 자녀 회비만, STUDENT 는 본인 회비만. 직원은 둘 다 null 로 넘겨 제한 없음.
+        Long parentUserId = null;
+        Long studentUserId = null;
+        if (!isStaff(authentication)) {
+            if (isStudent(authentication)) {
+                studentUserId = currentUserId(authentication);
+            } else {
+                parentUserId = currentUserId(authentication);
+            }
+        }
+        return feeService.getPaymentHistory(feeId, parentUserId, studentUserId);
     }
 
     /**
@@ -156,5 +165,28 @@ public class FeeApiController {
         return authentication.getAuthorities().stream()
                 .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority())
                         || "ROLE_TEACHER".equals(auth.getAuthority()));
+    }
+
+    /** STUDENT 여부 - PARENT 와 스코핑 방식(자녀 조인 vs 본인 직결)이 달라 구분이 필요하다. */
+    private boolean isStudent(JwtAuthenticationToken authentication) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(auth -> "ROLE_STUDENT".equals(auth.getAuthority()));
+    }
+
+    /**
+     * 목록 조회(FEE-06/07) 스코핑 - 직원은 제한 없음, PARENT 는 자녀 회비만, STUDENT 는 본인 회비만.
+     * 클라이언트가 parentUserId/studentUserId 를 같이 보내도 여기서 항상 덮어써서 무시한다.
+     */
+    private void applyScoping(FeeSearchRequest search, JwtAuthenticationToken authentication) {
+        if (isStaff(authentication)) {
+            search.setParentUserId(null);
+            search.setStudentUserId(null);
+        } else if (isStudent(authentication)) {
+            search.setParentUserId(null);
+            search.setStudentUserId(currentUserId(authentication));
+        } else {
+            search.setParentUserId(currentUserId(authentication));
+            search.setStudentUserId(null);
+        }
     }
 }
