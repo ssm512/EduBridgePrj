@@ -236,4 +236,12 @@ public class AttendanceController {
         int count = attendanceService.markAbsentAsTeacher(authentication.getName(), request.classId(), request.date());
         return Map.of("markedAbsent", count);
     }
+
+    /** 강사 앱 오늘 우리 반 로스터 (담당반만, 미출석 포함) */
+    @GetMapping("/teacher/today-roster")
+    @PreAuthorize("hasRole('TEACHER')")
+    public List<com.edu.domain.attendance.dto.response.ClassRosterEntryResponse> teacherTodayRoster(
+            @RequestParam Long classId, Authentication authentication) {
+        return attendanceService.getTeacherClassRosterToday(authentication.getName(), classId);
+    }
 }

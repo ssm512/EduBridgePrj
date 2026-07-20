@@ -398,6 +398,14 @@ public class AttendanceServiceImpl implements AttendanceService {
         return markAbsent(classId, date);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.edu.domain.attendance.dto.response.ClassRosterEntryResponse>
+            getTeacherClassRosterToday(String loginId, Long classId) {
+        verifyTeacherClass(loginId, classId); // 본인 담당반만
+        return attendanceMapper.findClassRosterForDate(classId, LocalDate.now());
+    }
+
     /** 해당 반이 로그인 강사의 담당반이 아니면 403 */
     private void verifyTeacherClass(String loginId, Long classId) {
         if (classId == null || attendanceMapper.countTeacherClass(loginId, classId) == 0) {

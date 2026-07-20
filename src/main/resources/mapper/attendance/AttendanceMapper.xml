@@ -184,6 +184,25 @@
         ORDER BY c.start_time ASC NULLS LAST, c.class_id
     </select>
 
+    <!-- 강사 앱 오늘 우리 반 로스터: ACTIVE 수강생 전원 + 그날 출석기록(LEFT JOIN, 없으면 미출석) -->
+    <select id="findClassRosterForDate" resultType="com.edu.domain.attendance.dto.response.ClassRosterEntryResponse">
+        SELECT s.student_id    AS studentId,
+               u.name          AS studentName,
+               ar.status_code  AS statusCode,
+               ar.checked_at   AS checkedAt,
+               ar.check_out_at AS checkOutAt
+        FROM enrollments e
+        JOIN students s ON e.student_id = s.student_id
+        JOIN users    u ON s.user_id    = u.user_id
+        LEFT JOIN attendance_records ar
+               ON ar.student_id = e.student_id
+              AND ar.class_id   = e.class_id
+              AND ar.attendance_date = #{date}
+        WHERE e.class_id = #{classId}
+          AND e.status_code = 'ACTIVE'
+        ORDER BY u.name
+    </select>
+
     <!-- 결석 대상: 해당 반 ACTIVE 수강생 중 그 날짜 출석 기록 없는 학생 -->
     <select id="findAbsentCandidates" resultType="long">
         SELECT e.student_id

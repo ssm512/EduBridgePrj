@@ -88,4 +88,8 @@ public interface AttendanceService {
 
     /** 강사 결석 일괄 처리 (담당반 소유 검증 + 수업 종료 후에만) */
     int markAbsentAsTeacher(String loginId, Long classId, LocalDate date);
+
+    /** 강사 앱 오늘 우리 반 로스터 (담당반 검증, 미출석 포함) */
+    List<com.edu.domain.attendance.dto.response.ClassRosterEntryResponse>
+            getTeacherClassRosterToday(String loginId, Long classId);
 }

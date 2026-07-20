@@ -151,6 +151,14 @@ public interface AttendanceMapper {
     java.util.List<Long> findAbsentCandidates(@Param("classId") Long classId,
                                               @Param("date") java.time.LocalDate date);
 
+    /**
+     * 강사 앱 "오늘 우리 반 현황" 로스터: 해당 반 ACTIVE 수강생 전원 + 그 날짜 출석기록(LEFT JOIN).
+     * 출석기록이 없으면 statusCode=null(미출석)로 내려간다.
+     */
+    java.util.List<com.edu.domain.attendance.dto.response.ClassRosterEntryResponse>
+            findClassRosterForDate(@Param("classId") Long classId,
+                                   @Param("date") java.time.LocalDate date);
+
     String getClassName(@Param("classId") Long classId);
 
     Long getMyUserId(@Param("loginId") String loginId);
