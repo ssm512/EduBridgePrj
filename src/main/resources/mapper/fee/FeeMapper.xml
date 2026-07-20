@@ -26,6 +26,12 @@
                      WHERE p.user_id = #{parentUserId}
                 )
             </if>
+            <!-- 학생 본인 회비: user_id로 연결된 학생의 회비만 -->
+            <if test="studentUserId != null">
+                AND f.student_id IN (
+                    SELECT s.student_id FROM students s WHERE s.user_id = #{studentUserId}
+                )
+            </if>
             <!-- FEE-07 미납 조회: 저장된 status_code 는 기한이 지나도 SCHEDULED 로 남을 수 있어
                  신뢰하지 않고, "기한 경과(due_date < 오늘) + 완납 아님(status <> PAID)" 으로 직접 판정 -->
             <if test="overdueOnly">

@@ -32,6 +32,12 @@ public class FeeSearchRequest {
     private Long parentUserId;
 
     /**
+     * 학생 본인 회비 조회 스코핑 - 이 값이 있으면 해당 user_id에 연결된 학생의 회비만 조회한다.
+     * 컨트롤러가 STUDENT 로그인 시 JWT userId 로 강제한다(클라이언트 입력 무시).
+     */
+    private Long studentUserId;
+
+    /**
      * 미납 조회 필터 (FEE-07) - true 면 "납부 기한이 지난 미납 건"만 조회
      * status_code 는 쓰기 이벤트에서만 갱신되어 기한이 지나도 SCHEDULED 로 남는 건이 있으므로,
      * 저장된 상태값이 아니라 due_date + 완납 여부로 직접 판정한다 (SQL 참고).
