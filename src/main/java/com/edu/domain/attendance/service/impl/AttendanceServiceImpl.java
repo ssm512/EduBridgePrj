@@ -288,6 +288,17 @@ public class AttendanceServiceImpl implements AttendanceService {
         return attendanceMapper.findMyClasses(loginId);
     }
 
+    /** 앱 오늘 수업 + 오늘 출석상태 */
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.edu.domain.attendance.dto.response.TodayClassResponse> getMyTodayClasses(String loginId) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        String dayCode = today.getDayOfWeek()
+                .getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH)
+                .toUpperCase(java.util.Locale.ENGLISH);
+        return attendanceMapper.findMyTodayClasses(loginId, dayCode, today);
+    }
+
     // ===== 역할별 자기 범위 조회 =====
 
     /** 학생 본인 이력 (JWT loginId → 본인 studentId, 클라이언트 값 신뢰 안 함) */
@@ -363,15 +374,23 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     @Override
-    public AttendanceResponse registerManualAsTeacher(String loginId, ManualAttendanceRequest request) {
-        verifyTeacherClass(loginId, request.classId());
-        Long createdBy = attendanceMapper.getMyUserId(loginId);   // 등록자 = 강사 본인
-        return registerManual(request, createdBy);
-    }
-
-    @Override
     public int markAbsentAsTeacher(String loginId, Long classId, LocalDate date) {
         verifyTeacherClass(loginId, classId);
+        // 강사는 "본인 수업 종료 후"에만 결석 처리 가능
+        //  - 미래 날짜: 불가
+        //  - 오늘: 수업 종료시각이 지나야 가능
+        //  - 과거 날짜: 이미 종료된 수업이므로 허용
+        LocalDate today = LocalDate.now();
+        if (date.isAfter(today)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "미래 날짜는 결석 처리할 수 없습니다");
+        }
+        if (date.isEqual(today)) {
+            ClassScheduleView schedule = attendanceMapper.findClassSchedule(classId);
+            LocalTime endTime = schedule != null ? schedule.getEndTime() : null;
+            if (endTime != null && LocalTime.now().isBefore(endTime)) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "수업 종료 후에만 결석 처리할 수 있습니다");
+            }
+        }
         return markAbsent(classId, date);
     }
 

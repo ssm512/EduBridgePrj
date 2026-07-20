@@ -27,6 +27,9 @@ public interface AttendanceService {
     /** 로그인 학생이 수강 중인 반 목록 (출석 대상 선택용) */
     List<ClassOptionResponse> getMyClasses(String loginId);
 
+    /** 앱 오늘 수업: 오늘 요일 수업 있는 본인 반 + 오늘 출석상태 */
+    List<com.edu.domain.attendance.dto.response.TodayClassResponse> getMyTodayClasses(String loginId);
+
     /** ATT-08 결석 일괄 처리: 해당 반의 그 날짜 미기록 수강생을 ABSENT로 등록. 등록 건수 반환 */
     int markAbsent(Long classId, LocalDate date);
 
@@ -83,9 +86,6 @@ public interface AttendanceService {
     AttendanceStatisticsResponse getTeacherStatistics(String loginId, Long classId,
                                                       LocalDate fromDate, LocalDate toDate);
 
-    /** 강사 수동 출석 등록 (담당반 소유 검증 후 등록, createdBy=강사) */
-    AttendanceResponse registerManualAsTeacher(String loginId, ManualAttendanceRequest request);
-
-    /** 강사 결석 일괄 처리 (담당반 소유 검증 후 처리) */
+    /** 강사 결석 일괄 처리 (담당반 소유 검증 + 수업 종료 후에만) */
     int markAbsentAsTeacher(String loginId, Long classId, LocalDate date);
 }

@@ -156,6 +156,28 @@
         ORDER BY c.class_id
     </select>
 
+    <!-- 앱 오늘 수업: 오늘 요일 수업 있는 본인 반 + 그날 출석기록 -->
+    <select id="findMyTodayClasses" resultType="com.edu.domain.attendance.dto.response.TodayClassResponse">
+        SELECT c.class_id     AS classId,
+               c.class_name   AS className,
+               ar.status_code AS statusCode,
+               ar.checked_at  AS checkedAt,
+               ar.check_out_at AS checkOutAt
+        FROM enrollments e
+        JOIN classes  c ON e.class_id   = c.class_id
+        JOIN students s ON e.student_id = s.student_id
+        JOIN users    u ON s.user_id    = u.user_id
+        LEFT JOIN attendance_records ar
+               ON ar.student_id = e.student_id
+              AND ar.class_id   = c.class_id
+              AND ar.attendance_date = #{date}
+        WHERE u.login_id = #{loginId}
+          AND e.status_code = 'ACTIVE'
+          AND c.status_code = 'ACTIVE'
+          AND (c.days_of_week IS NULL OR c.days_of_week LIKE '%' || #{dayCode} || '%')
+        ORDER BY c.start_time ASC NULLS LAST, c.class_id
+    </select>
+
     <!-- 결석 대상: 해당 반 ACTIVE 수강생 중 그 날짜 출석 기록 없는 학생 -->
     <select id="findAbsentCandidates" resultType="long">
         SELECT e.student_id

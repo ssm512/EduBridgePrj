@@ -10,7 +10,6 @@
 <div th:replace="~{fragments/common :: topbar('관리자')}"></div>
 
 <div class="shell">
-  <!-- 사이드바: OO관리 링크 (팀원 착수 지점) -->
   <nav class="sidebar">
     <a href="/admin/dashboard">대시보드</a>
     <a href="/admin/members">회원관리</a>
@@ -33,7 +32,7 @@
 
   <main class="content">
     <h1>관리자 대시보드</h1>
-    <p class="sub">각 카드/왼쪽 메뉴는 담당자가 구현할 관리 모듈로 연결됩니다.</p>
+    <p class="sub">각 카드나 왼쪽 메뉴에서 원하는 관리 화면으로 이동합니다.</p>
 
     <div class="cards">
       <a class="card" href="/admin/members">
@@ -86,7 +85,7 @@
       </a>
       <a class="card" href="/admin/ai">
         <div class="card-title">AI 리포트</div>
-        <div class="card-desc">AIAIAI</div>
+        <div class="card-desc">생성형 AI를 사용한 리포트 작성</div>
       </a>
     </div>
   </main>

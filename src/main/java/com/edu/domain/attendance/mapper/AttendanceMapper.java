@@ -141,6 +141,12 @@ public interface AttendanceMapper {
     java.util.List<com.edu.domain.attendance.dto.response.ClassOptionResponse>
             findMyClasses(@Param("loginId") String loginId);
 
+    /** 앱 오늘 수업: 오늘 요일에 수업 있는 본인 반 + 그날 출석기록(LEFT JOIN) */
+    java.util.List<com.edu.domain.attendance.dto.response.TodayClassResponse>
+            findMyTodayClasses(@Param("loginId") String loginId,
+                               @Param("dayCode") String dayCode,
+                               @Param("date") java.time.LocalDate date);
+
     /** 결석 대상: 해당 반의 ACTIVE 수강생 중 그 날짜에 출석 기록이 없는 student_id 목록 */
     java.util.List<Long> findAbsentCandidates(@Param("classId") Long classId,
                                               @Param("date") java.time.LocalDate date);

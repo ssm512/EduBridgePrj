@@ -467,7 +467,7 @@
     if (res.ok) {
       const d = await res.json();
       msg.textContent = `결석 처리 완료: ${d.markedAbsent}명`; msg.style.color = '#166534';
-      loadHistory();
+      refreshRosterRecords(); loadHistory();
     } else {
       const d = await res.json().catch(() => ({}));
       msg.textContent = `결석 처리 실패 (${res.status}): ${d.message || ''}`; msg.style.color = '#b91c1c';
