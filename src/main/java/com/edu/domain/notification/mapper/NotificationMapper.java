@@ -26,6 +26,9 @@ public interface NotificationMapper {
     /** 읽음 처리 - read_yn = 'Y' (NTI-02) */
     int updateReadYn(@Param("notificationId") Long notificationId);
 
+    /** 본인 알림 전체 읽음 처리 (안 읽은 것만) - 앱 "모두 읽음"용. 처리 건수 반환 */
+    int updateAllReadByUser(@Param("userId") Long userId);
+
     /**
      * 학생의 학부모 user_id 목록 조회 - 회비 알림 수신자 결정용
      * (students <- student_parents -> parents -> users 경로)

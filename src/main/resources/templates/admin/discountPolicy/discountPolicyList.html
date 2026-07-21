@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title th:text="'EduBridge · ' + ${title}">EduBridge</title>
+  <title th:text="${@branding.name} + ' · ' + ${title}">EduBridge</title>
   <link rel="stylesheet" href="/css/common.css">
 
   <!-- 할인정책관리 페이지 전용 스타일 (팀 규칙: 개인 구간은 html 내 style 태그)

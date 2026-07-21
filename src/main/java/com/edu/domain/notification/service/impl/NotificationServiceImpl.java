@@ -6,6 +6,7 @@ import com.edu.domain.notification.dto.request.NotificationSearchRequest;
 import com.edu.domain.notification.dto.response.NotificationListResponse;
 import com.edu.domain.notification.dto.response.NotificationReadResponse;
 import com.edu.domain.notification.mapper.NotificationMapper;
+import com.edu.domain.notification.service.FcmService;
 import com.edu.domain.notification.service.NotificationService;
 import com.edu.domain.notification.vo.NotificationVo;
 import org.springframework.http.HttpStatus;
@@ -20,9 +21,11 @@ import java.util.List;
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationMapper notificationMapper;
+    private final FcmService fcmService;
 
-    public NotificationServiceImpl(NotificationMapper notificationMapper) {
+    public NotificationServiceImpl(NotificationMapper notificationMapper, FcmService fcmService) {
         this.notificationMapper = notificationMapper;
+        this.fcmService = fcmService;
     }
 
     @Override
@@ -67,6 +70,12 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
+    public int markAllRead(Long currentUserId) {
+        return notificationMapper.updateAllReadByUser(currentUserId);
+    }
+
+    @Override
+    @Transactional
     public void createNotification(Long userId, String notificationType, String title, String message) {
         // 실제 외부 발송(카카오/이메일 등)은 없으므로 APP 채널 즉시 발송 완료로 기록
         // TODO(팀 확인): 발송 채널/실패 시뮬레이션 여부 - 회의 안건
@@ -81,6 +90,9 @@ public class NotificationServiceImpl implements NotificationService {
                 .build();
 
         notificationMapper.insertNotification(notification);
+
+        // 인앱 알림 저장 후 FCM 푸시 발송(@Async, 미설정 시 no-op)
+        fcmService.sendToUser(userId, notificationType, title, message);
     }
 
     @Override

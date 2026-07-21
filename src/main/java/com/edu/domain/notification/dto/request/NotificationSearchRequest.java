@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * 알림 이력 조회 조건 (NTI-01)
- * GET /api/v1/notifications?userName=&notificationType=&readYn=&page=1&size=10
+ * GET /api/notifications?userName=&notificationType=&readYn=&page=1&size=10
  */
 @Data
 @Builder

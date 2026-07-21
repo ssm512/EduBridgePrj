@@ -22,7 +22,9 @@ import java.util.Base64;
  * Refresh Token 생성/검증/폐기 서비스.
  * - 원문(랜덤 문자열)은 클라이언트에게만 전달
  * - DB(refresh_tokens.refresh_token)에는 SHA-256 해시만 저장
- * - 사용자 1명당 활성 토큰 1개 정책
+ * - 멀티기기 허용: 로그인 시 기존 토큰을 폐기하지 않아 앱/웹 등 여러 기기 세션이 공존한다.
+ *   (재발급은 사용한 토큰만 회전 폐기, 비밀번호 변경 시에는 전체 폐기 유지 - 보안)
+ *   기기별로 쌓인 만료 토큰은 매일 새벽 정리 잡(deleteExpiredTokens)이 제거한다.
  */
 @Service
 @Transactional
@@ -41,11 +43,9 @@ public class RefreshTokenService {
         this.jwtProperties = jwtProperties;
     }
 
-    /** Refresh Token 발급 (원문 반환, DB에는 해시 저장) */
+    /** Refresh Token 발급 (원문 반환, DB에는 해시 저장).
+     *  멀티기기 허용을 위해 기존 토큰을 폐기하지 않는다 (기기별 세션 공존). */
     public String createRefreshToken(UserDto user) {
-        // 기존 활성 토큰 전부 폐기
-        refreshTokenMapper.revokeAllByUserId(user.getUserId());
-
         String rawToken = createRandomToken();
 
         RefreshTokenVo token = RefreshTokenVo.builder()

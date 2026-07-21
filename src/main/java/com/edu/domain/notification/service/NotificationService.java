@@ -23,6 +23,9 @@ public interface NotificationService {
      */
     NotificationReadResponse markRead(Long notificationId, Long currentUserId, boolean admin);
 
+    /** 본인 알림 전체 읽음 처리 (앱 "모두 읽음"). 처리 건수 반환 */
+    int markAllRead(Long currentUserId);
+
     /**
      * 알림 생성 - 내부 전용 (생성 API 없음, 다른 도메인 이벤트에서 호출)
      *

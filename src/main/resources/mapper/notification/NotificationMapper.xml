@@ -64,6 +64,14 @@
                 #{sendChannel}, #{sendStatus}, #{sentAt})
     </insert>
 
+    <!-- 본인 안 읽은 알림 전체 읽음 처리 (앱 "모두 읽음") -->
+    <update id="updateAllReadByUser">
+        UPDATE notifications
+           SET read_yn = 'Y'
+         WHERE user_id = #{userId}
+           AND read_yn = 'N'
+    </update>
+
     <update id="updateReadYn">
         UPDATE notifications
            SET read_yn = 'Y'
