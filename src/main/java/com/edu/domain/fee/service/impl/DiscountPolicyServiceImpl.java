@@ -4,6 +4,7 @@ import com.edu.common.dto.PageResponse;
 import com.edu.common.exception.ApiException;
 import com.edu.domain.fee.dto.request.DiscountPolicyRequest;
 import com.edu.domain.fee.dto.response.DiscountPolicyResponse;
+import com.edu.domain.fee.dto.response.DiscountPreviewResponse;
 import com.edu.domain.fee.mapper.DiscountPolicyMapper;
 import com.edu.domain.fee.service.DiscountPolicyService;
 import com.edu.domain.fee.vo.DiscountPolicyVo;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -32,21 +34,32 @@ public class DiscountPolicyServiceImpl implements DiscountPolicyService {
     }
 
     @Override
-    public PageResponse<DiscountPolicyResponse> getList(boolean activeOnly, int page, int size) {
+    public PageResponse<DiscountPolicyResponse> getList(String activeYn, LocalDate targetDate, int page, int size) {
         int safePage = Math.max(page, 1);
         int safeSize = size <= 0 ? 10 : Math.min(size, 100);
         int offset = (safePage - 1) * safeSize;
+        String normalizedActiveYn = normalizeActiveYn(activeYn);
 
-        long totalCount = discountPolicyMapper.countList(activeOnly);
+        long totalCount = discountPolicyMapper.countList(normalizedActiveYn, targetDate);
         if (totalCount == 0) {
             return PageResponse.of(List.of(), safePage, safeSize, 0);
         }
 
-        List<DiscountPolicyResponse> content = discountPolicyMapper.findList(activeOnly, safeSize, offset)
+        List<DiscountPolicyResponse> content = discountPolicyMapper
+                .findList(normalizedActiveYn, targetDate, safeSize, offset)
                 .stream()
                 .map(this::toResponse)
                 .toList();
         return PageResponse.of(content, safePage, safeSize, totalCount);
+    }
+
+    /** 빈 문자열/소문자 등 잡값을 정리 - Y/N 이 아니면 필터 없음(null)으로 취급 */
+    private String normalizeActiveYn(String activeYn) {
+        if (activeYn == null || activeYn.isBlank()) {
+            return null;
+        }
+        String upper = activeYn.trim().toUpperCase();
+        return ("Y".equals(upper) || "N".equals(upper)) ? upper : null;
     }
 
     @Override
@@ -72,6 +85,25 @@ public class DiscountPolicyServiceImpl implements DiscountPolicyService {
         toEntity(policy, request);
         discountPolicyMapper.update(policy);
         return toResponse(getVo(discountPolicyId));
+    }
+
+    @Override
+    public DiscountPreviewResponse preview(Long discountPolicyId, long feeAmount) {
+        DiscountPolicyVo policy = getVo(discountPolicyId);   // 없으면 404
+        if (!policy.isActive()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "비활성화된 할인정책은 적용할 수 없습니다");
+        }
+        if (!policy.isWithinPeriod(LocalDate.now())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "할인정책 적용 기간이 아닙니다");
+        }
+
+        long discountAmount = Math.min(policy.calculateDiscountAmount(feeAmount), feeAmount);
+        return DiscountPreviewResponse.builder()
+                .discountPolicyId(discountPolicyId)
+                .feeAmount(feeAmount)
+                .discountAmount(discountAmount)
+                .billableAmount(feeAmount - discountAmount)
+                .build();
     }
 
     /** PK 단건 조회 (없으면 404) - create/update 응답 재조회에도 재사용 */

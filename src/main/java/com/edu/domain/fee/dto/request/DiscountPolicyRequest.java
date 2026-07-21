@@ -49,6 +49,6 @@ public class DiscountPolicyRequest {
     private String activeYn;
 
     /** 설명 */
-    @Size(max = 255, message = "설명은 255자 이내로 입력해주세요")
+    @Size(max = 500, message = "설명은 500자 이내로 입력해주세요")
     private String description;
 }

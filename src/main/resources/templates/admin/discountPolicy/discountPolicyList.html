@@ -8,6 +8,7 @@
   <!-- 할인정책관리 페이지 전용 스타일 (팀 규칙: 개인 구간은 html 내 style 태그)
        feeList.html 의 .fee-* 클래스와 동일한 네이밍 규칙을 따름 (.dp- 접두사)
        사용 중인 클래스:
+       .tabs / .tab  : 상단 탭(회비 목록/통계·매출/할인정책관리 3페이지 이동, admin/attendance 탭 디자인 재사용)
        .dp-toolbar   : 필터 폼 + 등록 버튼 영역
        .dp-table     : 할인정책 목록 테이블
        .status-badge : 상태 뱃지 (fee 페이지와 공용 개념, 여기서는 활성/비활성)
@@ -16,9 +17,87 @@
        .empty-row    : 데이터 없음 표시 행
        .dp-modal     : 등록/수정 모달 (dialog)
        .dp-modal-buttons : 모달 하단 버튼 영역
+       .dp-desc      : 설명 칸(자유 텍스트, 최대 500자) 1줄 말줄임 처리 - 전체 내용은 title 툴팁으로 확인
   -->
   <style>
-    /* TODO: 페이지 스타일 작성 (feeList.html 과 동일하게 미정 상태) */
+    /* ===== 할인정책관리 화면 ===== */
+    /* 상단 탭 (회비 목록 / 통계·매출 / 할인정책관리) - admin/attendance 페이지의 .tabs/.tab 디자인 재사용.
+       거기는 같은 페이지 안에서 JS로 섹션을 전환하지만 여긴 실제로 다른 페이지로 이동하는 링크라 a 태그로 구현 */
+    .tabs { display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; margin-bottom: 16px; }
+    .tabs .tab {
+      display: inline-block; padding: 9px 18px; background: none; cursor: pointer; font-size: 14px;
+      font-weight: 600; color: #94a3b8; border-bottom: 2px solid transparent; margin-bottom: -2px;
+    }
+    .tabs .tab:hover { color: #475569; }
+    .tabs .tab.active { color: #1e3a8a; border-bottom-color: #1e3a8a; }
+
+    .dp-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+    .dp-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .dp-filter label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #374151; }
+    .dp-filter select, .dp-filter input[type="date"] {
+      height: 36px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; background: #fff;
+    }
+    .dp-toolbar button {
+      height: 36px; padding: 0 16px; border: none; border-radius: 6px;
+      font-size: 14px; cursor: pointer; background: #1e3a8a; color: #fff;
+    }
+    .dp-toolbar button:hover { background: #1d4ed8; }
+
+    /* table-layout: fixed + colgroup 로 컬럼 폭을 고정.
+       auto 방식은 현재 페이지 행 내용 길이에 따라 폭이 매번 재계산돼서 페이지 넘길 때마다 흔들림 */
+    .dp-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; background: #fff; border: 1px solid #e5e7eb; }
+    .dp-table thead th {
+      text-align: left; background: #f8fafc; color: #0f2a5f; font-weight: 600;
+      padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 13px;
+    }
+    .dp-table tbody td {
+      padding: 10px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle;
+      overflow-wrap: break-word; word-break: break-word;
+    }
+    .dp-table tbody tr:last-child td { border-bottom: none; }
+    .dp-table tbody tr:hover { background: #f8faff; }
+    /* 설명은 최대 500자짜리 자유 텍스트라 그대로 두면 행 높이가 페이지마다 들쭉날쭉해짐 -> 1줄로 잘라서 표시 */
+    .dp-desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help; }
+
+    .empty-row td { text-align: center; color: #9ca3af; padding: 32px !important; }
+
+    /* 여기서는 활성/비활성 상태라 status-unpaid(비활성)를 경고색이 아닌 중립 회색으로 사용 */
+    .status-badge { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+    .status-paid   { background: #dcfce7; color: #166534; }
+    .status-unpaid { background: #f3f4f6; color: #6b7280; }
+
+    .dp-actions { display: flex; gap: 6px; }
+    .dp-actions button {
+      height: 30px; padding: 0 10px; border: 1px solid #d1d5db; background: #fff; color: #374151;
+      border-radius: 6px; font-size: 12.5px; cursor: pointer;
+    }
+    .dp-actions button:hover { background: #f3f4f6; }
+
+    .dp-paging { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 16px; }
+    .dp-paging a {
+      min-width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid #d1d5db; background: #fff; border-radius: 6px; font-size: 13px; color: #374151;
+    }
+    .dp-paging a:hover { background: #f3f4f6; }
+    .dp-paging a.now-page { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+
+    .dp-modal {
+      border: none; border-radius: 12px; padding: 24px; width: 420px; max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 60px); overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.2);
+    }
+    .dp-modal::backdrop { background: rgba(0,0,0,.4); }
+    .dp-modal h2 { margin: 0 0 16px; font-size: 17px; }
+    .dp-modal label { display: block; font-size: 13px; color: #6b7280; margin: 12px 0 4px; }
+    .dp-modal input, .dp-modal select {
+      width: 100%; height: 38px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;
+    }
+    .dp-modal-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+    .dp-modal-buttons button {
+      height: 36px; padding: 0 16px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer;
+      background: #1e3a8a; color: #fff;
+    }
+    .dp-modal-buttons button[type="button"] { background: #fff; color: #374151; border: 1px solid #d1d5db; }
   </style>
 </head>
 <body>
@@ -35,7 +114,6 @@
     <div class="group-label">학생</div>
     <a href="/admin/attendance">출석관리</a>
     <a href="/admin/fees">회비관리</a>
-    <a href="/admin/discount-policies">할인정책관리</a>
     <a href="/admin/grades">성적관리</a>
     <div class="group-label">소통</div>
     <a href="/admin/notices">공지관리</a>
@@ -51,12 +129,27 @@
     <h1>할인정책 목록</h1>
     <p class="sub">회비 등록/수정 시 적용할 할인정책을 관리합니다 (FEE-10). 삭제는 지원하지 않으며, 비활성화(활성여부 N)로 대체합니다.</p>
 
+    <!-- 상단 탭: 회비 목록 / 통계·매출 / 할인정책관리 -->
+    <div class="tabs">
+      <a class="tab" href="/admin/fees">회비 목록</a>
+      <a class="tab" href="/admin/fees/statistics">통계/매출</a>
+      <a class="tab active" href="/admin/discount-policies">할인정책관리</a>
+    </div>
+
     <!-- 필터 + 등록 버튼 -->
     <div class="dp-toolbar">
       <form class="dp-filter" th:action="@{/admin/discount-policies}" method="get">
-        <label class="dp-active-check">
-          <input type="checkbox" name="activeOnly" value="true" th:checked="${activeOnly}">
-          활성 정책만
+        <label>
+          활성여부
+          <select name="activeYn">
+            <option value="" th:selected="${activeYn == null or activeYn == ''}">전체</option>
+            <option value="Y" th:selected="${activeYn == 'Y'}">활성</option>
+            <option value="N" th:selected="${activeYn == 'N'}">비활성</option>
+          </select>
+        </label>
+        <label>
+          기준일
+          <input type="date" name="targetDate" th:value="${targetDate}">
         </label>
         <button type="submit">조회</button>
       </form>
@@ -87,7 +180,7 @@
           <input type="date" name="endDate">
         </label>
         <label>설명 (선택)
-          <input type="text" name="description" maxlength="255">
+          <input type="text" name="description" maxlength="500">
         </label>
 
         <div class="dp-modal-buttons">
@@ -128,7 +221,7 @@
           </select>
         </label>
         <label>설명 (선택)
-          <input type="text" name="description" maxlength="255">
+          <input type="text" name="description" maxlength="500">
         </label>
 
         <div class="dp-modal-buttons">
@@ -140,6 +233,16 @@
 
     <!-- 할인정책 목록 테이블 -->
     <table class="dp-table">
+      <!-- colgroup: 컬럼 폭을 페이지 내용과 무관하게 고정 (page 전환 시 흔들리는 문제 방지) -->
+      <colgroup>
+        <col style="width:16%">
+        <col style="width:9%">
+        <col style="width:12%">
+        <col style="width:20%">
+        <col style="width:10%">
+        <col style="width:20%">
+        <col style="width:13%">
+      </colgroup>
       <thead>
       <tr>
         <th>정책명</th>
@@ -164,7 +267,7 @@
                 th:classappend="${p.activeYn == 'Y'} ? 'status-paid' : 'status-unpaid'"
                 th:text="${p.activeYn == 'Y'} ? '활성' : '비활성'">활성</span>
         </td>
-        <td th:text="${p.description} ?: '-'">-</td>
+        <td class="dp-desc" th:text="${p.description} ?: '-'" th:attr="title=${p.description} ?: ''">-</td>
         <td class="dp-actions">
           <button type="button"
                   th:attr="data-discount-policy-id=${p.discountPolicyId}, data-policy-name=${p.policyName},
@@ -184,15 +287,15 @@
     <!-- 페이지네이션: 필터 조건 유지한 채 page 만 변경 -->
     <div class="dp-paging" th:if="${policyPage.totalPages > 1}">
       <a th:if="${policyPage.page > 1}"
-         th:href="@{/admin/discount-policies(activeOnly=${activeOnly}, page=${policyPage.page - 1})}">이전</a>
+         th:href="@{/admin/discount-policies(activeYn=${activeYn}, targetDate=${targetDate}, page=${policyPage.page - 1})}">이전</a>
 
       <a th:each="i : ${#numbers.sequence(1, policyPage.totalPages)}"
-         th:href="@{/admin/discount-policies(activeOnly=${activeOnly}, page=${i})}"
+         th:href="@{/admin/discount-policies(activeYn=${activeYn}, targetDate=${targetDate}, page=${i})}"
          th:text="${i}"
          th:classappend="${i == policyPage.page} ? 'now-page'">1</a>
 
       <a th:if="${policyPage.page < policyPage.totalPages}"
-         th:href="@{/admin/discount-policies(activeOnly=${activeOnly}, page=${policyPage.page + 1})}">다음</a>
+         th:href="@{/admin/discount-policies(activeYn=${activeYn}, targetDate=${targetDate}, page=${policyPage.page + 1})}">다음</a>
     </div>
   </main>
 </div>

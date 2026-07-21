@@ -7,7 +7,11 @@
 
     <sql id="listWhere">
         <where>
-            <if test="activeOnly"> AND active_yn = 'Y' </if>
+            <if test="activeYn != null and activeYn != ''"> AND active_yn = #{activeYn} </if>
+            <if test="targetDate != null">
+                AND (start_date IS NULL OR start_date &lt;= #{targetDate})
+                AND (end_date IS NULL OR end_date &gt;= #{targetDate})
+            </if>
         </where>
     </sql>
 

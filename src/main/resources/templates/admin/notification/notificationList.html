@@ -18,9 +18,65 @@
        .read-y / .read-n  : 읽음/안읽음 색상
        .noti-paging       : 페이지네이션
        .empty-row         : 데이터 없음 표시 행
+       .noti-title-cell   : 제목 칸 1줄 말줄임 처리 - 전체 내용은 title 툴팁으로 확인
   -->
   <style>
-    /* TODO(윤동재): 페이지 스타일 작성 */
+    /* ===== 알림 발송 이력 화면 ===== */
+    .noti-toolbar { margin-bottom: 16px; }
+    .noti-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .noti-filter select {
+      height: 36px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; background: #fff;
+    }
+    .noti-filter input[type="text"] {
+      height: 36px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; width: 180px;
+    }
+    .noti-filter button {
+      height: 36px; padding: 0 16px; border: none; border-radius: 6px;
+      font-size: 14px; cursor: pointer; background: #1e3a8a; color: #fff;
+    }
+    .noti-filter button:hover { background: #1d4ed8; }
+
+    /* table-layout: fixed + colgroup 로 컬럼 폭을 고정.
+       auto 방식은 현재 페이지 행 내용 길이에 따라 폭이 매번 재계산돼서 페이지 넘길 때마다 흔들림 */
+    .noti-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; background: #fff; border: 1px solid #e5e7eb; }
+    .noti-table thead th {
+      text-align: left; background: #f8fafc; color: #0f2a5f; font-weight: 600;
+      padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 13px;
+    }
+    .noti-table tbody td {
+      padding: 10px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle;
+      overflow-wrap: break-word; word-break: break-word;
+    }
+    .noti-table tbody tr:last-child td { border-bottom: none; }
+    .noti-table tbody tr:hover { background: #f8faff; }
+    /* 제목은 길이가 들쭉날쭉해서 그대로 두면 행 높이가 페이지마다 바뀜 -> 1줄로 잘라서 표시 */
+    .noti-title-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help; }
+
+    .empty-row td { text-align: center; color: #9ca3af; padding: 32px !important; }
+
+    .noti-type-badge { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+    .type-attendance { background: #dbeafe; color: #1e40af; }
+    .type-fee        { background: #ffedd5; color: #9a3412; }
+    .type-notice     { background: #ede9fe; color: #5b21b6; }
+
+    .send-badge { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+    .send-sent    { background: #dcfce7; color: #166534; }
+    .send-pending { background: #fef9c3; color: #854d0e; }
+    .send-failed  { background: #fee2e2; color: #991b1b; }
+
+    .read-badge { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+    .read-y { background: #dcfce7; color: #166534; }
+    .read-n { background: #f3f4f6; color: #6b7280; }
+
+    .noti-paging { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 16px; }
+    .noti-paging a {
+      min-width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid #d1d5db; background: #fff; border-radius: 6px; font-size: 13px; color: #374151;
+    }
+    .noti-paging a:hover { background: #f3f4f6; }
+    .noti-paging a.now-page { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
   </style>
 </head>
 <body>
@@ -37,7 +93,6 @@
     <div class="group-label">학생</div>
     <a href="/admin/attendance">출석관리</a>
     <a href="/admin/fees">회비관리</a>
-    <a href="/admin/discount-policies">할인정책관리</a>
     <a href="/admin/grades">성적관리</a>
     <div class="group-label">소통</div>
     <a href="/admin/notices">공지관리</a>
@@ -76,6 +131,16 @@
 
     <!-- 알림 이력 테이블 -->
     <table class="noti-table">
+      <!-- colgroup: 컬럼 폭을 페이지 내용과 무관하게 고정 (page 전환 시 흔들리는 문제 방지) -->
+      <colgroup>
+        <col style="width:14%">
+        <col style="width:10%">
+        <col style="width:12%">
+        <col style="width:30%">
+        <col style="width:10%">
+        <col style="width:12%">
+        <col style="width:12%">
+      </colgroup>
       <thead>
       <tr>
         <th>일시</th>
@@ -97,7 +162,7 @@
                 th:text="${noti.notificationType == 'ATTENDANCE'} ? '출석' : (${noti.notificationType == 'FEE'} ? '회비' : '공지')">유형</span>
         </td>
         <td th:text="${noti.userName}">홍길동</td>
-        <td th:text="${noti.title}">7월 회비 안내</td>
+        <td class="noti-title-cell" th:text="${noti.title}" th:attr="title=${noti.title}">7월 회비 안내</td>
         <td th:text="${noti.sendChannel}">APP</td>
         <td>
           <span class="send-badge"
