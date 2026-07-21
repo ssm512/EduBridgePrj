@@ -55,6 +55,13 @@ public class SettingServiceImpl implements SettingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public String getAcademyName() {
+        String v = getValue("ACADEMY_NAME");
+        return (v == null || v.isBlank()) ? "EduBridge" : v.trim();
+    }
+
+    @Override
     public int getInt(String key, int defaultValue) {
         String v = getValue(key);
         if (v == null) return defaultValue;

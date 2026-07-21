@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>EduBridge · 시스템설정</title>
+  <title th:text="${@branding.name} + ' · 시스템설정'">EduBridge · 시스템설정</title>
   <link rel="stylesheet" href="/css/common.css">
   <style>
     :root { color-scheme: light; }
@@ -72,6 +72,19 @@
   <main class="content">
     <h1>시스템설정</h1>
     <p class="page-sub">출석 검증값과 자동출석·휴일 규칙을 여기서 관리합니다. (저장 즉시 반영, 재배포 불필요)</p>
+
+    <div class="panel">
+      <h2>학원 정보</h2>
+      <p class="hint">여기서 지정한 학원 이름이 웹 브라우저 제목과 앱 상단에 표시됩니다.</p>
+      <div style="display:flex; gap:10px; align-items:flex-end;">
+        <div style="flex:1; max-width:320px;">
+          <label style="display:block; font-size:12px; color:#475569; margin-bottom:4px;">학원 이름</label>
+          <input type="text" id="txt_ACADEMY_NAME" maxlength="60"
+                 style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:7px; font-size:14px;">
+        </div>
+        <button class="btn" onclick="saveAcademyName()">저장</button>
+      </div>
+    </div>
 
     <div class="tabs">
       <button class="tab active" data-tab="auto"   onclick="showTab('auto')">자동출석 · 휴일</button>
@@ -178,6 +191,18 @@
     renderHolidayEditors();
     checkHolidayWarn();
     renderBackfill();
+    renderAcademy();
+  }
+
+  // ── 학원 이름 ──
+  function renderAcademy(){
+    const s = map['ACADEMY_NAME'];
+    document.getElementById('txt_ACADEMY_NAME').value = (s && s.settingValue) ? s.settingValue : 'EduBridge';
+  }
+  async function saveAcademyName(){
+    const v = document.getElementById('txt_ACADEMY_NAME').value.trim();
+    if (v === '') { msg('학원 이름을 입력하세요', false); return; }
+    await putSetting('ACADEMY_NAME', v, '학원 이름 저장됨');
   }
 
   // ── 결석 백필 기간 (경고 + 확인 후 저장) ──

@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>EduBridge · 공지사항</title>
+  <title th:text="${@branding.name} + ' · 공지사항'">EduBridge · 공지사항</title>
   <link rel="stylesheet" href="/css/common.css">
   <style>
     /* ===== 공지 조회 화면 (학생/학부모 공통 패턴) ===== */

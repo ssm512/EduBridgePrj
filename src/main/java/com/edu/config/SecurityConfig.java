@@ -129,6 +129,8 @@ public class SecurityConfig {
                                 "/api/auth/logout-web",
                                 "/api/auth/password-reset"
                         ).permitAll()
+                        // 학원 이름(브랜딩) - 로그인 전에도 표시 가능하게 공개
+                        .requestMatchers(HttpMethod.GET, "/api/branding").permitAll()
 
                         // [추가] 회비관리 API (명세서 FEE-01~09) - API마다 허용 롤이 다름
                         // 컨트롤러의 @PreAuthorize 와 이중 방어. 등록/수정/통계/납부등록/알림발송/삭제: ADMIN

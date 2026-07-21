@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>EduBridge 마이페이지</title>
+  <title th:text="${@branding.name} + ' 마이페이지'">EduBridge 마이페이지</title>
   <link rel="stylesheet" href="/css/common.css">
   <style>
     .content { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; }

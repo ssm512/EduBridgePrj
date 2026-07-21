@@ -20,6 +20,9 @@ public interface SettingService {
     /** 원시 값 (없으면 null) */
     String getValue(String key);
 
+    /** 학원 이름 (미설정/공백이면 'EduBridge') - 웹 타이틀·앱 브랜딩용 */
+    String getAcademyName();
+
     /** 정수값 (없거나 파싱 실패 시 기본값) */
     int getInt(String key, int defaultValue);
 
