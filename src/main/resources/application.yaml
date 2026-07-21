@@ -66,5 +66,11 @@ app:
     enabled: ${MAIL_ENABLED:false}
     from: ${MAIL_FROM:no-reply@edubridge.local}
 
+  # FCM 푸시 발송. enabled=true + credentials-path(서비스계정 JSON)이 있어야 활성.
+  # 미설정(기본)이면 FCM 비활성 - 앱/알림은 정상 동작하고 푸시만 안 나감(팀 빌드 영향 없음).
+  fcm:
+    enabled: ${FCM_ENABLED:false}
+    credentials-path: ${FCM_CREDENTIALS_PATH:}
+
 part1:
   upload-path: ${UPLOAD_PATH}

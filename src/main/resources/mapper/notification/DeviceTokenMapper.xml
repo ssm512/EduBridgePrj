@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.domain.notification.mapper.DeviceTokenMapper">
+
+    <!-- fcm_token UNIQUE 기준 upsert. 같은 기기 토큰이 다른 사용자로 재등록되면 소유자/플랫폼 갱신 -->
+    <insert id="upsert">
+        INSERT INTO device_tokens (user_id, fcm_token, platform)
+        VALUES (#{userId}, #{token}, #{platform})
+        ON CONFLICT (fcm_token) DO UPDATE
+           SET user_id    = EXCLUDED.user_id,
+               platform   = EXCLUDED.platform,
+               updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <delete id="deleteByToken">
+        DELETE FROM device_tokens WHERE fcm_token = #{token}
+    </delete>
+
+    <select id="findTokensByUserId" resultType="string">
+        SELECT fcm_token FROM device_tokens WHERE user_id = #{userId}
+    </select>
+
+</mapper>
