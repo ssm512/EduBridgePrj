@@ -2079,7 +2079,13 @@
             return '';
         }
 
-        return String(value).substring(0, 16);
+        const normalizedValue = String(value).replace(' ', 'T');
+        const date = new Date(normalizedValue);
+        if (Number.isNaN(date.getTime())) {
+            return String(value).substring(0, 16);
+        }
+
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     }
 
     // 선택한 시험의 수강 학생 목록 + 기존 성적 조회

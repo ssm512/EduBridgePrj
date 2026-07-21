@@ -265,7 +265,7 @@
             ${summaryBox('최근 시험', `${escapeHtml(latest.exam_name || '-')} · ${formatNumber(latest.score)}점`, 'good')}
             ${summaryBox('이전 시험 대비', previous ? formatChange(change) : '비교할 이전 성적 없음', change >= 0 ? 'good' : 'warn')}
             ${summaryBox('가장 높았던 시험', `${escapeHtml(best.exam_name || '-')} · ${formatNumber(best.score)}점`, 'good')}
-            ${summaryBox('보완이 필요한 시험', `${escapeHtml(lowest.exam_name || '-')} · ${formatNumber(lowest.score)}점`, 'warn')}
+            ${summaryBox('가장 낮았던 시험', `${escapeHtml(lowest.exam_name || '-')} · ${formatNumber(lowest.score)}점`, 'warn')}
         `;
     }
 
