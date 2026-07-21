@@ -32,9 +32,6 @@ public class FeePaymentHistoryResponse {
     /** 납부 수단 (CASH / TRANSFER / CARD) */
     private String paymentMethod;
 
-    /** 영수증 번호 (있으면) */
-    private String receiptNo;
-
     /** 취소 여부 (Y / N) */
     private String cancelYn;
 

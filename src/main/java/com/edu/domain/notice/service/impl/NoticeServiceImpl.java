@@ -131,7 +131,7 @@ public class NoticeServiceImpl implements NoticeService {
 
     /**
      * NOT-04 공지 수정 (대상 목록은 삭제 후 재등록으로 교체)
-     * [수정 2026-07-16] deleteNotice와 동일하게 이미 삭제(DELETED)된 공지는 수정 불가(409) 처리
+     * [수정 2026-07-20] deleteNotice와 동일하게 이미 삭제(DELETED)된 공지는 수정 불가(409) 처리
      */
     @Override
     @Transactional
@@ -329,7 +329,7 @@ public class NoticeServiceImpl implements NoticeService {
 
     /**
      * targetType != ALL인데 대상이 비어 있으면 400
-     * [수정 2026-07-16] targetIds가 실제 존재하는 대상(class/student/parent/teacher)인지도 함께 검증 (400)
+     * [수정 2026-07-20] targetIds가 실제 존재하는 대상(class/student/parent/teacher)인지도 함께 검증 (400)
      * notice_targets.target_ref_id에 FK 제약이 없어 서비스 레벨에서 막아야 함
      */
     private void validateTargets(String targetType, List<Long> targetIds) {

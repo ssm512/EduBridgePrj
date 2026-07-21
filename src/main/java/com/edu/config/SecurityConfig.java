@@ -154,7 +154,7 @@ public class SecurityConfig {
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 )
 
-                // [추가 2026-07-16] 관리자 초기화 계정(must_change_password=TRUE)은 비밀번호를
+                // [추가 2026-07-20] 관리자 초기화 계정(must_change_password=TRUE)은 비밀번호를
                 // 바꾸기 전까지 /api/**를 못 쓰게 서버에서 강제한다 (코드점검 우선순위3-1 대응).
                 // JWT 인증이 SecurityContext에 채워진 뒤에 돌아야 하므로 그 필터 바로 뒤에 붙인다.
                 .addFilterAfter(new MustChangePasswordFilter(userMapper), BearerTokenAuthenticationFilter.class)

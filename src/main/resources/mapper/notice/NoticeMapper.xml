@@ -217,7 +217,7 @@
          ORDER BY t.target_id
     </select>
 
-    <!-- [추가 2026-07-16] targetIds 중 실제 존재하는 대상 개수 (등록/수정 전 유효성 검증용) -->
+    <!-- [추가 2026-07-20] targetIds 중 실제 존재하는 대상 개수 (등록/수정 전 유효성 검증용) -->
     <select id="countExistingTargets" resultType="long">
         <choose>
             <when test='targetType == "CLASS"'>

@@ -14,7 +14,7 @@
     <select id="findList" resultType="DiscountPolicyVo">
         SELECT * FROM discount_policies
         <include refid="listWhere"/>
-        ORDER BY policy_id DESC
+        ORDER BY discount_policy_id DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
 
@@ -24,17 +24,17 @@
     </select>
 
     <select id="findById" resultType="DiscountPolicyVo">
-        SELECT * FROM discount_policies WHERE policy_id = #{policyId}
+        SELECT * FROM discount_policies WHERE discount_policy_id = #{discountPolicyId}
     </select>
 
     <insert id="insert" parameterType="DiscountPolicyVo"
-            useGeneratedKeys="true" keyProperty="policyId" keyColumn="policy_id">
+            useGeneratedKeys="true" keyProperty="discountPolicyId" keyColumn="discount_policy_id">
         INSERT INTO discount_policies
-            (policy_name, discount_type, discount_value, condition_type,
-             start_date, end_date, active_yn, description)
+            (policy_name, discount_type, discount_value,
+             start_date, end_date, active_yn, description, created_by)
         VALUES
-            (#{policyName}, #{discountType}, #{discountValue}, #{conditionType},
-             #{startDate}, #{endDate}, #{activeYn}, #{description})
+            (#{policyName}, #{discountType}, #{discountValue},
+             #{startDate}, #{endDate}, #{activeYn}, #{description}, #{createdBy})
     </insert>
 
     <update id="update" parameterType="DiscountPolicyVo">
@@ -42,12 +42,12 @@
         SET policy_name    = #{policyName},
             discount_type  = #{discountType},
             discount_value = #{discountValue},
-            condition_type = #{conditionType},
             start_date     = #{startDate},
             end_date       = #{endDate},
             active_yn      = #{activeYn},
-            description    = #{description}
-        WHERE policy_id = #{policyId}
+            description    = #{description},
+            updated_at     = CURRENT_TIMESTAMP
+        WHERE discount_policy_id = #{discountPolicyId}
     </update>
 
 </mapper>

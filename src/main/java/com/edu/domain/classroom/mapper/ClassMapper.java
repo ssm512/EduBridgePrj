@@ -43,18 +43,18 @@ public interface ClassMapper {
     int updateClass(ClassDto clazz);
 
     /**
-     * [추가 2026-07-16] 로그인 강사의 담당반 목록 (teacher/classes 화면)
+     * [추가 2026-07-20] 로그인 강사의 담당반 목록 (teacher/classes 화면)
      * 상태/키워드 + 페이징, classes.teacher_id를 로그인 loginId로 한정
      */
     List<ClassDto> selectMyClasses(@Param("loginId") String loginId, @Param("cond") ClassSearchRequest cond);
 
     /**
-     * [추가 2026-07-16] 로그인 강사의 담당반 전체 건수 (페이징용)
+     * [추가 2026-07-20] 로그인 강사의 담당반 전체 건수 (페이징용)
      */
     long countMyClasses(@Param("loginId") String loginId, @Param("cond") ClassSearchRequest cond);
 
     /**
-     * [추가 2026-07-16] 해당 반이 로그인 강사의 담당반인지 (0이면 담당 아님 → 403, 상세조회 소유권 검증용)
+     * [추가 2026-07-20] 해당 반이 로그인 강사의 담당반인지 (0이면 담당 아님 → 403, 상세조회 소유권 검증용)
      */
     int existsTeacherClass(@Param("loginId") String loginId, @Param("classId") Long classId);
 }

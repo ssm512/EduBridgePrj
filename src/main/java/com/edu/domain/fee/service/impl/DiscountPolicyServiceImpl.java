@@ -7,7 +7,10 @@ import com.edu.domain.fee.dto.response.DiscountPolicyResponse;
 import com.edu.domain.fee.mapper.DiscountPolicyMapper;
 import com.edu.domain.fee.service.DiscountPolicyService;
 import com.edu.domain.fee.vo.DiscountPolicyVo;
+import com.edu.domain.member.dto.UserDto;
+import com.edu.domain.member.mapper.UserMapper;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,9 +24,11 @@ public class DiscountPolicyServiceImpl implements DiscountPolicyService {
     private static final BigDecimal MAX_RATE = BigDecimal.valueOf(100);
 
     private final DiscountPolicyMapper discountPolicyMapper;
+    private final UserMapper userMapper;
 
-    public DiscountPolicyServiceImpl(DiscountPolicyMapper discountPolicyMapper) {
+    public DiscountPolicyServiceImpl(DiscountPolicyMapper discountPolicyMapper, UserMapper userMapper) {
         this.discountPolicyMapper = discountPolicyMapper;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -45,36 +50,46 @@ public class DiscountPolicyServiceImpl implements DiscountPolicyService {
     }
 
     @Override
-    public DiscountPolicyResponse get(Long policyId) {
-        return toResponse(getVo(policyId));
+    public DiscountPolicyResponse get(Long discountPolicyId) {
+        return toResponse(getVo(discountPolicyId));
     }
 
     @Override
     @Transactional
-    public DiscountPolicyResponse create(DiscountPolicyRequest request) {
+    public DiscountPolicyResponse create(DiscountPolicyRequest request, Authentication authentication) {
         validate(request);
         DiscountPolicyVo policy = toEntity(new DiscountPolicyVo(), request);
+        policy.setCreatedBy(resolveCurrentUserId(authentication));
         discountPolicyMapper.insert(policy);
-        return toResponse(getVo(policy.getPolicyId()));
+        return toResponse(getVo(policy.getDiscountPolicyId()));
     }
 
     @Override
     @Transactional
-    public DiscountPolicyResponse update(Long policyId, DiscountPolicyRequest request) {
-        DiscountPolicyVo policy = getVo(policyId);   // 없으면 404
+    public DiscountPolicyResponse update(Long discountPolicyId, DiscountPolicyRequest request) {
+        DiscountPolicyVo policy = getVo(discountPolicyId);   // 없으면 404
         validate(request);
         toEntity(policy, request);
         discountPolicyMapper.update(policy);
-        return toResponse(getVo(policyId));
+        return toResponse(getVo(discountPolicyId));
     }
 
     /** PK 단건 조회 (없으면 404) - create/update 응답 재조회에도 재사용 */
-    private DiscountPolicyVo getVo(Long policyId) {
-        DiscountPolicyVo policy = discountPolicyMapper.findById(policyId);
+    private DiscountPolicyVo getVo(Long discountPolicyId) {
+        DiscountPolicyVo policy = discountPolicyMapper.findById(discountPolicyId);
         if (policy == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 할인정책입니다");
         }
         return policy;
+    }
+
+    /** 로그인 ID(Authentication.getName())로 등록자 PK 조회 - NoticeServiceImpl과 동일 패턴 */
+    private Long resolveCurrentUserId(Authentication authentication) {
+        UserDto user = userMapper.selectByLoginId(authentication.getName());
+        if (user == null) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "사용자 정보를 찾을 수 없습니다");
+        }
+        return user.getUserId();
     }
 
     /** 필드 단위 검증(@Valid)으로 못 잡는 필드 간 규칙 검증 */
@@ -93,7 +108,6 @@ public class DiscountPolicyServiceImpl implements DiscountPolicyService {
         policy.setPolicyName(r.getPolicyName());
         policy.setDiscountType(r.getDiscountType());
         policy.setDiscountValue(r.getDiscountValue());
-        policy.setConditionType(r.getConditionType());
         policy.setStartDate(r.getStartDate());
         policy.setEndDate(r.getEndDate());
         policy.setActiveYn("N".equalsIgnoreCase(r.getActiveYn()) ? "N" : "Y");
@@ -103,16 +117,16 @@ public class DiscountPolicyServiceImpl implements DiscountPolicyService {
 
     private DiscountPolicyResponse toResponse(DiscountPolicyVo v) {
         return DiscountPolicyResponse.builder()
-                .policyId(v.getPolicyId())
+                .discountPolicyId(v.getDiscountPolicyId())
                 .policyName(v.getPolicyName())
                 .discountType(v.getDiscountType())
                 .discountValue(v.getDiscountValue())
-                .conditionType(v.getConditionType())
                 .startDate(v.getStartDate())
                 .endDate(v.getEndDate())
                 .activeYn(v.getActiveYn())
                 .description(v.getDescription())
                 .createdAt(v.getCreatedAt())
+                .updatedAt(v.getUpdatedAt())
                 .build();
     }
 }

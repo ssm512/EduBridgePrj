@@ -15,7 +15,7 @@ import java.time.LocalDate;
 
 /**
  * 할인정책 등록/수정 요청 (FEE-10)
- * POST /api/v1/discount-policies, PUT /api/v1/discount-policies/{policyId}
+ * POST /api/v1/discount-policies, PUT /api/v1/discount-policies/{discountPolicyId}
  */
 @Data
 @Builder
@@ -37,11 +37,6 @@ public class DiscountPolicyRequest {
     @NotNull(message = "할인 값을 입력해주세요")
     @PositiveOrZero(message = "할인 값은 0 이상이어야 합니다")
     private BigDecimal discountValue;
-
-    /** SIBLING / LONG_TERM / MULTI_CLASS / MANUAL 등 - 분류 표기용 (자동 적용판정 없음) */
-    @NotBlank(message = "적용 조건 구분을 선택해주세요")
-    @Size(max = 20, message = "적용 조건 구분은 20자 이내로 입력해주세요")
-    private String conditionType;
 
     /** 적용 시작일 (미입력 시 제한 없음) */
     private LocalDate startDate;
