@@ -13,11 +13,13 @@ import com.edu.domain.fee.dto.response.FeeNotificationTargetResponse;
 import com.edu.domain.fee.dto.response.FeePaymentHistoryResponse;
 import com.edu.domain.fee.dto.response.FeePaymentResponse;
 import com.edu.domain.fee.dto.response.FeeStatisticsResponse;
+import com.edu.domain.fee.dto.response.FeeDiscountResponse;
 import com.edu.domain.fee.dto.response.FeeUpdateResponse;
-import com.edu.domain.fee.mapper.DiscountPolicyMapper;
+import com.edu.domain.fee.mapper.FeeDiscountMapper;
 import com.edu.domain.fee.mapper.FeeMapper;
+import com.edu.domain.fee.service.DiscountPolicyService;
 import com.edu.domain.fee.service.FeeService;
-import com.edu.domain.fee.vo.DiscountPolicyVo;
+import com.edu.domain.fee.vo.FeeDiscountVo;
 import com.edu.domain.fee.vo.FeePaymentVo;
 import com.edu.domain.fee.vo.FeeVo;
 import com.edu.domain.notification.service.NotificationService;
@@ -25,6 +27,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -41,13 +44,15 @@ public class FeeServiceImpl implements FeeService {
 
     private final FeeMapper feeMapper;
     private final NotificationService notificationService;
-    private final DiscountPolicyMapper discountPolicyMapper;
+    private final DiscountPolicyService discountPolicyService;
+    private final FeeDiscountMapper feeDiscountMapper;
 
     public FeeServiceImpl(FeeMapper feeMapper, NotificationService notificationService,
-                          DiscountPolicyMapper discountPolicyMapper) {
+                          DiscountPolicyService discountPolicyService, FeeDiscountMapper feeDiscountMapper) {
         this.feeMapper = feeMapper;
         this.notificationService = notificationService;
-        this.discountPolicyMapper = discountPolicyMapper;
+        this.discountPolicyService = discountPolicyService;
+        this.feeDiscountMapper = feeDiscountMapper;
     }
 
     @Override
@@ -65,7 +70,7 @@ public class FeeServiceImpl implements FeeService {
 
     @Override
     @Transactional  // 클래스 레벨 readOnly 를 쓰기 트랜잭션으로 덮어쓴다
-    public FeeCreateResponse createFee(FeeCreateRequest request) {
+    public FeeCreateResponse createFee(FeeCreateRequest request, Long currentUserId) {
         long feeAmount = request.getFeeAmount();
         // FEE-10: discountPolicyId 가 있으면 정책 기준 자동계산이 discountAmount 직접입력을 대체한다
         long discountAmount = resolveDiscountAmount(request.getDiscountPolicyId(), request.getDiscountAmount(), feeAmount);
@@ -98,6 +103,9 @@ public class FeeServiceImpl implements FeeService {
 
         feeMapper.insertFee(fee);   // useGeneratedKeys 로 fee.feeId 채워짐
 
+        // FEE-15/16(DCP-05): 정책으로 계산된 할인이면 fee_discounts 에 이력 1건을 남긴다
+        recordDiscountHistory(fee.getFeeId(), request.getDiscountPolicyId(), discountAmount, currentUserId);
+
         // 도메인 연동: 회비 등록 시 학생의 학부모에게 납부 안내 알림 생성
         // 알림 생성이 실패하면 회비 등록도 롤백된다 (같은 트랜잭션)
         // TODO(팀 확인): 알림 실패 시 회비 등록까지 취소할지, 분리할지 - 회의 안건
@@ -113,7 +121,7 @@ public class FeeServiceImpl implements FeeService {
 
     @Override
     @Transactional
-    public FeeUpdateResponse updateFee(Long feeId, FeeUpdateRequest request) {
+    public FeeUpdateResponse updateFee(Long feeId, FeeUpdateRequest request, Long currentUserId) {
         FeeVo fee = feeMapper.selectByFeeId(feeId);
         if (fee == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 회비입니다");
@@ -149,6 +157,11 @@ public class FeeServiceImpl implements FeeService {
                 .build();
 
         feeMapper.updateFee(updated);
+
+        // FEE-15/16(DCP-05): 수정 시에도 정책 기준 할인이면 이력을 새로 한 행 남긴다
+        // (재적용/정정 이력을 남기기 위해 매번 새 행 - VO/XML 주석과 동일한 설계)
+        recordDiscountHistory(feeId, request.getDiscountPolicyId(), discountAmount, currentUserId);
+
         return new FeeUpdateResponse(feeId, statusCode);
     }
 
@@ -224,6 +237,32 @@ public class FeeServiceImpl implements FeeService {
     }
 
     @Override
+    public List<FeeDiscountResponse> getDiscountHistory(Long feeId, Long parentUserId, Long studentUserId) {
+        // 존재하지 않는 회비면 404 - getPaymentHistory 와 동일한 이유(빈 목록과 구분)
+        if (feeMapper.selectByFeeId(feeId) == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 회비입니다");
+        }
+        // FEE-14 스코핑: getPaymentHistory 와 동일한 규칙 재사용 (본인 자녀/본인 회비가 아니면 403)
+        if (parentUserId != null && !feeMapper.existsFeeForParent(feeId, parentUserId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "본인 자녀의 회비만 조회할 수 있습니다");
+        }
+        if (studentUserId != null && !feeMapper.existsFeeForStudent(feeId, studentUserId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "본인 회비만 조회할 수 있습니다");
+        }
+        return feeDiscountMapper.findByFeeId(feeId).stream()
+                .map(v -> FeeDiscountResponse.builder()
+                        .feeDiscountId(v.getFeeDiscountId())
+                        .feeId(v.getFeeId())
+                        .discountPolicyId(v.getDiscountPolicyId())
+                        .discountAmount(v.getDiscountAmount())
+                        .reason(v.getReason())
+                        .appliedBy(v.getAppliedBy())
+                        .createdAt(v.getCreatedAt())
+                        .build())
+                .toList();
+    }
+
+    @Override
     @Transactional
     public void deleteFee(Long feeId) {
         FeeVo fee = feeMapper.selectByFeeId(feeId);
@@ -238,6 +277,12 @@ public class FeeServiceImpl implements FeeService {
             throw new ApiException(HttpStatus.CONFLICT,
                     "납부 이력이 " + paymentCount + "건 있는 회비는 삭제할 수 없습니다. 잘못 등록된 건만 삭제 가능합니다");
         }
+
+        // fee_discounts.fee_id -> fees.fee_id FK (ON DELETE CASCADE 없음) 방어:
+        // 할인정책 적용 이력이 남아있으면 회비 삭제 시 FK 위반(500)이 나므로 먼저 지운다.
+        // fee_discounts 는 fee_payments 와 달리 "돈이 오간 기록"이 아니라 시스템이 남긴 계산 스냅샷이라
+        // 삭제를 막을 이유 없이 함께 지워도 된다고 판단함.
+        feeDiscountMapper.deleteByFeeId(feeId);
 
         feeMapper.deleteFee(feeId);
     }
@@ -324,26 +369,31 @@ public class FeeServiceImpl implements FeeService {
     /**
      * FEE-10 할인 금액 결정.
      * discountPolicyId 가 없으면 기존처럼 관리자가 입력한 discountAmount 를 그대로 쓴다(하위호환).
-     * discountPolicyId 가 있으면 정책을 조회해 활성/기간 여부를 검증하고, 정책 기준으로 자동계산한
-     * 금액이 manualDiscountAmount 를 무시하고 우선한다. 계산된 할인액이 청구액을 넘지 않도록 캡한다.
+     * discountPolicyId 가 있으면 DiscountPolicyService.preview() 로 활성/기간 검증 + 계산을 위임한다
+     * (DCP-04 미리보기 API 와 계산 로직을 이원화하지 않기 위함 - 404/400 예외도 그대로 전파됨).
      */
     private long resolveDiscountAmount(Long discountPolicyId, Long manualDiscountAmount, long feeAmount) {
         if (discountPolicyId == null) {
             return manualDiscountAmount == null ? 0L : manualDiscountAmount;
         }
+        return discountPolicyService.preview(discountPolicyId, feeAmount).getDiscountAmount();
+    }
 
-        DiscountPolicyVo policy = discountPolicyMapper.findById(discountPolicyId);
-        if (policy == null) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 할인정책입니다");
+    /**
+     * FEE-15/16(DCP-05): discountPolicyId 로 계산된 할인일 때만 fee_discounts 에 이력을 남긴다.
+     * 관리자가 discountAmount 를 직접 입력한 경우(discountPolicyId 없음)는 정책 적용이 아니므로 이력을 남기지 않는다.
+     * fee_discounts.applied_by 는 NOT NULL 이므로 currentUserId 가 반드시 있어야 한다(컨트롤러가 JWT 에서 채움).
+     */
+    private void recordDiscountHistory(Long feeId, Long discountPolicyId, long discountAmount, Long currentUserId) {
+        if (discountPolicyId == null) {
+            return;
         }
-        if (!policy.isActive()) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "비활성화된 할인정책은 적용할 수 없습니다");
-        }
-        if (!policy.isWithinPeriod(LocalDate.now())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "할인정책 적용 기간이 아닙니다");
-        }
-
-        long calculated = policy.calculateDiscountAmount(feeAmount);
-        return Math.min(calculated, feeAmount);
+        FeeDiscountVo history = FeeDiscountVo.builder()
+                .feeId(feeId)
+                .discountPolicyId(discountPolicyId)
+                .discountAmount(BigDecimal.valueOf(discountAmount))
+                .appliedBy(currentUserId)
+                .build();
+        feeDiscountMapper.insert(history);
     }
 }
