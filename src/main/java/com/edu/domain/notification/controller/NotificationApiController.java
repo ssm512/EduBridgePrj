@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 알림 생성 API 는 없음 - 각 도메인 이벤트가 NotificationService 를 내부 호출해서 생성
  */
 @RestController
-@RequestMapping("/api/v1/notifications")
+@RequestMapping("/api/notifications")
 public class NotificationApiController {
 
     private final NotificationService notificationService;
@@ -29,7 +29,7 @@ public class NotificationApiController {
     }
 
     /**
-     * GET /api/v1/notifications - 알림 이력 조회 (NTI-01)
+     * GET /api/notifications - 알림 이력 조회 (NTI-01)
      * ?userName=&notificationType=&readYn=&page=1&size=10
      * userName(수신자 이름 부분검색)은 ADMIN 화면 필터용.
      * 비-ADMIN 역할은 서비스에서 본인 알림(userId)으로 강제된다.
@@ -43,7 +43,7 @@ public class NotificationApiController {
                 currentUserId(authentication), isAdmin(authentication));
     }
 
-    /** PUT /api/v1/notifications/{notificationId}/read - 알림 읽음 처리 (NTI-02, 멱등) */
+    /** PUT /api/notifications/{notificationId}/read - 알림 읽음 처리 (NTI-02, 멱등) */
     @PutMapping("/{notificationId}/read")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT', 'STUDENT')")
     public NotificationReadResponse markRead(@PathVariable Long notificationId,
