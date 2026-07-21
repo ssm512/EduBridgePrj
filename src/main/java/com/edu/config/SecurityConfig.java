@@ -130,6 +130,27 @@ public class SecurityConfig {
                                 "/api/auth/password-reset"
                         ).permitAll()
 
+                        // [추가] 회비관리 API (명세서 FEE-01~09) - API마다 허용 롤이 다름
+                        // 컨트롤러의 @PreAuthorize 와 이중 방어. 등록/수정/통계/납부등록/알림발송/삭제: ADMIN
+                        // 목록/납부이력 조회: 4개 롤 (본인·자녀 회비만 보이도록 하는 필터는 서비스에서 처리)
+                        .requestMatchers(HttpMethod.GET, "/api/fees")
+                            .hasAnyRole("ADMIN", "TEACHER", "PARENT", "STUDENT")
+                        .requestMatchers(HttpMethod.POST, "/api/fees").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/fees/statistics").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/fees/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/fees/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/fees/*/payments").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/fees/*/payments")
+                            .hasAnyRole("ADMIN", "TEACHER", "PARENT", "STUDENT")
+                        .requestMatchers(HttpMethod.POST, "/api/fees/notifications/run").hasRole("ADMIN")
+
+                        // [추가] 회비 납부 취소 API (명세서 FEE-05) - ADMIN 전용
+                        .requestMatchers(HttpMethod.PUT, "/api/fee-payments/*/cancel").hasRole("ADMIN")
+
+                        // [추가] 할인정책관리 API (명세서 FEE-10) - 컨트롤러 클래스 레벨 @PreAuthorize("hasRole('ADMIN')")와 이중 방어
+                        // 목록/단건조회/등록/수정 전부 ADMIN 전용 (삭제 API 없음 - active_yn 토글로 대체)
+                        .requestMatchers("/api/discount-policies", "/api/discount-policies/**").hasRole("ADMIN")
+
                         // ===== 서버 렌더링 페이지: 역할별 접근 제어 =====
                         // 로그인 후 진입점(디스패처). 인증만 되어 있으면 됨.
                         .requestMatchers("/home").authenticated()

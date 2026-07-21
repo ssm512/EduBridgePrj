@@ -500,7 +500,7 @@
     const select = document.getElementById(selectId);
     select.length = 1; // "직접 입력" 옵션만 남기고 초기화
 
-    const res = await fetch('/api/v1/discount-policies?activeOnly=true&size=100');
+    const res = await fetch('/api/discount-policies?activeOnly=true&size=100');
     if (!res.ok) {
       const opt = document.createElement('option');
       opt.disabled = true;
@@ -572,7 +572,7 @@
       description:    form.get('description') || null
     };
 
-    const res = await feeApi('/api/v1/fees', 'POST', body);
+    const res = await feeApi('/api/fees', 'POST', body);
     await handleResult(res, '등록 실패');
   });
 
@@ -601,7 +601,7 @@
       description:    form.get('description') || null
     };
 
-    const res = await feeApi('/api/v1/fees/' + form.get('feeId'), 'PUT', body);
+    const res = await feeApi('/api/fees/' + form.get('feeId'), 'PUT', body);
     await handleResult(res, '수정 실패');
   });
 
@@ -624,7 +624,7 @@
       // paidAt 은 생략 -> 서버에서 현재 시각 사용
     };
 
-    const res = await feeApi('/api/v1/fees/' + form.get('feeId') + '/payments', 'POST', body);
+    const res = await feeApi('/api/fees/' + form.get('feeId') + '/payments', 'POST', body);
     await handleResult(res, '납부 실패');
   });
 
@@ -633,7 +633,7 @@
   async function cancelPayment(btn) {
     if (!confirm('가장 최근 납부 내역을 취소하시겠습니까?')) return;
 
-    const res = await feeApi('/api/v1/fee-payments/' + btn.dataset.paymentId + '/cancel', 'PUT', null);
+    const res = await feeApi('/api/fee-payments/' + btn.dataset.paymentId + '/cancel', 'PUT', null);
     await handleResult(res, '납부 취소 실패');
   }
 
@@ -643,7 +643,7 @@
     const target = btn.dataset.studentName + ' / ' + btn.dataset.billingMonth;
     if (!confirm('[' + target + '] 회비 청구를 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.')) return;
 
-    const res = await feeApi('/api/v1/fees/' + btn.dataset.feeId, 'DELETE', null);
+    const res = await feeApi('/api/fees/' + btn.dataset.feeId, 'DELETE', null);
     await handleResult(res, '삭제 실패');
   }
 
@@ -665,7 +665,7 @@
     loadingRow.cells[0].textContent = '불러오는 중...';
     modal.showModal();
 
-    const res = await fetch('/api/v1/fees/' + feeId + '/payments');
+    const res = await fetch('/api/fees/' + feeId + '/payments');
     if (!res.ok) {
       body.innerHTML = '';
       const row = body.insertRow();
@@ -696,22 +696,4 @@
       const canceled = p.cancelYn === 'Y';
       if (canceled) row.className = 'fee-history-canceled';
 
-      // 납부일시: 'T' 를 공백으로 바꿔 보기 좋게 (없으면 '-')
-      row.insertCell().textContent = p.paidAt ? p.paidAt.replace('T', ' ').substring(0, 16) : '-';
-      row.insertCell().textContent = Number(p.paidAmount).toLocaleString() + '원';
-      row.insertCell().textContent = paymentMethodLabel(p.paymentMethod);
-      row.insertCell().textContent = canceled ? '취소됨' : '정상';
-    });
-  }
-
-  function paymentMethodLabel(code) {
-    switch (code) {
-      case 'CASH':     return '현금';
-      case 'TRANSFER': return '계좌이체';
-      case 'CARD':     return '카드';
-      default:         return code || '-';
-    }
-  }
-</script>
-</body>
-</html>
+      // 납부일시: 'T' 를 공백으로 바꿔 보기 좋게 (

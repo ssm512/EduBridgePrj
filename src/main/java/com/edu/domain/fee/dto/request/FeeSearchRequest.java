@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * 회비 목록 조회 검색 조건 (FEE-06 목록 / FEE-07 미납 조회)
- * GET /api/v1/fees?studentId=&billingMonth=&statusCode=&overdueOnly=&page=&size=
+ * GET /api/fees?studentId=&billingMonth=&statusCode=&overdueOnly=&page=&size=
  */
 @Data
 @Builder

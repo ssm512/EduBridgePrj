@@ -113,7 +113,7 @@
     const month = document.getElementById('statsMonth').value;
     const query = month ? '?billingMonth=' + month : '';   // 미선택이면 서버가 이번 달로 처리
 
-    const res = await fetch('/api/v1/fees/statistics' + query);
+    const res = await fetch('/api/fees/statistics' + query);
     if (!res.ok) {
       const error = await res.json();
       alert('통계 조회 실패: ' + (error.message || res.status));

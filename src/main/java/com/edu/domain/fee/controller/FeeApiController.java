@@ -34,10 +34,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 회비 REST API (FEE-01 ~ 06)
- * base path 는 API 명세서 공통규격(/api/v1) 기준
+ * base path 는 API 명세서 공통규격(/api) 기준
  */
 @RestController
-@RequestMapping("/api/v1/fees")
+@RequestMapping("/api/fees")
 public class FeeApiController {
 
     private final FeeService feeService;
@@ -50,7 +50,7 @@ public class FeeApiController {
     }
 
     /**
-     * GET /api/v1/fees - 회비 목록/납부 이력 조회 (FEE-06) + 미납 조회 (FEE-07)
+     * GET /api/fees - 회비 목록/납부 이력 조회 (FEE-06) + 미납 조회 (FEE-07)
      * ?studentId=&billingMonth=YYYY-MM&statusCode=&overdueOnly=true&page=1&size=10
      * overdueOnly=true 면 납부 기한이 지난 미완납 건만 조회 (FEE-07)
      * FEE-14: PARENT 는 본인 자녀 회비만, STUDENT 는 본인 회비만 조회.
@@ -75,7 +75,7 @@ public class FeeApiController {
         return feeService.getFeeList(search);
     }
 
-    /** POST /api/v1/fees - 회비 등록 (FEE-01) */
+    /** POST /api/fees - 회비 등록 (FEE-01) */
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
@@ -84,7 +84,7 @@ public class FeeApiController {
     }
 
     /**
-     * GET /api/v1/fees/statistics - 회비 통계 (FEE-06)
+     * GET /api/fees/statistics - 회비 통계 (FEE-06)
      * ?billingMonth=YYYY-MM(기본: 이번 달)&classId=
      * 주의: /{feeId} 같은 경로 변수 매핑이 생기면 /statistics 가 먼저 매칭되는지 확인 필요
      *      (Spring 은 정확히 일치하는 패턴을 우선하므로 현재는 문제 없음)
@@ -96,7 +96,7 @@ public class FeeApiController {
         return feeService.getStatistics(billingMonth, classId);
     }
 
-    /** PUT /api/v1/fees/{feeId} - 회비 수정 (FEE-03) */
+    /** PUT /api/fees/{feeId} - 회비 수정 (FEE-03) */
     @PutMapping("/{feeId}")
     @PreAuthorize("hasAnyRole('ADMIN')")
     public FeeUpdateResponse updateFee(@PathVariable Long feeId,
@@ -104,7 +104,7 @@ public class FeeApiController {
         return feeService.updateFee(feeId, request);
     }
 
-    /** POST /api/v1/fees/{feeId}/payments - 납부 처리 (FEE-04) */
+    /** POST /api/fees/{feeId}/payments - 납부 처리 (FEE-04) */
     @PostMapping("/{feeId}/payments")
     @PreAuthorize("hasAnyRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
@@ -114,7 +114,7 @@ public class FeeApiController {
     }
 
     /**
-     * GET /api/v1/fees/{feeId}/payments - 회비 1건의 납부 이력 조회 (FEE-06)
+     * GET /api/fees/{feeId}/payments - 회비 1건의 납부 이력 조회 (FEE-06)
      * 취소분 포함, 최신순. POST 와 경로는 같지만 HTTP 메서드가 달라 매핑 충돌 없음.
      */
     @GetMapping("/{feeId}/payments")
@@ -135,7 +135,7 @@ public class FeeApiController {
     }
 
     /**
-     * POST /api/v1/fees/notifications/run - 회비 예정/미납 알림 배치 수동 실행 (FEE-08/09)
+     * POST /api/fees/notifications/run - 회비 예정/미납 알림 배치 수동 실행 (FEE-08/09)
      * 정상 운영에서는 매일 스케줄러가 자동 실행하지만, 즉시 실행/테스트가 필요할 때 사용.
      * 명세서 외 추가. 경로가 2세그먼트(notifications/run)라 /{feeId} 매핑과 충돌 없음.
      */
@@ -148,7 +148,7 @@ public class FeeApiController {
     }
 
     /**
-     * DELETE /api/v1/fees/{feeId} - 회비 삭제 (명세서 외 추가, 2026-07-15)
+     * DELETE /api/fees/{feeId} - 회비 삭제 (명세서 외 추가, 2026-07-15)
      * 잘못 등록된 청구 정리용. 납부 이력(취소분 포함)이 있으면 409.
      * 근거: 잘못 등록된 UNPAID 건이 미납 통계를 오염시키는 문제 해결 - 팀 공유 안건
      */

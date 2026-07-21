@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 리소스가 fee 가 아니라 fee-payment 이므로 base path 를 분리 (API 명세서 FEE-05 경로 기준)
  */
 @RestController
-@RequestMapping("/api/v1/fee-payments")
+@RequestMapping("/api/fee-payments")
 public class FeePaymentApiController {
 
     private final FeeService feeService;
@@ -23,7 +23,7 @@ public class FeePaymentApiController {
     }
 
     /**
-     * PUT /api/v1/fee-payments/{paymentId}/cancel - 납부 취소 (FEE-05)
+     * PUT /api/fee-payments/{paymentId}/cancel - 납부 취소 (FEE-05)
      * 이력 삭제가 아닌 cancel_yn = 'Y' 처리 후 회비 상태 재계산
      * TODO(팀 확인): 명세의 cancelReason 파라미터는 저장할 컬럼이 없어 미구현 - 회의 안건
      */
