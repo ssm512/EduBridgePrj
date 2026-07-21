@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="/css/common.css">
   <style>
     /* ===== 회비 조회 화면 (학생 본인, FEE-14 확장) =====
-       - parent/fees.html 과 동일한 방식으로 GET /api/v1/fees, GET /api/v1/fees/{feeId}/payments 를
+       - parent/fees.html 과 동일한 방식으로 GET /api/fees, GET /api/fees/{feeId}/payments 를
          JS 로 fetch 해서 채운다. 학생은 본인 회비만 보이므로 "자녀" 열은 없다.
        - 조회 전용 화면이라 등록/수정/삭제/납부 처리 버튼은 없다. */
     .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
@@ -117,7 +117,7 @@
   </main>
 </div>
 
-<!-- 납부 내역 모달 (취소분 포함) : GET /api/v1/fees/{feeId}/payments -->
+<!-- 납부 내역 모달 (취소분 포함) : GET /api/fees/{feeId}/payments -->
 <div class="modal-back" id="historyModalBack">
   <div class="modal">
     <h2>납부 내역</h2>
@@ -137,9 +137,9 @@
 <script th:replace="~{fragments/common :: logoutScript}"></script>
 <script>
   /* ===== 학생 본인 회비 조회 화면 로직 (FEE-14 확장) =====
-     - 목록: GET /api/v1/fees?billingMonth=&statusCode=&overdueOnly=&page=&size=
+     - 목록: GET /api/fees?billingMonth=&statusCode=&overdueOnly=&page=&size=
              서버(FeeApiController)가 JWT userId 로 "본인 회비"만 강제 필터링해서 내려준다.
-     - 이력: GET /api/v1/fees/{feeId}/payments (취소분 포함) */
+     - 이력: GET /api/fees/{feeId}/payments (취소분 포함) */
 
   const STATUS_LABEL = { PAID: '납부완료', UNPAID: '미납', SCHEDULED: '예정' };
   const METHOD_LABEL = { CASH: '현금', TRANSFER: '계좌이체', CARD: '카드' };
@@ -165,7 +165,7 @@
     if (statusCode) params.set('statusCode', statusCode);
     if (overdueOnly) params.set('overdueOnly', 'true');
 
-    const res = await fetch('/api/v1/fees?' + params);
+    const res = await fetch('/api/fees?' + params);
     if (!res.ok) {
       document.getElementById('feeRows').innerHTML =
         '<tr><td class="empty" colspan="6">목록 조회 실패 (' + res.status + ')</td></tr>';
@@ -225,7 +225,7 @@
     rows.innerHTML = '<tr><td colspan="4">불러오는 중…</td></tr>';
     modal.classList.add('show');
 
-    const res = await fetch('/api/v1/fees/' + feeId + '/payments');
+    const res = await fetch('/api/fees/' + feeId + '/payments');
     if (!res.ok) {
       rows.innerHTML = '<tr><td colspan="4">납부 내역 조회 실패 (' + res.status + ')</td></tr>';
       return;

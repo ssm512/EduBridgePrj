@@ -12,7 +12,7 @@ import java.time.LocalDate;
 
 /**
  * 회비 수정 요청 (FEE-03)
- * PUT /api/v1/fees/{feeId} - 금액, 할인, 납부기한, 비고만 수정 가능
+ * PUT /api/fees/{feeId} - 금액, 할인, 납부기한, 비고만 수정 가능
  */
 @Data
 @Builder

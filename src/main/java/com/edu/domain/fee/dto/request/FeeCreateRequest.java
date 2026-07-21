@@ -14,7 +14,7 @@ import java.time.LocalDate;
 
 /**
  * 회비 등록 요청 (FEE-01)
- * POST /api/v1/fees
+ * POST /api/fees
  */
 @Data
 @Builder

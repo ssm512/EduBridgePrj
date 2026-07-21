@@ -15,7 +15,7 @@ import java.time.LocalDate;
 
 /**
  * 할인정책 등록/수정 요청 (FEE-10)
- * POST /api/v1/discount-policies, PUT /api/v1/discount-policies/{discountPolicyId}
+ * POST /api/discount-policies, PUT /api/discount-policies/{discountPolicyId}
  */
 @Data
 @Builder

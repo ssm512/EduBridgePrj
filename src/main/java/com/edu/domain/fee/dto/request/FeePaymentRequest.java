@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 
 /**
  * 납부 처리 요청 (FEE-04)
- * POST /api/v1/fees/{feeId}/payments
+ * POST /api/fees/{feeId}/payments
  */
 @Data
 @Builder

@@ -28,4 +28,4 @@ public class DiscountPolicyResponse {
     private String description;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-}
+}

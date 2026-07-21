@@ -248,7 +248,7 @@
       description:    form.get('description') || null
     };
 
-    const res = await dpApi('/api/v1/discount-policies', 'POST', body);
+    const res = await dpApi('/api/discount-policies', 'POST', body);
     await handleResult(res, '등록 실패');
   });
 
@@ -281,7 +281,7 @@
       description:    form.get('description') || null
     };
 
-    const res = await dpApi('/api/v1/discount-policies/' + form.get('discountPolicyId'), 'PUT', body);
+    const res = await dpApi('/api/discount-policies/' + form.get('discountPolicyId'), 'PUT', body);
     await handleResult(res, '수정 실패');
   });
 </script>

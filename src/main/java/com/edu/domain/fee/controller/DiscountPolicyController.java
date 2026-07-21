@@ -20,12 +20,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 할인정책 REST API (FEE-10)
- * base path 는 API 명세서 공통규격(/api/v1) 기준, 회비(fees)와 같은 도메인 패키지.
+ * base path 는 API 명세서 공통규격(/api) 기준, 회비(fees)와 같은 도메인 패키지.
  * 회비 등록/수정이 ADMIN 전용인 것과 동일하게, 정책 조회/관리도 ADMIN 전용으로 제한한다.
  * 삭제 API 는 제공하지 않는다 - 이미 회비에 참조된 정책이 있을 수 있어 active_yn 토글(PUT)로만 비활성화한다.
  */
 @RestController
-@RequestMapping("/api/v1/discount-policies")
+@RequestMapping("/api/discount-policies")
 @PreAuthorize("hasRole('ADMIN')")
 public class DiscountPolicyController {
 
@@ -35,7 +35,7 @@ public class DiscountPolicyController {
         this.discountPolicyService = discountPolicyService;
     }
 
-    /** GET /api/v1/discount-policies?activeOnly=&page=&size= - 목록 조회 */
+    /** GET /api/discount-policies?activeOnly=&page=&size= - 목록 조회 */
     @GetMapping
     public PageResponse<DiscountPolicyResponse> getList(@RequestParam(defaultValue = "false") boolean activeOnly,
                                                          @RequestParam(defaultValue = "1") int page,
@@ -43,13 +43,13 @@ public class DiscountPolicyController {
         return discountPolicyService.getList(activeOnly, page, size);
     }
 
-    /** GET /api/v1/discount-policies/{discountPolicyId} - 단건 조회 */
+    /** GET /api/discount-policies/{discountPolicyId} - 단건 조회 */
     @GetMapping("/{discountPolicyId}")
     public DiscountPolicyResponse get(@PathVariable Long discountPolicyId) {
         return discountPolicyService.get(discountPolicyId);
     }
 
-    /** POST /api/v1/discount-policies - 등록 (등록자 = 로그인 사용자) */
+    /** POST /api/discount-policies - 등록 (등록자 = 로그인 사용자) */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public DiscountPolicyResponse create(@Valid @RequestBody DiscountPolicyRequest request,
@@ -57,10 +57,10 @@ public class DiscountPolicyController {
         return discountPolicyService.create(request, authentication);
     }
 
-    /** PUT /api/v1/discount-policies/{discountPolicyId} - 수정 (활성/비활성 전환 포함) */
+    /** PUT /api/discount-policies/{discountPolicyId} - 수정 (활성/비활성 전환 포함) */
     @PutMapping("/{discountPolicyId}")
     public DiscountPolicyResponse update(@PathVariable Long discountPolicyId,
-                                         @Valid @RequestBody DiscountPolicyRequest request) {
+                                          @Valid @RequestBody DiscountPolicyRequest request) {
         return discountPolicyService.update(discountPolicyId, request);
     }
 }
