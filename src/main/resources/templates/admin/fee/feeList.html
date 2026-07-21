@@ -14,6 +14,7 @@
        .status-paid / .status-unpaid / .status-scheduled : 상태별 색상
        .fee-actions   : 행 우측 관리 버튼 영역
        .fee-paid-info : 부분납부 시 금액 옆 청구/납부 병기 (작은 글씨)
+       .fee-discount-info : 할인 금액 옆 사유(정책명/직접입력) 병기 (작은 글씨, FEE-10)
        .fee-student-info : 학생 이름 옆 학번/생년월일 병기 (작은 글씨, 동명이인 구분)
        .fee-paging    : 페이지네이션
        .empty-row     : 데이터 없음 표시 행
@@ -41,6 +42,7 @@
     <div class="group-label">학생</div>
     <a href="/admin/attendance">출석관리</a>
     <a href="/admin/fees">회비관리</a>
+    <a href="/admin/discount-policies">할인정책관리</a>
     <a href="/admin/grades">성적관리</a>
     <div class="group-label">소통</div>
     <a href="/admin/notices">공지관리</a>
@@ -117,8 +119,15 @@
         <label>청구 금액
           <input type="number" name="feeAmount" required min="0" step="1000">
         </label>
+        <!-- 할인정책(FEE-10) 선택 시 서버가 정책 기준으로 discountAmount 를 자동 계산하고
+             수동 입력값은 무시하므로, 정책 선택 중엔 할인 금액 입력을 비활성화한다 -->
+        <label>할인정책 (선택)
+          <select name="discountPolicyId" id="discountPolicySelect" onchange="onDiscountPolicyChange(this, 'discountAmountInput')">
+            <option value="">직접 입력</option>
+          </select>
+        </label>
         <label>할인 금액
-          <input type="number" name="discountAmount" min="0" step="1000" placeholder="0">
+          <input type="number" name="discountAmount" id="discountAmountInput" min="0" step="1000" placeholder="0">
         </label>
         <label>납부 기한
           <input type="date" name="dueDate" required>
@@ -143,8 +152,13 @@
         <label>청구 금액
           <input type="number" name="feeAmount" required min="0" step="1000">
         </label>
+        <label>할인정책 (선택)
+          <select name="discountPolicyId" id="discountPolicySelectUpdate" onchange="onDiscountPolicyChange(this, 'discountAmountInputUpdate')">
+            <option value="">직접 입력</option>
+          </select>
+        </label>
         <label>할인 금액
-          <input type="number" name="discountAmount" min="0" step="1000" placeholder="0">
+          <input type="number" name="discountAmount" id="discountAmountInputUpdate" min="0" step="1000" placeholder="0">
         </label>
         <label>납부 기한
           <input type="date" name="dueDate" required>
@@ -218,6 +232,7 @@
         <th>학생</th>
         <th>반</th>
         <th>남은 금액</th>
+        <th>할인</th>
         <th>납부기한</th>
         <th>상태</th>
         <th>관리</th>
@@ -239,6 +254,15 @@
           <small class="fee-paid-info" th:if="${fee.paidSum > 0}"
                  th:text="'(청구 ' + ${#numbers.formatInteger(fee.billableAmount, 1, 'COMMA')} + ' / 납부 ' + ${#numbers.formatInteger(fee.paidSum, 1, 'COMMA')} + ')'">(청구 300,000 / 납부 100,000)</small>
         </td>
+        <td>
+          <!-- 할인 금액이 메인, 사유(정책명 또는 직접입력)는 작게 병기.
+               discountPolicyName 이 없어도 discountAmount 만 있는 경우(수동 할인)가 있어 금액 기준으로 분기 -->
+          <span th:if="${fee.discountAmount != null and fee.discountAmount > 0}"
+                th:text="${#numbers.formatInteger(fee.discountAmount, 1, 'COMMA')} + '원'">30,000원</span>
+          <span th:unless="${fee.discountAmount != null and fee.discountAmount > 0}">-</span>
+          <small class="fee-discount-info" th:if="${fee.discountAmount != null and fee.discountAmount > 0}"
+                 th:text="'(' + (${fee.discountPolicyName} ?: '직접입력') + ')'">(형제할인)</small>
+        </td>
         <td th:text="${fee.dueDate}">2026-07-25</td>
         <td>
           <span class="status-badge"
@@ -253,7 +277,7 @@
                   onclick="openFeePaymentModal(this)">납부</button>
           <!-- 수정(FEE-03): 현재 값을 data-* 로 실어서 모달에 프리필 -->
           <button type="button"
-                  th:attr="data-fee-id=${fee.feeId}, data-fee-amount=${fee.feeAmount}, data-discount-amount=${fee.discountAmount}, data-due-date=${fee.dueDate}, data-description=${fee.description}"
+                  th:attr="data-fee-id=${fee.feeId}, data-fee-amount=${fee.feeAmount}, data-discount-amount=${fee.discountAmount}, data-discount-policy-id=${fee.discountPolicyId}, data-due-date=${fee.dueDate}, data-description=${fee.description}"
                   onclick="openFeeUpdateModal(this)">수정</button>
           <!-- 납부취소(FEE-05): 유효 납부 이력이 있을 때만 활성 (가장 최근 이력 취소) -->
           <button type="button"
@@ -275,7 +299,7 @@
         </td>
       </tr>
       <tr th:if="${#lists.isEmpty(feePage.items)}" class="empty-row">
-        <td colspan="7">조회된 회비 내역이 없습니다.</td>
+        <td colspan="8">조회된 회비 내역이 없습니다.</td>
       </tr>
       </tbody>
     </table>
@@ -470,9 +494,55 @@
     if (e.key === 'Enter') e.preventDefault();
   });
 
+  // ===== 할인정책 select 옵션 로딩 (FEE-10) =====
+  // 활성 정책만 노출. 정책을 고르면 서버가 자동으로 discountAmount 를 계산하고
+  // 수동 입력값은 무시하므로, 정책 선택 중엔 할인 금액 입력을 잠가서 혼동을 막는다.
+  async function loadDiscountPolicyOptions(selectId, selectedPolicyId, amountInputId) {
+    const select = document.getElementById(selectId);
+    select.length = 1; // "직접 입력" 옵션만 남기고 초기화
+
+    const res = await fetch('/api/v1/discount-policies?activeOnly=true&size=100');
+    if (!res.ok) {
+      const opt = document.createElement('option');
+      opt.disabled = true;
+      opt.textContent = '할인정책 로딩 실패 (' + res.status + ')';
+      select.appendChild(opt);
+      return;
+    }
+
+    const page = await res.json();
+    page.items.forEach(function (p) {
+      const opt = document.createElement('option');
+      opt.value = p.policyId;
+      opt.textContent = p.policyName
+        + (p.discountType === 'RATE' ? ' (' + p.discountValue + '%)' : ' (' + Number(p.discountValue).toLocaleString() + '원)');
+      select.appendChild(opt);
+    });
+
+    if (selectedPolicyId) {
+      select.value = String(selectedPolicyId);
+    }
+    onDiscountPolicyChange(select, amountInputId); // 선택 상태에 맞춰 할인 금액 입력 잠금/해제 동기화
+  }
+
+  // 정책을 선택하면 수동 할인 금액 입력을 비활성화(서버가 정책 기준으로 자동 계산),
+  // "직접 입력"으로 되돌리면 다시 활성화
+  function onDiscountPolicyChange(select, amountInputId) {
+    const amountInput = document.getElementById(amountInputId);
+    if (select.value) {
+      amountInput.value = '';
+      amountInput.disabled = true;
+      amountInput.placeholder = '정책 적용 시 자동 계산';
+    } else {
+      amountInput.disabled = false;
+      amountInput.placeholder = '0';
+    }
+  }
+
   // ===== 회비 등록 (FEE-01) =====
   function openFeeCreateModal() {
     loadClassOptions(); // 비동기 로딩 - 모달은 먼저 열리고 옵션이 채워짐
+    loadDiscountPolicyOptions('discountPolicySelect', null, 'discountAmountInput');
     document.getElementById('feeCreateModal').showModal();
   }
 
@@ -498,6 +568,7 @@
       billingMonth:   form.get('billingMonth'),
       feeAmount:      Number(form.get('feeAmount')),
       discountAmount: form.get('discountAmount') ? Number(form.get('discountAmount')) : 0,
+      discountPolicyId: form.get('discountPolicyId') ? Number(form.get('discountPolicyId')) : null,
       dueDate:        form.get('dueDate'),
       description:    form.get('description') || null
     };
@@ -515,6 +586,7 @@
     form.discountAmount.value = btn.dataset.discountAmount || 0;
     form.dueDate.value        = btn.dataset.dueDate;
     form.description.value    = btn.dataset.description || '';
+    loadDiscountPolicyOptions('discountPolicySelectUpdate', btn.dataset.discountPolicyId, 'discountAmountInputUpdate');
     document.getElementById('feeUpdateModal').showModal();
   }
 
@@ -525,6 +597,7 @@
     const body = {
       feeAmount:      Number(form.get('feeAmount')),
       discountAmount: form.get('discountAmount') ? Number(form.get('discountAmount')) : 0,
+      discountPolicyId: form.get('discountPolicyId') ? Number(form.get('discountPolicyId')) : null,
       dueDate:        form.get('dueDate'),
       description:    form.get('description') || null
     };

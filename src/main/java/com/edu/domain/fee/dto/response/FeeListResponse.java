@@ -47,6 +47,12 @@ public class FeeListResponse {
     /** 할인 금액 */
     private Long discountAmount;
 
+    /** 적용된 할인정책 PK (선택, 없으면 null - discountAmount 직접입력분) */
+    private Long discountPolicyId;
+
+    /** 적용된 할인정책명 (SQL LEFT JOIN discount_policies, 없으면 null) */
+    private String discountPolicyName;
+
     /** 실 청구액 (SQL에서 fee_amount - discount_amount 계산) */
     private Long billableAmount;
 

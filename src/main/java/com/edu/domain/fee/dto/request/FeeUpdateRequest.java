@@ -25,9 +25,12 @@ public class FeeUpdateRequest {
     @PositiveOrZero(message = "청구 금액은 0 이상이어야 합니다")
     private Long feeAmount;
 
-    /** 할인 금액 (미입력 시 0) */
+    /** 할인 금액 (미입력 시 0). discountPolicyId 와 함께 오면 discountPolicyId 로 자동계산한 금액이 우선한다 */
     @PositiveOrZero(message = "할인 금액은 0 이상이어야 합니다")
     private Long discountAmount;
+
+    /** 적용할 할인정책 PK (선택). 지정 시 discountAmount 를 무시하고 정책 기준으로 자동계산한다 */
+    private Long discountPolicyId;
 
     /** 납부 기한 */
     @NotNull(message = "납부 기한을 입력해주세요")

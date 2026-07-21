@@ -14,8 +14,10 @@ import com.edu.domain.fee.dto.response.FeePaymentHistoryResponse;
 import com.edu.domain.fee.dto.response.FeePaymentResponse;
 import com.edu.domain.fee.dto.response.FeeStatisticsResponse;
 import com.edu.domain.fee.dto.response.FeeUpdateResponse;
+import com.edu.domain.fee.mapper.DiscountPolicyMapper;
 import com.edu.domain.fee.mapper.FeeMapper;
 import com.edu.domain.fee.service.FeeService;
+import com.edu.domain.fee.vo.DiscountPolicyVo;
 import com.edu.domain.fee.vo.FeePaymentVo;
 import com.edu.domain.fee.vo.FeeVo;
 import com.edu.domain.notification.service.NotificationService;
@@ -39,10 +41,13 @@ public class FeeServiceImpl implements FeeService {
 
     private final FeeMapper feeMapper;
     private final NotificationService notificationService;
+    private final DiscountPolicyMapper discountPolicyMapper;
 
-    public FeeServiceImpl(FeeMapper feeMapper, NotificationService notificationService) {
+    public FeeServiceImpl(FeeMapper feeMapper, NotificationService notificationService,
+                          DiscountPolicyMapper discountPolicyMapper) {
         this.feeMapper = feeMapper;
         this.notificationService = notificationService;
+        this.discountPolicyMapper = discountPolicyMapper;
     }
 
     @Override
@@ -62,7 +67,8 @@ public class FeeServiceImpl implements FeeService {
     @Transactional  // 클래스 레벨 readOnly 를 쓰기 트랜잭션으로 덮어쓴다
     public FeeCreateResponse createFee(FeeCreateRequest request) {
         long feeAmount = request.getFeeAmount();
-        long discountAmount = request.getDiscountAmount() == null ? 0L : request.getDiscountAmount();
+        // FEE-10: discountPolicyId 가 있으면 정책 기준 자동계산이 discountAmount 직접입력을 대체한다
+        long discountAmount = resolveDiscountAmount(request.getDiscountPolicyId(), request.getDiscountAmount(), feeAmount);
 
         // 필드 단위 검증(@Valid)으로 못 잡는 필드 간 규칙은 서비스에서 검증
         if (discountAmount > feeAmount) {
@@ -84,6 +90,7 @@ public class FeeServiceImpl implements FeeService {
                 .billingMonth(request.getBillingMonth())
                 .feeAmount(feeAmount)
                 .discountAmount(discountAmount)
+                .discountPolicyId(request.getDiscountPolicyId())
                 .dueDate(request.getDueDate())
                 .statusCode(statusCode)
                 .description(request.getDescription())
@@ -113,7 +120,8 @@ public class FeeServiceImpl implements FeeService {
         }
 
         long feeAmount = request.getFeeAmount();
-        long discountAmount = request.getDiscountAmount() == null ? 0L : request.getDiscountAmount();
+        // FEE-10: discountPolicyId 가 있으면 정책 기준 자동계산이 discountAmount 직접입력을 대체한다
+        long discountAmount = resolveDiscountAmount(request.getDiscountPolicyId(), request.getDiscountAmount(), feeAmount);
         if (discountAmount > feeAmount) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "할인 금액이 청구 금액보다 클 수 없습니다");
         }
@@ -134,6 +142,7 @@ public class FeeServiceImpl implements FeeService {
                 .feeId(feeId)
                 .feeAmount(feeAmount)
                 .discountAmount(discountAmount)
+                .discountPolicyId(request.getDiscountPolicyId())
                 .dueDate(request.getDueDate())
                 .description(request.getDescription())
                 .statusCode(statusCode)
@@ -310,5 +319,31 @@ public class FeeServiceImpl implements FeeService {
             return "PAID";
         }
         return dueDate.isBefore(LocalDate.now()) ? "UNPAID" : "SCHEDULED";
+    }
+
+    /**
+     * FEE-10 할인 금액 결정.
+     * discountPolicyId 가 없으면 기존처럼 관리자가 입력한 discountAmount 를 그대로 쓴다(하위호환).
+     * discountPolicyId 가 있으면 정책을 조회해 활성/기간 여부를 검증하고, 정책 기준으로 자동계산한
+     * 금액이 manualDiscountAmount 를 무시하고 우선한다. 계산된 할인액이 청구액을 넘지 않도록 캡한다.
+     */
+    private long resolveDiscountAmount(Long discountPolicyId, Long manualDiscountAmount, long feeAmount) {
+        if (discountPolicyId == null) {
+            return manualDiscountAmount == null ? 0L : manualDiscountAmount;
+        }
+
+        DiscountPolicyVo policy = discountPolicyMapper.findById(discountPolicyId);
+        if (policy == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 할인정책입니다");
+        }
+        if (!policy.isActive()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "비활성화된 할인정책은 적용할 수 없습니다");
+        }
+        if (!policy.isWithinPeriod(LocalDate.now())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "할인정책 적용 기간이 아닙니다");
+        }
+
+        long calculated = policy.calculateDiscountAmount(feeAmount);
+        return Math.min(calculated, feeAmount);
     }
 }
