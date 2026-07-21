@@ -11,8 +11,8 @@ import lombok.NoArgsConstructor;
 
 /**
  * 할인정책 (FEE-10). 관리자가 등록/관리하며, 회비 생성·수정 시 학생/반에 선택 적용한다.
- * 적용 대상 자동판정(형제 여부, 장기수강 여부 등)은 하지 않는다 - conditionType 은 분류 표기용이며,
  * 실제 적용 대상 선정은 관리자가 UI에서 직접 정책을 선택하는 반자동 방식이다 (Phase 1 범위).
+ * V10 테이블정의서 반영: PK를 discountPolicyId로 리네이밍, conditionType 제거, createdBy/updatedAt 추가.
  */
 @Data
 @Builder
@@ -20,16 +20,17 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class DiscountPolicyVo {
 
-    private Long policyId;
+    private Long discountPolicyId;
     private String policyName;
     private String discountType;      // RATE / FIXED
     private BigDecimal discountValue; // RATE: 0~100(%), FIXED: 원 단위
-    private String conditionType;     // SIBLING / LONG_TERM / MULTI_CLASS / MANUAL 등 (표기용)
     private LocalDate startDate;      // null = 시작 제한 없음
     private LocalDate endDate;        // null = 종료 제한 없음
     private String activeYn;          // Y / N
     private String description;
+    private Long createdBy;           // users.user_id FK - 등록자
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     public boolean isActive() {
         return "Y".equals(activeYn);

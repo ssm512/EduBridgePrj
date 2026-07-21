@@ -12,7 +12,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 /**
- * [추가 2026-07-16] 운영용 메일 발송 구현체 (spring-boot-starter-mail / SMTP).
+ * [추가 2026-07-20] 운영용 메일 발송 구현체 (spring-boot-starter-mail / SMTP).
  *
  * app.mail.enabled=true일 때만 활성화되며, 이때 ConsoleMailService는 자동으로 비활성화된다
  * (둘 다 @ConditionalOnProperty로 상호 배타적 - MailService 빈이 항상 정확히 하나만 존재).

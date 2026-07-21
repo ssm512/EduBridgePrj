@@ -67,7 +67,7 @@
           JOIN users u     ON u.user_id    = s.user_id
           LEFT JOIN classes c ON c.class_id = f.class_id
           <!-- FEE-10: 적용된 할인정책명 표시용 (관리자가 목록에서 어떤 정책이 적용됐는지 바로 확인) -->
-          LEFT JOIN discount_policies dp ON dp.policy_id = f.discount_policy_id
+          LEFT JOIN discount_policies dp ON dp.discount_policy_id = f.discount_policy_id
           <!-- 납부 이력을 fee 단위로 집계
                last_payment_id / paid_sum : 유효분(cancel_yn='N')만 - FILTER 로 걸러냄
                payment_count              : 취소분 포함 전체 행 수 - 삭제 버튼 활성화 판단용 -->
@@ -137,7 +137,7 @@
 
     <select id="selectPaymentByPaymentId" resultType="com.edu.domain.fee.vo.FeePaymentVo">
         SELECT payment_id, fee_id, paid_amount, paid_at, payment_method,
-               receipt_no, cancel_yn, created_at
+               cancel_yn, created_at
           FROM fee_payments
          WHERE payment_id = #{paymentId}
     </select>
@@ -150,7 +150,6 @@
                paid_amount,
                paid_at,
                payment_method,
-               receipt_no,
                cancel_yn
           FROM fee_payments
          WHERE fee_id = #{feeId}

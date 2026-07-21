@@ -85,7 +85,7 @@
          WHERE class_id = #{classId}
     </update>
 
-    <!-- [추가 2026-07-16] 로그인 강사 담당반 한정 WHERE (검색조건 포함) -->
+    <!-- [추가 2026-07-20] 로그인 강사 담당반 한정 WHERE (검색조건 포함) -->
     <sql id="myClassCondition">
         <where>
             c.teacher_id = (SELECT t.teacher_id FROM teachers t
@@ -101,7 +101,7 @@
         </where>
     </sql>
 
-    <!-- [추가 2026-07-16] 로그인 강사의 담당반 목록 (상태/키워드 + 페이징) -->
+    <!-- [추가 2026-07-20] 로그인 강사의 담당반 목록 (상태/키워드 + 페이징) -->
     <select id="selectMyClasses" resultType="com.edu.domain.classroom.dto.ClassDto">
         <include refid="selectJoin"/>
         <include refid="myClassCondition"/>
@@ -109,14 +109,14 @@
          LIMIT #{cond.size} OFFSET #{cond.offset}
     </select>
 
-    <!-- [추가 2026-07-16] 로그인 강사의 담당반 전체 건수 (페이징용) -->
+    <!-- [추가 2026-07-20] 로그인 강사의 담당반 전체 건수 (페이징용) -->
     <select id="countMyClasses" resultType="long">
         SELECT COUNT(*)
           FROM classes c
         <include refid="myClassCondition"/>
     </select>
 
-    <!-- [추가 2026-07-16] 해당 반이 로그인 강사의 담당반인지 (상세조회 소유권 검증) -->
+    <!-- [추가 2026-07-20] 해당 반이 로그인 강사의 담당반인지 (상세조회 소유권 검증) -->
     <select id="existsTeacherClass" resultType="int">
         SELECT COUNT(*)
           FROM classes c

@@ -58,7 +58,7 @@ public class ClassController {
 
     /**
      * CLS-03 GET /api/classes/{classId} - 반 상세 조회 (수강 학생 목록 포함)
-     * [수정 2026-07-16] TEACHER는 본인 담당반만 조회 가능하도록 소유권 검증 추가 (ADMIN은 전체 허용)
+     * [수정 2026-07-20] TEACHER는 본인 담당반만 조회 가능하도록 소유권 검증 추가 (ADMIN은 전체 허용)
      */
     @GetMapping("/{classId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER')")
@@ -80,7 +80,7 @@ public class ClassController {
     }
 
     /**
-     * [추가 2026-07-16] GET /api/classes/my - 로그인 강사의 담당반 목록 (teacher/classes 화면)
+     * [추가 2026-07-20] GET /api/classes/my - 로그인 강사의 담당반 목록 (teacher/classes 화면)
      * 상태/키워드 + 페이징, classes.teacher_id를 로그인 강사로 서버에서 한정
      */
     @GetMapping("/my")

@@ -34,7 +34,7 @@ spring:
       max-file-size: 100MB
       max-request-size: 1000MB
 
-  # [추가 2026-07-16] 메일 발송(SMTP) 설정 - app.mail.enabled=true일 때만 SmtpMailService가 사용
+  # [추가 2026-07-20] 메일 발송(SMTP) 설정 - app.mail.enabled=true일 때만 SmtpMailService가 사용
   # MAIL_* 환경변수가 비어 있어도(.env 미설정) 기본값(enabled=false)이라 개발 중엔 ConsoleMailService 그대로 동작
   mail:
     host: ${MAIL_HOST:}

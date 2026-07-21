@@ -211,7 +211,6 @@
           <th>납부일시</th>
           <th>금액</th>
           <th>수단</th>
-          <th>영수증</th>
           <th>상태</th>
         </tr>
         </thead>
@@ -513,7 +512,7 @@
     const page = await res.json();
     page.items.forEach(function (p) {
       const opt = document.createElement('option');
-      opt.value = p.policyId;
+      opt.value = p.discountPolicyId;
       opt.textContent = p.policyName
         + (p.discountType === 'RATE' ? ' (' + p.discountValue + '%)' : ' (' + Number(p.discountValue).toLocaleString() + '원)');
       select.appendChild(opt);
@@ -701,7 +700,6 @@
       row.insertCell().textContent = p.paidAt ? p.paidAt.replace('T', ' ').substring(0, 16) : '-';
       row.insertCell().textContent = Number(p.paidAmount).toLocaleString() + '원';
       row.insertCell().textContent = paymentMethodLabel(p.paymentMethod);
-      row.insertCell().textContent = p.receiptNo || '-';
       row.insertCell().textContent = canceled ? '취소됨' : '정상';
     });
   }

@@ -57,7 +57,7 @@ public interface NoticeMapper {
     List<NoticeTargetVo> selectTargets(@Param("noticeId") Long noticeId);
 
     /**
-     * [추가 2026-07-16] targetIds 중 실제로 존재하는 대상(class/student/parent/teacher) 개수
+     * [추가 2026-07-20] targetIds 중 실제로 존재하는 대상(class/student/parent/teacher) 개수
      * 등록/수정 전 유효성 검증용 (반환값이 distinct targetIds 크기와 다르면 존재하지 않는 ID 포함)
      */
     long countExistingTargets(@Param("targetType") String targetType,

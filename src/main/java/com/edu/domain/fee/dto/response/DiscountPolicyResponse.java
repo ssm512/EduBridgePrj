@@ -18,14 +18,14 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class DiscountPolicyResponse {
 
-    private Long policyId;
+    private Long discountPolicyId;
     private String policyName;
     private String discountType;
     private BigDecimal discountValue;
-    private String conditionType;
     private LocalDate startDate;
     private LocalDate endDate;
     private String activeYn;
     private String description;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

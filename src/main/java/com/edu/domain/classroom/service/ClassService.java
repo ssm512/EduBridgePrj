@@ -25,12 +25,12 @@ public interface ClassService {
     ClassResponse updateClass(Long classId, ClassUpdateRequest request);
 
     /**
-     * [추가 2026-07-16] 로그인 강사의 담당반 목록 (teacher/classes 화면, CLS-02와 동일 조건 + teacher_id 한정)
+     * [추가 2026-07-20] 로그인 강사의 담당반 목록 (teacher/classes 화면, CLS-02와 동일 조건 + teacher_id 한정)
      */
     PageResponse<ClassResponse> getMyClasses(String loginId, ClassSearchRequest cond);
 
     /**
-     * [추가 2026-07-16] 반 상세 조회 - 강사 소유권 검증 포함
+     * [추가 2026-07-20] 반 상세 조회 - 강사 소유권 검증 포함
      * 요청한 classId가 로그인 강사(loginId)의 담당반이 아니면 403
      */
     ClassDetailResponse getClassForTeacher(Long classId, String loginId);

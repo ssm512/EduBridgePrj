@@ -114,7 +114,7 @@ public class ClassServiceImpl implements ClassService {
     }
 
     /**
-     * [추가 2026-07-16] 로그인 강사의 담당반 목록 (teacher/classes 화면)
+     * [추가 2026-07-20] 로그인 강사의 담당반 목록 (teacher/classes 화면)
      */
     @Override
     public PageResponse<ClassResponse> getMyClasses(String loginId, ClassSearchRequest cond) {
@@ -126,7 +126,7 @@ public class ClassServiceImpl implements ClassService {
     }
 
     /**
-     * [추가 2026-07-16] 반 상세 조회 - 강사 소유권 검증 포함
+     * [추가 2026-07-20] 반 상세 조회 - 강사 소유권 검증 포함
      */
     @Override
     public ClassDetailResponse getClassForTeacher(Long classId, String loginId) {
@@ -134,7 +134,7 @@ public class ClassServiceImpl implements ClassService {
         return getClass(classId);
     }
 
-    /** [추가 2026-07-16] 해당 반이 로그인 강사의 담당반이 아니면 403 */
+    /** [추가 2026-07-20] 해당 반이 로그인 강사의 담당반이 아니면 403 */
     private void verifyTeacherClass(String loginId, Long classId) {
         if (classId == null || classMapper.existsTeacherClass(loginId, classId) == 0) {
             throw new ApiException(HttpStatus.FORBIDDEN, "본인 담당 반만 조회할 수 있습니다");

@@ -80,14 +80,6 @@
         <label>할인 값
           <input type="number" name="discountValue" required min="0" step="0.01">
         </label>
-        <label>적용 조건 구분
-          <select name="conditionType" required>
-            <option value="SIBLING">형제/자매</option>
-            <option value="LONG_TERM">장기수강</option>
-            <option value="MULTI_CLASS">복수반 수강</option>
-            <option value="MANUAL">관리자 직접 지정</option>
-          </select>
-        </label>
         <label>적용 시작일 (선택)
           <input type="date" name="startDate">
         </label>
@@ -109,7 +101,7 @@
     <dialog id="dpUpdateModal" class="dp-modal">
       <form id="dpUpdateForm">
         <h2>할인정책 수정</h2>
-        <input type="hidden" name="policyId">
+        <input type="hidden" name="discountPolicyId">
 
         <label>정책명
           <input type="text" name="policyName" required maxlength="100">
@@ -122,14 +114,6 @@
         </label>
         <label>할인 값
           <input type="number" name="discountValue" required min="0" step="0.01">
-        </label>
-        <label>적용 조건 구분
-          <select name="conditionType" required>
-            <option value="SIBLING">형제/자매</option>
-            <option value="LONG_TERM">장기수강</option>
-            <option value="MULTI_CLASS">복수반 수강</option>
-            <option value="MANUAL">관리자 직접 지정</option>
-          </select>
         </label>
         <label>적용 시작일 (선택)
           <input type="date" name="startDate">
@@ -161,7 +145,6 @@
         <th>정책명</th>
         <th>유형</th>
         <th>할인 값</th>
-        <th>적용 조건</th>
         <th>적용 기간</th>
         <th>상태</th>
         <th>설명</th>
@@ -175,12 +158,6 @@
         <td th:text="${p.discountType == 'RATE'}
                        ? (${#numbers.formatDecimal(p.discountValue, 1, 1)} + '%')
                        : (${#numbers.formatInteger(p.discountValue, 1, 'COMMA')} + '원')">10%</td>
-        <!-- conditionType 은 DB/API 상으로는 영어 코드(SIBLING 등)를 유지하고, 화면 표시만 한글 라벨로 매핑.
-             팀 컨벤션(statusCode 등 다른 코드 필드)과 일관성을 맞추기 위함. 새 코드값이 생기면 이 매핑에도 추가해야 함 -->
-        <td th:text="${p.conditionType == 'SIBLING'} ? '형제/자매'
-                      : (${p.conditionType == 'LONG_TERM'} ? '장기수강'
-                      : (${p.conditionType == 'MULTI_CLASS'} ? '복수반 수강'
-                      : (${p.conditionType == 'MANUAL'} ? '관리자 직접 지정' : ${p.conditionType})))">SIBLING</td>
         <td th:text="(${p.startDate} ?: '제한없음') + ' ~ ' + (${p.endDate} ?: '제한없음')">제한없음 ~ 제한없음</td>
         <td>
           <span class="status-badge"
@@ -190,16 +167,16 @@
         <td th:text="${p.description} ?: '-'">-</td>
         <td class="dp-actions">
           <button type="button"
-                  th:attr="data-policy-id=${p.policyId}, data-policy-name=${p.policyName},
+                  th:attr="data-discount-policy-id=${p.discountPolicyId}, data-policy-name=${p.policyName},
                             data-discount-type=${p.discountType}, data-discount-value=${p.discountValue},
-                            data-condition-type=${p.conditionType}, data-start-date=${p.startDate},
+                            data-start-date=${p.startDate},
                             data-end-date=${p.endDate}, data-active-yn=${p.activeYn},
                             data-description=${p.description}"
                   onclick="openDpUpdateModal(this)">수정</button>
         </td>
       </tr>
       <tr th:if="${#lists.isEmpty(policyPage.items)}" class="empty-row">
-        <td colspan="8">등록된 할인정책이 없습니다.</td>
+        <td colspan="7">등록된 할인정책이 없습니다.</td>
       </tr>
       </tbody>
     </table>
@@ -266,7 +243,6 @@
       policyName:     form.get('policyName'),
       discountType:   form.get('discountType'),
       discountValue:  Number(form.get('discountValue')),
-      conditionType:  form.get('conditionType'),
       startDate:      form.get('startDate') || null,
       endDate:        form.get('endDate') || null,
       description:    form.get('description') || null
@@ -280,11 +256,10 @@
   // 버튼의 data-* 값으로 현재 값을 프리필
   function openDpUpdateModal(btn) {
     const form = document.getElementById('dpUpdateForm');
-    form.policyId.value      = btn.dataset.policyId;
+    form.discountPolicyId.value = btn.dataset.discountPolicyId;
     form.policyName.value    = btn.dataset.policyName;
     form.discountType.value  = btn.dataset.discountType;
     form.discountValue.value = btn.dataset.discountValue;
-    form.conditionType.value = btn.dataset.conditionType;
     form.startDate.value     = btn.dataset.startDate || '';
     form.endDate.value       = btn.dataset.endDate || '';
     form.activeYn.value      = btn.dataset.activeYn;
@@ -300,14 +275,13 @@
       policyName:     form.get('policyName'),
       discountType:   form.get('discountType'),
       discountValue:  Number(form.get('discountValue')),
-      conditionType:  form.get('conditionType'),
       startDate:      form.get('startDate') || null,
       endDate:        form.get('endDate') || null,
       activeYn:       form.get('activeYn'),
       description:    form.get('description') || null
     };
 
-    const res = await dpApi('/api/v1/discount-policies/' + form.get('policyId'), 'PUT', body);
+    const res = await dpApi('/api/v1/discount-policies/' + form.get('discountPolicyId'), 'PUT', body);
     await handleResult(res, '수정 실패');
   });
 </script>

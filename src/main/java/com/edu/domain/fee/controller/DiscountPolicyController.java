@@ -7,6 +7,7 @@ import com.edu.domain.fee.service.DiscountPolicyService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,23 +43,24 @@ public class DiscountPolicyController {
         return discountPolicyService.getList(activeOnly, page, size);
     }
 
-    /** GET /api/v1/discount-policies/{policyId} - 단건 조회 */
-    @GetMapping("/{policyId}")
-    public DiscountPolicyResponse get(@PathVariable Long policyId) {
-        return discountPolicyService.get(policyId);
+    /** GET /api/v1/discount-policies/{discountPolicyId} - 단건 조회 */
+    @GetMapping("/{discountPolicyId}")
+    public DiscountPolicyResponse get(@PathVariable Long discountPolicyId) {
+        return discountPolicyService.get(discountPolicyId);
     }
 
-    /** POST /api/v1/discount-policies - 등록 */
+    /** POST /api/v1/discount-policies - 등록 (등록자 = 로그인 사용자) */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public DiscountPolicyResponse create(@Valid @RequestBody DiscountPolicyRequest request) {
-        return discountPolicyService.create(request);
+    public DiscountPolicyResponse create(@Valid @RequestBody DiscountPolicyRequest request,
+                                          Authentication authentication) {
+        return discountPolicyService.create(request, authentication);
     }
 
-    /** PUT /api/v1/discount-policies/{policyId} - 수정 (활성/비활성 전환 포함) */
-    @PutMapping("/{policyId}")
-    public DiscountPolicyResponse update(@PathVariable Long policyId,
+    /** PUT /api/v1/discount-policies/{discountPolicyId} - 수정 (활성/비활성 전환 포함) */
+    @PutMapping("/{discountPolicyId}")
+    public DiscountPolicyResponse update(@PathVariable Long discountPolicyId,
                                          @Valid @RequestBody DiscountPolicyRequest request) {
-        return discountPolicyService.update(policyId, request);
+        return discountPolicyService.update(discountPolicyId, request);
     }
 }

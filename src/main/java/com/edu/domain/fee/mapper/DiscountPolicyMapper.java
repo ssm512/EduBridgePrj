@@ -23,9 +23,9 @@ public interface DiscountPolicyMapper {
     long countList(@Param("activeOnly") boolean activeOnly);
 
     /** PK 단건 조회 */
-    DiscountPolicyVo findById(@Param("policyId") Long policyId);
+    DiscountPolicyVo findById(@Param("discountPolicyId") Long discountPolicyId);
 
-    /** 등록 (useGeneratedKeys로 policyId 채움) */
+    /** 등록 (useGeneratedKeys로 discountPolicyId 채움) */
     int insert(DiscountPolicyVo policy);
 
     /** 수정 */
