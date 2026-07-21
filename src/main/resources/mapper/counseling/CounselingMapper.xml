@@ -66,6 +66,12 @@
             <if test="visibilityCode != null and visibilityCode != ''">
                 AND cr.visibility_code = #{visibilityCode}
             </if>
+            <if test="fromDate != null and fromDate != ''">
+                AND cr.counseling_date &gt;= CAST(#{fromDate} AS DATE)
+            </if>
+            <if test="toDate != null and toDate != ''">
+                AND cr.counseling_date &lt;= CAST(#{toDate} AS DATE)
+            </if>
             <if test="viewerRoleCode != 'ADMIN'">
                 AND cr.created_by = #{viewerUserId}
             </if>

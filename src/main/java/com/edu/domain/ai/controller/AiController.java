@@ -59,10 +59,11 @@ public class AiController {
     @GetMapping("/logs")
     @PreAuthorize("hasRole('ADMIN')")
     public List<Map<String, Object>> logs(@RequestParam(required = false) String featureCode,
+                                          @RequestParam(required = false) String successYn,
                                           @RequestParam(required = false) String fromDate,
                                           @RequestParam(required = false) String toDate,
                                           @RequestParam(required = false) Integer limit) {
-        return aiService.getAiUsageLogs(featureCode, fromDate, toDate, limit);
+        return aiService.getAiUsageLogs(featureCode, successYn, fromDate, toDate, limit);
     }
 
     // 리포트 생성 화면에서 사용할 학생 선택 목록을 조회한다.

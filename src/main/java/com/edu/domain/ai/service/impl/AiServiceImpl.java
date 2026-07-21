@@ -143,9 +143,9 @@ public class AiServiceImpl implements AiService {
     }
 
     @Override
-    public List<Map<String, Object>> getAiUsageLogs(String featureCode, String fromDate, String toDate, Integer limit) {
+    public List<Map<String, Object>> getAiUsageLogs(String featureCode, String successYn, String fromDate, String toDate, Integer limit) {
         int safeLimit = limit == null ? 150 : Math.max(1, Math.min(limit, 300));
-        return aiMapper.selectAiUsageLogs(featureCode, fromDate, toDate, safeLimit);
+        return aiMapper.selectAiUsageLogs(featureCode, successYn, fromDate, toDate, safeLimit);
     }
 
     @Override

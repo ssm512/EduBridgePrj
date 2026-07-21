@@ -13,6 +13,8 @@ public interface CounselingService {
                                                 Long parentId,
                                                 Long teacherId,
                                                 String visibilityCode,
+                                                String fromDate,
+                                                String toDate,
                                                 String loginId);
 
     List<Map<String, Object>> getParentChildren(String loginId);

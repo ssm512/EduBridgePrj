@@ -15,6 +15,7 @@ public interface AiMapper {
 
     // 관리자 화면에서 AI 사용 로그를 최근순으로 조회한다.
     List<Map<String, Object>> selectAiUsageLogs(@Param("featureCode") String featureCode,
+                                                @Param("successYn") String successYn,
                                                 @Param("fromDate") String fromDate,
                                                 @Param("toDate") String toDate,
                                                 @Param("limit") int limit);

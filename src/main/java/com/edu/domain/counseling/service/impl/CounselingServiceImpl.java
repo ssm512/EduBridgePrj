@@ -37,10 +37,12 @@ public class CounselingServiceImpl implements CounselingService {
                                                        Long parentId,
                                                        Long teacherId,
                                                        String visibilityCode,
+                                                       String fromDate,
+                                                       String toDate,
                                                        String loginId) {
         UserDto loginUser = getLoginUser(loginId);
         return counselingMapper.selectCounselingList(studentId, parentId, teacherId, visibilityCode,
-                loginUser.getUserId(), loginUser.getRoleCode());
+                fromDate, toDate, loginUser.getUserId(), loginUser.getRoleCode());
     }
 
     @Override

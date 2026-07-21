@@ -190,6 +190,60 @@
             margin-left: 0;
         }
 
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .filter-tab {
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .filter-tab.active {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .filter-pane {
+            display: none;
+        }
+
+        .filter-pane.active {
+            display: block;
+        }
+
+        .filter-pane.active.filter-toolbar {
+            display: flex;
+        }
+
+        .period-filter-toolbar {
+            display: grid;
+            grid-template-columns: 220px 220px auto auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .period-quick-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .period-quick-actions .counseling-btn {
+            padding: 7px 10px;
+        }
+
+        .period-action-row .filter-actions {
+            margin-bottom: 0;
+        }
+
         .date-row {
             display: flex;
             gap: 8px;
@@ -583,7 +637,12 @@
                 <input id="filterStudentId" type="hidden">
                 <input id="filterParentId" type="hidden">
 
-                <div class="filter-toolbar">
+                <div class="filter-tabs">
+                    <button type="button" class="filter-tab active" data-filter-tab="basic" onclick="showCounselingFilterTab('basic')">기본 필터</button>
+                    <button type="button" class="filter-tab" data-filter-tab="period" onclick="showCounselingFilterTab('period')">기간 검색</button>
+                </div>
+
+                <div id="basicFilterPane" class="filter-pane active filter-toolbar">
                     <div class="filter-grid">
                         <div class="form-row">
                             <label for="filterStudentSearch">학생명</label>
@@ -632,6 +691,34 @@
                     <div class="filter-actions">
                         <button class="counseling-btn" onclick="loadCounselingList()">조회</button>
                         <button class="counseling-btn secondary" onclick="clearCounselingFilters()">필터 초기화</button>
+                    </div>
+                </div>
+
+                <div id="periodFilterPane" class="filter-pane">
+                    <div class="period-filter-toolbar">
+                        <div class="form-row">
+                            <label for="filterFromDate">시작일</label>
+                            <input id="filterFromDate" type="date">
+                        </div>
+                        <div class="form-row">
+                            <label for="filterToDate">종료일</label>
+                            <input id="filterToDate" type="date">
+                        </div>
+                        <div class="form-row">
+                            <label>빠른 선택</label>
+                            <div class="period-quick-actions">
+                                <button type="button" class="counseling-btn secondary" onclick="setQuickCounselingPeriod(7)">일주일</button>
+                                <button type="button" class="counseling-btn secondary" onclick="setQuickCounselingPeriod(30)">한 달</button>
+                                <button type="button" class="counseling-btn secondary" onclick="setQuickCounselingPeriod(90)">세 달</button>
+                            </div>
+                        </div>
+                        <div class="form-row period-action-row">
+                            <label>&nbsp;</label>
+                            <div class="filter-actions">
+                                <button class="counseling-btn" onclick="loadCounselingList()">조회</button>
+                                <button class="counseling-btn secondary" onclick="clearCounselingFilters()">필터 초기화</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1201,11 +1288,15 @@
         const parentId = document.getElementById('filterParentId').value;
         const teacherId = document.getElementById('filterTeacherId').value;
         const visibilityCode = document.getElementById('filterVisibilityCode').value;
+        const fromDate = document.getElementById('filterFromDate').value;
+        const toDate = document.getElementById('filterToDate').value;
 
         if (studentId) params.append('studentId', studentId);
         if (parentId) params.append('parentId', parentId);
         if (teacherId) params.append('teacherId', teacherId);
         if (visibilityCode) params.append('visibilityCode', visibilityCode);
+        if (fromDate) params.append('fromDate', fromDate);
+        if (toDate) params.append('toDate', toDate);
 
         const queryString = params.toString();
         const res = await fetch('/api/counseling' + (queryString ? '?' + queryString : ''));
@@ -1333,7 +1424,32 @@
         document.getElementById('filterTeacherId').value = '';
         document.getElementById('filterVisibilityCode').value = '';
         document.getElementById('filterCounselingType').value = '';
+        document.getElementById('filterFromDate').value = '';
+        document.getElementById('filterToDate').value = '';
         loadCounselingList();
+    }
+
+    // 상담 목록 필터 탭 전환
+    function showCounselingFilterTab(tabName) {
+        document.querySelectorAll('[data-filter-tab]').forEach(button => {
+            button.classList.toggle('active', button.dataset.filterTab === tabName);
+        });
+        document.getElementById('basicFilterPane').classList.toggle('active', tabName === 'basic');
+        document.getElementById('periodFilterPane').classList.toggle('active', tabName === 'period');
+    }
+
+    // 최근 N일 기간을 자동 입력하고 바로 조회한다.
+    function setQuickCounselingPeriod(days) {
+        const today = new Date();
+        const fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - days + 1);
+        document.getElementById('filterFromDate').value = formatDateInput(fromDate);
+        document.getElementById('filterToDate').value = formatDateInput(today);
+        loadCounselingList();
+    }
+
+    function formatDateInput(date) {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     }
 
     document.addEventListener('click', event => {

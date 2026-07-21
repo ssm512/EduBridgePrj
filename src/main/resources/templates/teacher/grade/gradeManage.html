@@ -336,6 +336,55 @@
             justify-content: flex-end;
         }
 
+        .grade-input-tabs {
+            display: flex;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .grade-input-tab {
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .grade-input-tab.active {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .grade-input-pane {
+            display: none;
+        }
+
+        .grade-input-pane.active {
+            display: block;
+        }
+
+        .grade-status-summary {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .status-pill {
+            border-radius: 999px;
+            padding: 7px 11px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-weight: 800;
+        }
+
+        .status-pill.warning {
+            background: #fff7ed;
+            color: #c2410c;
+        }
+
         .grade-btn {
             border: 0;
             border-radius: 6px;
@@ -716,26 +765,51 @@
             <h2>학생별 성적 입력</h2>
             <p id="selectedExamInfo" class="selected-info">선택한 시험이 없습니다.</p>
 
-            <div class="table-wrap">
-                <table class="grade-table">
-                    <thead>
-                    <tr>
-                        <th>학생명</th>
-                        <th>학생번호</th>
-                        <th>점수</th>
-                        <th>
-                            선생님 한 줄
-                            <span class="help-tooltip"
-                                  data-tooltip="입력한 내용은 학생과 학부모의 성적 조회 화면에 함께 표시됩니다.">?</span>
-                        </th>
-                        <th>관리</th>
-                    </tr>
-                    </thead>
-                    <tbody id="studentGradeList"></tbody>
-                </table>
+            <div class="grade-input-tabs">
+                <button type="button" class="grade-input-tab active" data-grade-input-tab="input" onclick="showGradeInputTab('input')">성적 입력</button>
+                <button type="button" class="grade-input-tab" data-grade-input-tab="status" onclick="showGradeInputTab('status')">입력 현황</button>
             </div>
-            <div class="button-row batch-save-row">
-                <button class="grade-btn" onclick="saveAllStudentGrades()">일괄 저장</button>
+
+            <div id="gradeInputPane" class="grade-input-pane active">
+                <div class="table-wrap">
+                    <table class="grade-table">
+                        <thead>
+                        <tr>
+                            <th>학생명</th>
+                            <th>학생번호</th>
+                            <th>점수</th>
+                            <th>
+                                선생님 한 줄
+                                <span class="help-tooltip"
+                                      data-tooltip="입력한 내용은 학생과 학부모의 성적 조회 화면에 함께 표시됩니다.">?</span>
+                            </th>
+                            <th>관리</th>
+                        </tr>
+                        </thead>
+                        <tbody id="studentGradeList"></tbody>
+                    </table>
+                </div>
+                <div class="button-row batch-save-row">
+                    <button class="grade-btn" onclick="saveAllStudentGrades()">일괄 저장</button>
+                </div>
+            </div>
+
+            <div id="gradeStatusPane" class="grade-input-pane">
+                <div id="gradeInputSummary" class="grade-status-summary"></div>
+                <div class="table-wrap">
+                    <table class="grade-table">
+                        <thead>
+                        <tr>
+                            <th>학생명</th>
+                            <th>학생번호</th>
+                            <th>상태</th>
+                        </tr>
+                        </thead>
+                        <tbody id="missingGradeList">
+                        <tr><td colspan="3" class="empty-row">시험을 선택하면 입력 현황이 표시됩니다.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
@@ -1750,8 +1824,20 @@
         document.getElementById('selectedExamInfo').innerText = '선택한 시험이 없습니다.';
         document.getElementById('studentGradeList').innerHTML =
             '<tr><td colspan="5" class="empty-row">시험을 선택하면 학생 목록이 표시됩니다.</td></tr>';
+        document.getElementById('gradeInputSummary').innerHTML = '';
+        document.getElementById('missingGradeList').innerHTML =
+            '<tr><td colspan="3" class="empty-row">시험을 선택하면 입력 현황이 표시됩니다.</td></tr>';
         document.getElementById('gradeList').innerHTML =
             '<tr><td colspan="4" class="empty-row">시험을 선택하면 입력된 성적이 표시됩니다.</td></tr>';
+    }
+
+    // 성적 입력 카드 내부 탭 전환
+    function showGradeInputTab(tabName) {
+        document.querySelectorAll('[data-grade-input-tab]').forEach(button => {
+            button.classList.toggle('active', button.dataset.gradeInputTab === tabName);
+        });
+        document.getElementById('gradeInputPane').classList.toggle('active', tabName === 'input');
+        document.getElementById('gradeStatusPane').classList.toggle('active', tabName === 'status');
     }
 
     // 반/학생/과목 선택 목록을 먼저 불러온다.
@@ -2013,6 +2099,7 @@
         const data = await res.json();
         const tbody = document.getElementById('studentGradeList');
         tbody.innerHTML = '';
+        renderGradeInputStatus(data);
 
         if (data.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="empty-row">이 시험의 반에 등록된 수강 학생이 없습니다.</td></tr>';
@@ -2036,6 +2123,37 @@
                 </tr>
             `;
         });
+    }
+
+    // 시험별 성적 입력 여부를 한눈에 확인할 수 있도록 요약한다.
+    function renderGradeInputStatus(rows) {
+        const totalCount = rows.length;
+        const enteredRows = rows.filter(row => row.grade_id);
+        const missingRows = rows.filter(row => !row.grade_id);
+
+        document.getElementById('gradeInputSummary').innerHTML = `
+            <span class="status-pill">총 ${totalCount}명</span>
+            <span class="status-pill">입력 ${enteredRows.length}명</span>
+            <span class="status-pill warning">미입력 ${missingRows.length}명</span>
+        `;
+
+        const tbody = document.getElementById('missingGradeList');
+        if (!totalCount) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty-row">이 시험의 반에 등록된 수강 학생이 없습니다.</td></tr>';
+            return;
+        }
+        if (!missingRows.length) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty-row">모든 학생의 성적이 입력되었습니다.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = missingRows.map(row => `
+            <tr>
+                <td>${escapeHtml(row.student_name || '')}</td>
+                <td>${escapeHtml(row.student_no || '')}</td>
+                <td><span class="status-pill warning">미입력</span></td>
+            </tr>
+        `).join('');
     }
 
     // 학생별 성적 저장

@@ -42,6 +42,9 @@
             <if test="featureCode != null and featureCode != ''">
                 l.feature_code = #{featureCode}
             </if>
+            <if test="successYn != null and successYn != ''">
+                AND l.success_yn = #{successYn}
+            </if>
             <if test="fromDate != null and fromDate != ''">
                 AND l.created_at &gt;= CAST(#{fromDate} AS DATE)
             </if>

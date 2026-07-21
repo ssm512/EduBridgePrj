@@ -34,8 +34,11 @@ public class CounselingController {
                                                     @RequestParam(required = false) Long parentId,
                                                     @RequestParam(required = false) Long teacherId,
                                                     @RequestParam(required = false) String visibilityCode,
+                                                    @RequestParam(required = false) String fromDate,
+                                                    @RequestParam(required = false) String toDate,
                                                     Authentication authentication) {
-        return counselingService.getCounselingList(studentId, parentId, teacherId, visibilityCode, authentication.getName());
+        return counselingService.getCounselingList(studentId, parentId, teacherId, visibilityCode,
+                fromDate, toDate, authentication.getName());
     }
 
     // 학부모에게 연결된 자녀 목록 조회

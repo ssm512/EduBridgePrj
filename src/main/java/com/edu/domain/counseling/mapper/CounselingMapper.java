@@ -20,6 +20,8 @@ public interface CounselingMapper {
                                                    @Param("parentId") Long parentId,
                                                    @Param("teacherId") Long teacherId,
                                                    @Param("visibilityCode") String visibilityCode,
+                                                   @Param("fromDate") String fromDate,
+                                                   @Param("toDate") String toDate,
                                                    @Param("viewerUserId") Long viewerUserId,
                                                    @Param("viewerRoleCode") String viewerRoleCode);
 

@@ -58,9 +58,55 @@
             border-radius: 8px;
             padding: 12px;
         }
+        .grade-view-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .grade-view-tab {
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .grade-view-tab.active {
+            background: #2563eb;
+            color: #fff;
+        }
+        .grade-view-pane { display: none; }
+        .grade-view-pane.active { display: block; }
+        .recent-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .summary-box {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+            background: #f8fafc;
+        }
+        .summary-label {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .summary-value {
+            color: #0f2a5f;
+            font-size: 17px;
+            font-weight: 800;
+        }
+        .summary-value.good { color: #1d4ed8; }
+        .summary-value.warn { color: #c2410c; }
         @media (max-width: 720px) {
             .content { padding: 20px 16px; }
             .table-wrap { overflow-x: auto; }
+            .recent-summary { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -92,8 +138,17 @@
                         </select>
                     </div>
                 </div>
-                <div class="chart-wrap">
-                    <canvas id="trendChart"></canvas>
+                <div class="grade-view-tabs">
+                    <button type="button" class="grade-view-tab active" data-grade-view-tab="chart" onclick="showGradeViewTab('chart')">차트</button>
+                    <button type="button" class="grade-view-tab" data-grade-view-tab="summary" onclick="showGradeViewTab('summary')">최근 변화</button>
+                </div>
+                <div id="chartPane" class="grade-view-pane active">
+                    <div class="chart-wrap">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+                <div id="summaryPane" class="grade-view-pane">
+                    <div id="recentSummary" class="recent-summary"></div>
                 </div>
             </section>
 
@@ -159,6 +214,7 @@
             fetchJson(`/api/grades/my/trends${query}`)
         ]);
         renderGrades(grades);
+        renderRecentSummary(grades);
         renderChart(trends);
     }
 
@@ -179,6 +235,60 @@
                 <td>${escapeHtml(grade.comment || '')}</td>
             </tr>
         `).join('');
+    }
+
+    function showGradeViewTab(tabName) {
+        document.querySelectorAll('[data-grade-view-tab]').forEach(button => {
+            button.classList.toggle('active', button.dataset.gradeViewTab === tabName);
+        });
+        document.getElementById('chartPane').classList.toggle('active', tabName === 'chart');
+        document.getElementById('summaryPane').classList.toggle('active', tabName === 'summary');
+    }
+
+    function renderRecentSummary(grades) {
+        const target = document.getElementById('recentSummary');
+        if (!grades.length) {
+            target.innerHTML = '<div class="empty">최근 변화 요약을 표시할 성적이 없습니다.</div>';
+            return;
+        }
+
+        const sorted = [...grades].sort((a, b) => new Date(a.exam_date) - new Date(b.exam_date));
+        const latest = sorted[sorted.length - 1];
+        const previous = sorted.length > 1 ? sorted[sorted.length - 2] : null;
+        const latestRate = achievementRate(latest);
+        const previousRate = previous ? achievementRate(previous) : null;
+        const change = previous ? latestRate - previousRate : null;
+        const best = sorted.reduce((max, row) => achievementRate(row) > achievementRate(max) ? row : max, sorted[0]);
+        const lowest = sorted.reduce((min, row) => achievementRate(row) < achievementRate(min) ? row : min, sorted[0]);
+
+        target.innerHTML = `
+            ${summaryBox('최근 시험', `${escapeHtml(latest.exam_name || '-')} · ${formatNumber(latest.score)}점`, 'good')}
+            ${summaryBox('이전 시험 대비', previous ? formatChange(change) : '비교할 이전 성적 없음', change >= 0 ? 'good' : 'warn')}
+            ${summaryBox('가장 높았던 시험', `${escapeHtml(best.exam_name || '-')} · ${formatNumber(best.score)}점`, 'good')}
+            ${summaryBox('보완이 필요한 시험', `${escapeHtml(lowest.exam_name || '-')} · ${formatNumber(lowest.score)}점`, 'warn')}
+        `;
+    }
+
+    function summaryBox(label, value, tone = '') {
+        return `
+            <div class="summary-box">
+                <span class="summary-label">${label}</span>
+                <span class="summary-value ${tone}">${value}</span>
+            </div>
+        `;
+    }
+
+    function achievementRate(grade) {
+        const score = Number(grade?.score || 0);
+        const total = Number(grade?.total_score || 100) || 100;
+        return (score / total) * 100;
+    }
+
+    function formatChange(change) {
+        if (change === 0) {
+            return '변화 없음';
+        }
+        return `${formatNumber(Math.abs(change))}% ${change > 0 ? '상승' : '하락'}`;
     }
 
     function renderChart(trends) {

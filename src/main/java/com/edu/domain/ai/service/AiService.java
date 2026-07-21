@@ -19,7 +19,7 @@ public interface AiService {
 
     AiGenerateResponse analyzeGrades(GradeAnalysisRequest request, String loginId);
 
-    List<Map<String, Object>> getAiUsageLogs(String featureCode, String fromDate, String toDate, Integer limit);
+    List<Map<String, Object>> getAiUsageLogs(String featureCode, String successYn, String fromDate, String toDate, Integer limit);
 
     List<Map<String, Object>> getStudentOptions();
 
