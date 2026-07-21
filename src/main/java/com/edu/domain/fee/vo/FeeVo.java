@@ -36,6 +36,9 @@ public class FeeVo {
     /** 할인 금액 */
     private Long discountAmount;
 
+    /** discount_policies.policy_id FK (선택 - 정책 미적용 시 null) */
+    private Long discountPolicyId;
+
     /** 납부 기한 */
     private LocalDate dueDate;
 

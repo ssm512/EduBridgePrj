@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="'EduBridge · ' + ${title}">EduBridge</title>
+  <link rel="stylesheet" href="/css/common.css">
+
+  <!-- 할인정책관리 페이지 전용 스타일 (팀 규칙: 개인 구간은 html 내 style 태그)
+       feeList.html 의 .fee-* 클래스와 동일한 네이밍 규칙을 따름 (.dp- 접두사)
+       사용 중인 클래스:
+       .dp-toolbar   : 필터 폼 + 등록 버튼 영역
+       .dp-table     : 할인정책 목록 테이블
+       .status-badge : 상태 뱃지 (fee 페이지와 공용 개념, 여기서는 활성/비활성)
+       .dp-actions   : 행 우측 관리 버튼 영역
+       .dp-paging    : 페이지네이션
+       .empty-row    : 데이터 없음 표시 행
+       .dp-modal     : 등록/수정 모달 (dialog)
+       .dp-modal-buttons : 모달 하단 버튼 영역
+  -->
+  <style>
+    /* TODO: 페이지 스타일 작성 (feeList.html 과 동일하게 미정 상태) */
+  </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/common :: topbar(${title})}"></div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <a href="/admin/dashboard">대시보드</a>
+    <a href="/admin/members">회원관리</a>
+    <div class="group-label">반 / 수강</div>
+    <a href="/admin/classes">반관리</a>
+    <a href="/admin/enrollments">수강관리</a>
+    <div class="group-label">학생</div>
+    <a href="/admin/attendance">출석관리</a>
+    <a href="/admin/fees">회비관리</a>
+    <a href="/admin/discount-policies">할인정책관리</a>
+    <a href="/admin/grades">성적관리</a>
+    <div class="group-label">소통</div>
+    <a href="/admin/notices">공지관리</a>
+    <a href="/admin/counseling">상담관리</a>
+    <div class="group-label">운영</div>
+    <a href="/admin/ai">AI 리포트</a>
+    <a href="/admin/notifications">알림이력</a>
+    <a href="/admin/logs">활동로그</a>
+    <a href="/admin/settings">시스템설정</a>
+  </nav>
+
+  <main class="content">
+    <h1>할인정책 목록</h1>
+    <p class="sub">회비 등록/수정 시 적용할 할인정책을 관리합니다 (FEE-10). 삭제는 지원하지 않으며, 비활성화(활성여부 N)로 대체합니다.</p>
+
+    <!-- 필터 + 등록 버튼 -->
+    <div class="dp-toolbar">
+      <form class="dp-filter" th:action="@{/admin/discount-policies}" method="get">
+        <label class="dp-active-check">
+          <input type="checkbox" name="activeOnly" value="true" th:checked="${activeOnly}">
+          활성 정책만
+        </label>
+        <button type="submit">조회</button>
+      </form>
+      <button type="button" onclick="openDpCreateModal()">+ 할인정책 등록</button>
+    </div>
+
+    <!-- 할인정책 등록 모달 -->
+    <dialog id="dpCreateModal" class="dp-modal">
+      <form id="dpCreateForm">
+        <h2>할인정책 등록</h2>
+
+        <label>정책명
+          <input type="text" name="policyName" required maxlength="100" placeholder="예: 형제·자매 할인">
+        </label>
+        <label>할인 유형
+          <select name="discountType" required>
+            <option value="RATE">정률(%)</option>
+            <option value="FIXED">정액(원)</option>
+          </select>
+        </label>
+        <label>할인 값
+          <input type="number" name="discountValue" required min="0" step="0.01">
+        </label>
+        <label>적용 조건 구분
+          <select name="conditionType" required>
+            <option value="SIBLING">형제/자매</option>
+            <option value="LONG_TERM">장기수강</option>
+            <option value="MULTI_CLASS">복수반 수강</option>
+            <option value="MANUAL">관리자 직접 지정</option>
+          </select>
+        </label>
+        <label>적용 시작일 (선택)
+          <input type="date" name="startDate">
+        </label>
+        <label>적용 종료일 (선택)
+          <input type="date" name="endDate">
+        </label>
+        <label>설명 (선택)
+          <input type="text" name="description" maxlength="255">
+        </label>
+
+        <div class="dp-modal-buttons">
+          <button type="submit">등록</button>
+          <button type="button" onclick="closeModal('dpCreateModal')">취소</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 할인정책 수정 모달 (활성/비활성 전환 포함) -->
+    <dialog id="dpUpdateModal" class="dp-modal">
+      <form id="dpUpdateForm">
+        <h2>할인정책 수정</h2>
+        <input type="hidden" name="policyId">
+
+        <label>정책명
+          <input type="text" name="policyName" required maxlength="100">
+        </label>
+        <label>할인 유형
+          <select name="discountType" required>
+            <option value="RATE">정률(%)</option>
+            <option value="FIXED">정액(원)</option>
+          </select>
+        </label>
+        <label>할인 값
+          <input type="number" name="discountValue" required min="0" step="0.01">
+        </label>
+        <label>적용 조건 구분
+          <select name="conditionType" required>
+            <option value="SIBLING">형제/자매</option>
+            <option value="LONG_TERM">장기수강</option>
+            <option value="MULTI_CLASS">복수반 수강</option>
+            <option value="MANUAL">관리자 직접 지정</option>
+          </select>
+        </label>
+        <label>적용 시작일 (선택)
+          <input type="date" name="startDate">
+        </label>
+        <label>적용 종료일 (선택)
+          <input type="date" name="endDate">
+        </label>
+        <label>활성 여부
+          <select name="activeYn" required>
+            <option value="Y">활성</option>
+            <option value="N">비활성</option>
+          </select>
+        </label>
+        <label>설명 (선택)
+          <input type="text" name="description" maxlength="255">
+        </label>
+
+        <div class="dp-modal-buttons">
+          <button type="submit">저장</button>
+          <button type="button" onclick="closeModal('dpUpdateModal')">취소</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 할인정책 목록 테이블 -->
+    <table class="dp-table">
+      <thead>
+      <tr>
+        <th>정책명</th>
+        <th>유형</th>
+        <th>할인 값</th>
+        <th>적용 조건</th>
+        <th>적용 기간</th>
+        <th>상태</th>
+        <th>설명</th>
+        <th>관리</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="p : ${policyPage.items}">
+        <td th:text="${p.policyName}">형제·자매 할인</td>
+        <td th:text="${p.discountType == 'RATE'} ? '정률' : '정액'">정률</td>
+        <td th:text="${p.discountType == 'RATE'}
+                       ? (${#numbers.formatDecimal(p.discountValue, 1, 1)} + '%')
+                       : (${#numbers.formatInteger(p.discountValue, 1, 'COMMA')} + '원')">10%</td>
+        <!-- conditionType 은 DB/API 상으로는 영어 코드(SIBLING 등)를 유지하고, 화면 표시만 한글 라벨로 매핑.
+             팀 컨벤션(statusCode 등 다른 코드 필드)과 일관성을 맞추기 위함. 새 코드값이 생기면 이 매핑에도 추가해야 함 -->
+        <td th:text="${p.conditionType == 'SIBLING'} ? '형제/자매'
+                      : (${p.conditionType == 'LONG_TERM'} ? '장기수강'
+                      : (${p.conditionType == 'MULTI_CLASS'} ? '복수반 수강'
+                      : (${p.conditionType == 'MANUAL'} ? '관리자 직접 지정' : ${p.conditionType})))">SIBLING</td>
+        <td th:text="(${p.startDate} ?: '제한없음') + ' ~ ' + (${p.endDate} ?: '제한없음')">제한없음 ~ 제한없음</td>
+        <td>
+          <span class="status-badge"
+                th:classappend="${p.activeYn == 'Y'} ? 'status-paid' : 'status-unpaid'"
+                th:text="${p.activeYn == 'Y'} ? '활성' : '비활성'">활성</span>
+        </td>
+        <td th:text="${p.description} ?: '-'">-</td>
+        <td class="dp-actions">
+          <button type="button"
+                  th:attr="data-policy-id=${p.policyId}, data-policy-name=${p.policyName},
+                            data-discount-type=${p.discountType}, data-discount-value=${p.discountValue},
+                            data-condition-type=${p.conditionType}, data-start-date=${p.startDate},
+                            data-end-date=${p.endDate}, data-active-yn=${p.activeYn},
+                            data-description=${p.description}"
+                  onclick="openDpUpdateModal(this)">수정</button>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(policyPage.items)}" class="empty-row">
+        <td colspan="8">등록된 할인정책이 없습니다.</td>
+      </tr>
+      </tbody>
+    </table>
+
+    <!-- 페이지네이션: 필터 조건 유지한 채 page 만 변경 -->
+    <div class="dp-paging" th:if="${policyPage.totalPages > 1}">
+      <a th:if="${policyPage.page > 1}"
+         th:href="@{/admin/discount-policies(activeOnly=${activeOnly}, page=${policyPage.page - 1})}">이전</a>
+
+      <a th:each="i : ${#numbers.sequence(1, policyPage.totalPages)}"
+         th:href="@{/admin/discount-policies(activeOnly=${activeOnly}, page=${i})}"
+         th:text="${i}"
+         th:classappend="${i == policyPage.page} ? 'now-page'">1</a>
+
+      <a th:if="${policyPage.page < policyPage.totalPages}"
+         th:href="@{/admin/discount-policies(activeOnly=${activeOnly}, page=${policyPage.page + 1})}">다음</a>
+    </div>
+  </main>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+
+<script>
+  // getCsrfCookie() 는 fragments/common :: logoutScript 에 정의된 것을 재사용
+  // feeList.html 의 feeApi/handleResult 와 동일한 패턴 (페이지마다 로컬 정의, 팀 공용 JS 파일 없음)
+
+  async function dpApi(url, method, body) {
+    if (!getCsrfCookie()) { await fetch('/api/auth/csrf'); }
+    return fetch(url, {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': getCsrfCookie()
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+  }
+
+  async function handleResult(res, failPrefix) {
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      const error = await res.json();
+      alert(failPrefix + ': ' + (error.message || res.status));
+    }
+  }
+
+  function closeModal(id) {
+    const dialog = document.getElementById(id);
+    dialog.querySelector('form').reset();
+    dialog.close();
+  }
+
+  // ===== 할인정책 등록 =====
+  function openDpCreateModal() {
+    document.getElementById('dpCreateModal').showModal();
+  }
+
+  document.getElementById('dpCreateForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const form = new FormData(this);
+    const body = {
+      policyName:     form.get('policyName'),
+      discountType:   form.get('discountType'),
+      discountValue:  Number(form.get('discountValue')),
+      conditionType:  form.get('conditionType'),
+      startDate:      form.get('startDate') || null,
+      endDate:        form.get('endDate') || null,
+      description:    form.get('description') || null
+    };
+
+    const res = await dpApi('/api/v1/discount-policies', 'POST', body);
+    await handleResult(res, '등록 실패');
+  });
+
+  // ===== 할인정책 수정 (활성/비활성 전환 포함) =====
+  // 버튼의 data-* 값으로 현재 값을 프리필
+  function openDpUpdateModal(btn) {
+    const form = document.getElementById('dpUpdateForm');
+    form.policyId.value      = btn.dataset.policyId;
+    form.policyName.value    = btn.dataset.policyName;
+    form.discountType.value  = btn.dataset.discountType;
+    form.discountValue.value = btn.dataset.discountValue;
+    form.conditionType.value = btn.dataset.conditionType;
+    form.startDate.value     = btn.dataset.startDate || '';
+    form.endDate.value       = btn.dataset.endDate || '';
+    form.activeYn.value      = btn.dataset.activeYn;
+    form.description.value   = btn.dataset.description || '';
+    document.getElementById('dpUpdateModal').showModal();
+  }
+
+  document.getElementById('dpUpdateForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const form = new FormData(this);
+    const body = {
+      policyName:     form.get('policyName'),
+      discountType:   form.get('discountType'),
+      discountValue:  Number(form.get('discountValue')),
+      conditionType:  form.get('conditionType'),
+      startDate:      form.get('startDate') || null,
+      endDate:        form.get('endDate') || null,
+      activeYn:       form.get('activeYn'),
+      description:    form.get('description') || null
+    };
+
+    const res = await dpApi('/api/v1/discount-policies/' + form.get('policyId'), 'PUT', body);
+    await handleResult(res, '수정 실패');
+  });
+</script>
+
+</body>
+</html>

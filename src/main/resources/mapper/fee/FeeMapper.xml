@@ -53,6 +53,8 @@
                f.billing_month,
                f.fee_amount,
                f.discount_amount,
+               f.discount_policy_id,
+               dp.policy_name                      AS discount_policy_name,
                f.fee_amount - f.discount_amount    AS billable_amount,
                f.due_date,
                f.status_code,
@@ -64,6 +66,8 @@
           JOIN students s  ON s.student_id = f.student_id
           JOIN users u     ON u.user_id    = s.user_id
           LEFT JOIN classes c ON c.class_id = f.class_id
+          <!-- FEE-10: 적용된 할인정책명 표시용 (관리자가 목록에서 어떤 정책이 적용됐는지 바로 확인) -->
+          LEFT JOIN discount_policies dp ON dp.policy_id = f.discount_policy_id
           <!-- 납부 이력을 fee 단위로 집계
                last_payment_id / paid_sum : 유효분(cancel_yn='N')만 - FILTER 로 걸러냄
                payment_count              : 취소분 포함 전체 행 수 - 삭제 버튼 활성화 판단용 -->
@@ -86,9 +90,9 @@
 
     <insert id="insertFee" useGeneratedKeys="true" keyProperty="feeId" keyColumn="fee_id">
         INSERT INTO fees (student_id, class_id, billing_month, fee_amount,
-                          discount_amount, due_date, status_code, description)
+                          discount_amount, discount_policy_id, due_date, status_code, description)
         VALUES (#{studentId}, #{classId}, #{billingMonth}, #{feeAmount},
-                #{discountAmount}, #{dueDate}, #{statusCode}, #{description})
+                #{discountAmount}, #{discountPolicyId}, #{dueDate}, #{statusCode}, #{description})
     </insert>
 
     <!-- IS NOT DISTINCT FROM : class_id 가 양쪽 다 NULL 이어도 같다고 판단 (PostgreSQL) -->
@@ -104,18 +108,19 @@
 
     <select id="selectByFeeId" resultType="com.edu.domain.fee.vo.FeeVo">
         SELECT fee_id, student_id, class_id, billing_month, fee_amount,
-               discount_amount, due_date, status_code, description, created_at
+               discount_amount, discount_policy_id, due_date, status_code, description, created_at
           FROM fees
          WHERE fee_id = #{feeId}
     </select>
 
     <update id="updateFee">
         UPDATE fees
-           SET fee_amount      = #{feeAmount},
-               discount_amount = #{discountAmount},
-               due_date        = #{dueDate},
-               description     = #{description},
-               status_code     = #{statusCode}
+           SET fee_amount          = #{feeAmount},
+               discount_amount     = #{discountAmount},
+               discount_policy_id  = #{discountPolicyId},
+               due_date            = #{dueDate},
+               description         = #{description},
+               status_code         = #{statusCode}
          WHERE fee_id = #{feeId}
     </update>
 
