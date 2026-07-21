@@ -67,6 +67,12 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
+    public int markAllRead(Long currentUserId) {
+        return notificationMapper.updateAllReadByUser(currentUserId);
+    }
+
+    @Override
+    @Transactional
     public void createNotification(Long userId, String notificationType, String title, String message) {
         // 실제 외부 발송(카카오/이메일 등)은 없으므로 APP 채널 즉시 발송 완료로 기록
         // TODO(팀 확인): 발송 채널/실패 시뮬레이션 여부 - 회의 안건

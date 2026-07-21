@@ -52,6 +52,13 @@ public class NotificationApiController {
                 currentUserId(authentication), isAdmin(authentication));
     }
 
+    /** PUT /api/notifications/read-all - 본인 알림 전체 읽음 처리 (앱 "모두 읽음"). 처리 건수 반환 */
+    @PutMapping("/read-all")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT', 'STUDENT')")
+    public java.util.Map<String, Integer> markAllRead(JwtAuthenticationToken authentication) {
+        return java.util.Map.of("updated", notificationService.markAllRead(currentUserId(authentication)));
+    }
+
     /**
      * JWT userId 클레임에서 로그인 사용자 PK 추출
      * JSON 숫자는 디코딩 시 정수 타입이 보장되지 않으므로 Number 로 받아 변환
