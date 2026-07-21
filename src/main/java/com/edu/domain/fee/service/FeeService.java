@@ -6,6 +6,7 @@ import com.edu.domain.fee.dto.request.FeePaymentRequest;
 import com.edu.domain.fee.dto.request.FeeSearchRequest;
 import com.edu.domain.fee.dto.request.FeeUpdateRequest;
 import com.edu.domain.fee.dto.response.FeeCreateResponse;
+import com.edu.domain.fee.dto.response.FeeDiscountResponse;
 import com.edu.domain.fee.dto.response.FeeListResponse;
 import com.edu.domain.fee.dto.response.FeeNotificationTargetResponse;
 import com.edu.domain.fee.dto.response.FeePaymentHistoryResponse;
@@ -21,11 +22,15 @@ public interface FeeService {
     /** 회비 목록 조회 - 검색 조건 + 페이징 (FEE-02) */
     PageResponse<FeeListResponse> getFeeList(FeeSearchRequest search);
 
-    /** 회비 등록 (FEE-01) */
-    FeeCreateResponse createFee(FeeCreateRequest request);
+    /**
+     * 회비 등록 (FEE-01)
+     * currentUserId: 로그인한 관리자 PK. discountPolicyId 로 할인을 적용하면 fee_discounts.applied_by 로 기록된다
+     * (FEE-15/16, DCP-05). discountPolicyId 가 없으면(직접입력/무할인) 이력을 남기지 않으므로 사용되지 않는다.
+     */
+    FeeCreateResponse createFee(FeeCreateRequest request, Long currentUserId);
 
-    /** 회비 수정 - 금액/할인/기한/비고 (FEE-03) */
-    FeeUpdateResponse updateFee(Long feeId, FeeUpdateRequest request);
+    /** 회비 수정 - 금액/할인/기한/비고 (FEE-03). currentUserId 용도는 createFee 와 동일 */
+    FeeUpdateResponse updateFee(Long feeId, FeeUpdateRequest request, Long currentUserId);
 
     /** 납부 처리 - 이력 저장 + 상태 재계산 (FEE-04) */
     FeePaymentResponse payFee(Long feeId, FeePaymentRequest request);
@@ -41,6 +46,12 @@ public interface FeeService {
      * (컨트롤러가 로그인 역할 하나에 대해서만 스코핑 값을 채운다).
      */
     List<FeePaymentHistoryResponse> getPaymentHistory(Long feeId, Long parentUserId, Long studentUserId);
+
+    /**
+     * 할인 적용 이력 조회 - 회비 1건에 적용된 할인정책 이력 목록, 최신순 (FEE-15/16, DCP-05)
+     * 스코핑 규칙은 getPaymentHistory 와 동일 (parentUserId/studentUserId 는 동시에 값을 갖지 않음).
+     */
+    List<FeeDiscountResponse> getDiscountHistory(Long feeId, Long parentUserId, Long studentUserId);
 
     /** 회비 통계 - 기준 월 요약 + 최근 6개월 추이 (FEE-06) */
     FeeStatisticsResponse getStatistics(String billingMonth, Long classId);

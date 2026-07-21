@@ -7,7 +7,8 @@
 
   <!-- 회비 통계 페이지 전용 스타일 (팀 규칙: 개인 구간은 html 내 style 태그)
        사용 중인 클래스:
-       .stats-toolbar     : 월 선택 + 조회 + 목록 링크 영역
+       .tabs / .tab       : 상단 탭(회비 목록/통계·매출/할인정책관리 3페이지 이동, admin/attendance 탭 디자인 재사용)
+       .stats-toolbar     : 월 선택 + 조회 영역
        .stats-cards       : 요약 카드 3개 가로 배치 컨테이너
        .stats-card        : 요약 카드 (총액/납부액/미납액)
        .stats-card-label  : 카드 상단 라벨
@@ -17,7 +18,37 @@
        ※ 차트 자체 색상은 CSS 가 아니라 아래 JS 의 CHART_COLORS 에서 변경
   -->
   <style>
-    /* TODO(윤동재): 페이지 스타일 작성 */
+    /* ===== 회비 통계 화면 ===== */
+    /* 상단 탭 (회비 목록 / 통계·매출 / 할인정책관리) - admin/attendance 페이지의 .tabs/.tab 디자인 재사용.
+       거기는 같은 페이지 안에서 JS로 섹션을 전환하지만 여긴 실제로 다른 페이지로 이동하는 링크라 a 태그로 구현 */
+    .tabs { display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; margin-bottom: 16px; }
+    .tabs .tab {
+      display: inline-block; padding: 9px 18px; background: none; cursor: pointer; font-size: 14px;
+      font-weight: 600; color: #94a3b8; border-bottom: 2px solid transparent; margin-bottom: -2px;
+    }
+    .tabs .tab:hover { color: #475569; }
+    .tabs .tab.active { color: #1e3a8a; border-bottom-color: #1e3a8a; }
+
+    .stats-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 20px; }
+    .stats-toolbar input[type="month"] {
+      height: 36px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; background: #fff;
+    }
+    .stats-toolbar button {
+      height: 36px; padding: 0 16px; border: none; border-radius: 6px;
+      font-size: 14px; cursor: pointer; background: #1e3a8a; color: #fff;
+    }
+    .stats-toolbar button:hover { background: #1d4ed8; }
+
+    .stats-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stats-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px; }
+    .stats-card-label { font-size: 13px; color: #6b7280; margin-bottom: 6px; }
+    .stats-card-value { font-size: 22px; font-weight: 700; color: #0f2a5f; }
+    #cardUnpaid { color: #dc2626; }
+
+    .stats-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .stats-chart-box { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px; }
+    .stats-chart-box h3 { margin: 0 0 12px; font-size: 14px; color: #374151; }
   </style>
 </head>
 <body>
@@ -34,7 +65,6 @@
     <div class="group-label">학생</div>
     <a href="/admin/attendance">출석관리</a>
     <a href="/admin/fees">회비관리</a>
-    <a href="/admin/discount-policies">할인정책관리</a>
     <a href="/admin/grades">성적관리</a>
     <div class="group-label">소통</div>
     <a href="/admin/notices">공지관리</a>
@@ -50,11 +80,17 @@
     <h1>매출/통계</h1>
     <p class="sub">월별 회비 총액·납부액·미납액과 상태별 건수 통계 (SCR-W-12)</p>
 
+    <!-- 상단 탭: 회비 목록 / 통계·매출 / 할인정책관리 -->
+    <div class="tabs">
+      <a class="tab" href="/admin/fees">회비 목록</a>
+      <a class="tab active" href="/admin/fees/statistics">통계/매출</a>
+      <a class="tab" href="/admin/discount-policies">할인정책관리</a>
+    </div>
+
     <!-- 월 선택 + 조회. TODO: 반 필터는 classroom 파트 목록 API 완성 후 select 추가 (API 는 classId 이미 지원) -->
     <div class="stats-toolbar">
       <input type="month" id="statsMonth">
       <button type="button" onclick="loadStats()">조회</button>
-      <a href="/admin/fees">← 회비 목록</a>
     </div>
 
     <!-- 요약 카드: 기준 월의 총액/납부액/미납액 -->

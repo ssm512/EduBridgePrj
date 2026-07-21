@@ -6,6 +6,7 @@ import com.edu.domain.fee.dto.request.FeePaymentRequest;
 import com.edu.domain.fee.dto.request.FeeSearchRequest;
 import com.edu.domain.fee.dto.request.FeeUpdateRequest;
 import com.edu.domain.fee.dto.response.FeeCreateResponse;
+import com.edu.domain.fee.dto.response.FeeDiscountResponse;
 import com.edu.domain.fee.dto.response.FeeListResponse;
 import com.edu.domain.fee.dto.response.FeeNotificationRunResponse;
 import com.edu.domain.fee.dto.response.FeePaymentHistoryResponse;
@@ -75,12 +76,16 @@ public class FeeApiController {
         return feeService.getFeeList(search);
     }
 
-    /** POST /api/fees - 회비 등록 (FEE-01) */
+    /**
+     * POST /api/fees - 회비 등록 (FEE-01)
+     * FEE-10/DCP-05: discountPolicyId 로 할인을 적용하면 fee_discounts 이력에 applied_by 로 로그인 사용자를 기록한다.
+     */
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
-    public FeeCreateResponse createFee(@Valid @RequestBody FeeCreateRequest request) {
-        return feeService.createFee(request);
+    public FeeCreateResponse createFee(@Valid @RequestBody FeeCreateRequest request,
+                                       JwtAuthenticationToken authentication) {
+        return feeService.createFee(request, currentUserId(authentication));
     }
 
     /**
@@ -96,12 +101,13 @@ public class FeeApiController {
         return feeService.getStatistics(billingMonth, classId);
     }
 
-    /** PUT /api/fees/{feeId} - 회비 수정 (FEE-03) */
+    /** PUT /api/fees/{feeId} - 회비 수정 (FEE-03). createFee 와 동일하게 currentUserId 를 이력에 남긴다 */
     @PutMapping("/{feeId}")
     @PreAuthorize("hasAnyRole('ADMIN')")
     public FeeUpdateResponse updateFee(@PathVariable Long feeId,
-                                       @Valid @RequestBody FeeUpdateRequest request) {
-        return feeService.updateFee(feeId, request);
+                                       @Valid @RequestBody FeeUpdateRequest request,
+                                       JwtAuthenticationToken authentication) {
+        return feeService.updateFee(feeId, request, currentUserId(authentication));
     }
 
     /** POST /api/fees/{feeId}/payments - 납부 처리 (FEE-04) */
@@ -132,6 +138,26 @@ public class FeeApiController {
             }
         }
         return feeService.getPaymentHistory(feeId, parentUserId, studentUserId);
+    }
+
+    /**
+     * GET /api/fees/{feeId}/discounts - 회비 1건의 할인 적용 이력 조회 (FEE-15/16, DCP-05)
+     * 스코핑 규칙은 /payments 와 동일 (PARENT=본인 자녀, STUDENT=본인, 직원=전체).
+     */
+    @GetMapping("/{feeId}/discounts")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT', 'STUDENT')")
+    public List<FeeDiscountResponse> getDiscountHistory(@PathVariable Long feeId,
+                                                         JwtAuthenticationToken authentication) {
+        Long parentUserId = null;
+        Long studentUserId = null;
+        if (!isStaff(authentication)) {
+            if (isStudent(authentication)) {
+                studentUserId = currentUserId(authentication);
+            } else {
+                parentUserId = currentUserId(authentication);
+            }
+        }
+        return feeService.getDiscountHistory(feeId, parentUserId, studentUserId);
     }
 
     /**

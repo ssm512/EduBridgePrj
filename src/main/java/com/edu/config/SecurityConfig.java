@@ -144,11 +144,17 @@ public class SecurityConfig {
                             .hasAnyRole("ADMIN", "TEACHER", "PARENT", "STUDENT")
                         .requestMatchers(HttpMethod.POST, "/api/fees/notifications/run").hasRole("ADMIN")
 
+                        // [추가] 회비 할인 적용 이력 조회 API (명세서 FEE-15/16, DCP-05)
+                        // /payments 조회와 동일한 롤 구성 (본인·자녀 회비만 보이도록 하는 필터는 서비스에서 처리)
+                        .requestMatchers(HttpMethod.GET, "/api/fees/*/discounts")
+                            .hasAnyRole("ADMIN", "TEACHER", "PARENT", "STUDENT")
+
                         // [추가] 회비 납부 취소 API (명세서 FEE-05) - ADMIN 전용
                         .requestMatchers(HttpMethod.PUT, "/api/fee-payments/*/cancel").hasRole("ADMIN")
 
                         // [추가] 할인정책관리 API (명세서 FEE-10) - 컨트롤러 클래스 레벨 @PreAuthorize("hasRole('ADMIN')")와 이중 방어
-                        // 목록/단건조회/등록/수정 전부 ADMIN 전용 (삭제 API 없음 - active_yn 토글로 대체)
+                        // 목록/단건조회/등록/수정/계산미리보기(DCP-04, /{id}/preview) 전부 ADMIN 전용
+                        // (삭제 API 없음 - active_yn 토글로 대체. /** 와일드카드가 /preview 도 함께 커버함)
                         .requestMatchers("/api/discount-policies", "/api/discount-policies/**").hasRole("ADMIN")
 
                         // ===== 서버 렌더링 페이지: 역할별 접근 제어 =====

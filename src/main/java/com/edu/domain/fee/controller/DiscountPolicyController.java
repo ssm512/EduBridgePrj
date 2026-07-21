@@ -3,8 +3,10 @@ package com.edu.domain.fee.controller;
 import com.edu.common.dto.PageResponse;
 import com.edu.domain.fee.dto.request.DiscountPolicyRequest;
 import com.edu.domain.fee.dto.response.DiscountPolicyResponse;
+import com.edu.domain.fee.dto.response.DiscountPreviewResponse;
 import com.edu.domain.fee.service.DiscountPolicyService;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -17,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
 
 /**
  * 할인정책 REST API (FEE-10)
@@ -35,12 +39,14 @@ public class DiscountPolicyController {
         this.discountPolicyService = discountPolicyService;
     }
 
-    /** GET /api/discount-policies?activeOnly=&page=&size= - 목록 조회 */
+    /** GET /api/discount-policies?activeYn=&targetDate=&page=&size= - 목록 조회 */
     @GetMapping
-    public PageResponse<DiscountPolicyResponse> getList(@RequestParam(defaultValue = "false") boolean activeOnly,
-                                                         @RequestParam(defaultValue = "1") int page,
-                                                         @RequestParam(defaultValue = "10") int size) {
-        return discountPolicyService.getList(activeOnly, page, size);
+    public PageResponse<DiscountPolicyResponse> getList(
+            @RequestParam(required = false) String activeYn,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate targetDate,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return discountPolicyService.getList(activeYn, targetDate, page, size);
     }
 
     /** GET /api/discount-policies/{discountPolicyId} - 단건 조회 */
@@ -62,5 +68,17 @@ public class DiscountPolicyController {
     public DiscountPolicyResponse update(@PathVariable Long discountPolicyId,
                                           @Valid @RequestBody DiscountPolicyRequest request) {
         return discountPolicyService.update(discountPolicyId, request);
+    }
+
+    /**
+     * GET /api/discount-policies/{discountPolicyId}/preview?feeAmount= - 계산 미리보기 (DCP-04)
+     * 회비 등록/수정 화면에서 정책을 선택했을 때 실제 저장 전에 할인액/청구액을 보여주기 위한 조회 전용 API.
+     * 저장은 하지 않으며, 실제 확정은 회비 등록/수정(POST·PUT /api/fees) 시 discountPolicyId 를
+     * 함께 넘기는 방식으로 이뤄진다 (그때 fee_discounts 에 이력이 남음, DCP-05).
+     */
+    @GetMapping("/{discountPolicyId}/preview")
+    public DiscountPreviewResponse preview(@PathVariable Long discountPolicyId,
+                                            @RequestParam long feeAmount) {
+        return discountPolicyService.preview(discountPolicyId, feeAmount);
     }
 }
