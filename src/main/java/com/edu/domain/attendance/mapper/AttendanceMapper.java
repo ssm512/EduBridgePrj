@@ -20,6 +20,12 @@ public interface AttendanceMapper {
     /** 출석기록 등록 (useGeneratedKeys로 attendanceId 채움) */
     int insert(AttendanceRecord record);
 
+    /**
+     * 자동 결석 전용 등록 (ATT-08). 이미 같은 날 기록이 있으면(동시 체크인/중복 수강행) 조용히 무시한다.
+     * ON CONFLICT DO NOTHING 이라 유니크 위반 예외를 던지지 않으며, 반환값 = 실제 삽입 행수(1=삽입, 0=이미 있음).
+     */
+    int insertAbsentIfAbsent(AttendanceRecord record);
+
     /** PK 단건 조회 */
     AttendanceRecord findById(@Param("attendanceId") Long attendanceId);
 

@@ -457,6 +457,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         List<Long> studentIds = attendanceMapper.findAbsentCandidates(classId, date);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String checkDate = date.format(formatter);
+        int marked = 0;
         for (Long studentId : studentIds) {
             AttendanceRecord record = AttendanceRecord.builder()
                     .studentId(studentId)
@@ -467,15 +468,20 @@ public class AttendanceServiceImpl implements AttendanceService {
                     .failureReason("미출석 자동 결석 처리")
                     .build();
 
+            // 이미 그날 기록이 있으면(동시 체크인/중복 수강행) 0행 → 알림도 보내지 않는다.
+            int inserted = attendanceMapper.insertAbsentIfAbsent(record);
+            if (inserted == 0) {
+                continue;
+            }
+            marked++;
+
             String studentName = attendanceMapper.getStudentName(studentId);
             String className = attendanceMapper.getClassName(classId);
             String notifyMsg = " : " + studentName + " 학생이 " + checkDate + ", [" + className +  "] 강의에 결석 하였습니다.";
-
-            attendanceMapper.insert(record);
             notificationService.notifyParentsOfStudent(
                     studentId, "ATTENDANCE", "결석 안내", notifyMsg);
         }
-        return studentIds.size();
+        return marked;
     }
 
     @Override

@@ -56,8 +56,9 @@
 <div th:replace="~{fragments/common :: topbar('강사')}"></div>
 
 <div class="shell">
+  <div th:replace="~{fragments/common :: teacherSidebar('classes')}"></div>
   <main class="content">
-    <a class="back" href="/teacherPage">← 강사 홈</a>
+    <a class="home-btn" href="/teacherPage">홈으로</a>
     <h1>내 반 관리</h1>
     <p class="page-sub">담당하고 있는 반 정보와 수강 학생을 확인할 수 있어요. 반 등록·수정은 관리자만 가능합니다.</p>
 

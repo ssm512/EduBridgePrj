@@ -560,10 +560,9 @@
 <div th:replace="~{fragments/common :: topbar('강사')}"></div>
 
 <div class="shell">
+    <div th:replace="~{fragments/common :: teacherSidebar('counseling')}"></div>
     <main class="content">
-        <div class="page-actions">
-            <button type="button" class="back-btn" onclick="location.href='/teacherPage'">뒤로가기</button>
-        </div>
+        <a class="home-btn" href="/teacherPage">홈으로</a>
         <h1>상담기록</h1>
         <p class="sub">학생명으로 상담 대상을 선택하면 연결된 학부모가 자동으로 채워집니다.</p>
 

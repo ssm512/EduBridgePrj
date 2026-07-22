@@ -73,10 +73,11 @@
 <div th:replace="~{fragments/common :: topbar('회비 조회')}"></div>
 
 <div class="shell">
+  <div th:replace="~{fragments/common :: studentSidebar('fees')}"></div>
   <main class="content">
+    <a class="home-btn" href="/studentPage">홈으로</a>
     <h1>내 회비</h1>
     <p class="sub">
-      <a class="back-link" href="/studentPage">← 학생 홈으로</a> ·
       내 회비 청구/납부 내역을 확인합니다. 실제 납부(결제)는 학원에 직접 문의해 주세요.
     </p>
 

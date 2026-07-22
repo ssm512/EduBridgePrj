@@ -48,8 +48,9 @@
 <div th:replace="~{fragments/common :: topbar('학부모')}"></div>
 
 <div class="shell">
+  <div th:replace="~{fragments/common :: parentSidebar('attendance')}"></div>
   <main class="content">
-    <a class="back" href="/parentPage">← 학부모 홈</a>
+    <a class="home-btn" href="/parentPage">홈으로</a>
     <h1>자녀 출석</h1>
     <p class="page-sub">자녀를 선택하면 출석 현황과 이력을 볼 수 있어요.</p>
 
