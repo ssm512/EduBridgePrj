@@ -69,6 +69,16 @@
     });
     window.location.href = '/';
   }
+
+  // 현재 페이지 경로와 일치하는 사이드바 메뉴를 자동으로 활성화(.active) 한다.
+  // 정확 일치만 사용해 홈(상위 경로)이 하위 페이지에서 계속 켜지는 문제를 방지.
+  document.addEventListener('DOMContentLoaded', function () {
+    var here = location.pathname.replace(/\/+$/, '');
+    document.querySelectorAll('.sidebar a').forEach(function (a) {
+      var p = new URL(a.href).pathname.replace(/\/+$/, '');
+      if (p === here) a.classList.add('active');
+    });
+  });
 </script>
 
 </body>
