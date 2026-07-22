@@ -38,6 +38,14 @@ public class FeeSearchRequest {
     private Long studentUserId;
 
     /**
+     * 담당 강사 회비 조회 스코핑 (2026-07-22 결정) - 이 값이 있으면 로그인 강사가 담당하는 반(classes.teacher_id)의
+     * 회비만 조회한다. 이전까지는 TEACHER 를 ADMIN 과 동일한 "직원"으로 취급해 전체 학생 회비를 제한 없이
+     * 조회할 수 있었는데, 그 문제를 고치기 위해 추가함. 컨트롤러가 TEACHER 로그인 시 JWT userId 로 강제한다
+     * (클라이언트 입력 무시). parentUserId/studentUserId 와 동시에 값을 갖지 않는다(로그인 역할 하나만 채워짐).
+     */
+    private Long teacherUserId;
+
+    /**
      * 미납 조회 필터 (FEE-07) - true 면 "납부 기한이 지난 미납 건"만 조회
      * status_code 는 쓰기 이벤트에서만 갱신되어 기한이 지나도 SCHEDULED 로 남는 건이 있으므로,
      * 저장된 상태값이 아니라 due_date + 완납 여부로 직접 판정한다 (SQL 참고).

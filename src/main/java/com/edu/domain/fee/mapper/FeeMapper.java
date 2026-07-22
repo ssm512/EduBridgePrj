@@ -71,6 +71,15 @@ public interface FeeMapper {
     /** 회비가 해당 학생 본인(user_id) 것인지 - 학생 납부 이력 접근 제어 (FEE-14 학생 화면 확장) */
     boolean existsFeeForStudent(@Param("feeId") Long feeId, @Param("studentUserId") Long studentUserId);
 
+    /** 회비의 반(class_id)이 해당 강사(user_id)의 담당반인지 - 강사 납부 이력 접근 제어 (2026-07-22 결정) */
+    boolean existsFeeForTeacher(@Param("feeId") Long feeId, @Param("teacherUserId") Long teacherUserId);
+
+    /** 납부 이력이 해당 학부모(user_id)의 자녀 것인지 - 영수증 조회 접근 제어 (RCT-01/02) */
+    boolean existsPaymentForParent(@Param("paymentId") Long paymentId, @Param("parentUserId") Long parentUserId);
+
+    /** 납부 이력이 해당 학생 본인(user_id) 것인지 - 영수증 조회 접근 제어 (RCT-01/02) */
+    boolean existsPaymentForStudent(@Param("paymentId") Long paymentId, @Param("studentUserId") Long studentUserId);
+
     /** 지정일에 납부 기한이 도래하는 미완납 회비 - 납부 예정 알림 대상 (FEE-08) */
     List<FeeNotificationTargetResponse> selectFeesDueOn(@Param("dueDate") LocalDate dueDate);
 

@@ -55,22 +55,31 @@ public class FeeApiController {
      * ?studentId=&billingMonth=YYYY-MM&statusCode=&overdueOnly=true&page=1&size=10
      * overdueOnly=true 면 납부 기한이 지난 미완납 건만 조회 (FEE-07)
      * FEE-14: PARENT 는 본인 자녀 회비만, STUDENT 는 본인 회비만 조회.
-     * parentUserId/studentUserId 는 클라이언트 입력을 신뢰하지 않고 서버가 JWT userId 로 항상 덮어쓴다
-     * (직원(ADMIN/TEACHER)은 둘 다 null 로 두어 전체 조회).
+     * TEACHER 스코핑(2026-07-22 결정): 본인이 담당하는 반의 회비만 조회 - 예전에는 ADMIN 과 같은
+     * "직원"으로 묶여 전체 학생 회비를 제한 없이 볼 수 있었는데, 그 문제를 여기서 고친다.
+     * parentUserId/studentUserId/teacherUserId 는 클라이언트 입력을 신뢰하지 않고 서버가 JWT userId 로 항상 덮어쓴다
+     * (ADMIN 만 셋 다 null 로 두어 전체 조회).
      */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT', 'STUDENT')")
     public PageResponse<FeeListResponse> getFeeList(@ModelAttribute FeeSearchRequest search,
                                                     JwtAuthenticationToken authentication) {
-        // 보안 스코핑: 직원=전체, 학부모=본인 자녀, 학생=본인 (클라이언트 입력 무시)
-        if (isStaff(authentication)) {
+        // 보안 스코핑: ADMIN=전체, TEACHER=본인 담당반, 학부모=본인 자녀, 학생=본인 (클라이언트 입력 무시)
+        if (isAdmin(authentication)) {
+            search.setTeacherUserId(null);
+            search.setParentUserId(null);
+            search.setStudentUserId(null);
+        } else if (isTeacher(authentication)) {
+            search.setTeacherUserId(currentUserId(authentication));
             search.setParentUserId(null);
             search.setStudentUserId(null);
         } else if (isStudent(authentication)) {
             search.setStudentUserId(currentUserId(authentication));
+            search.setTeacherUserId(null);
             search.setParentUserId(null);
         } else { // PARENT
             search.setParentUserId(currentUserId(authentication));
+            search.setTeacherUserId(null);
             search.setStudentUserId(null);
         }
         return feeService.getFeeList(search);
@@ -110,13 +119,17 @@ public class FeeApiController {
         return feeService.updateFee(feeId, request, currentUserId(authentication));
     }
 
-    /** POST /api/fees/{feeId}/payments - 납부 처리 (FEE-04) */
+    /**
+     * POST /api/fees/{feeId}/payments - 납부 처리 (FEE-04)
+     * FEE-19: 납부 처리 직후 영수증이 자동 발급되며, 로그인한 관리자가 issued_by 로 기록된다.
+     */
     @PostMapping("/{feeId}/payments")
     @PreAuthorize("hasAnyRole('ADMIN')")
     @ResponseStatus(HttpStatus.CREATED)
     public FeePaymentResponse payFee(@PathVariable Long feeId,
-                                     @Valid @RequestBody FeePaymentRequest request) {
-        return feeService.payFee(feeId, request);
+                                     @Valid @RequestBody FeePaymentRequest request,
+                                     JwtAuthenticationToken authentication) {
+        return feeService.payFee(feeId, request, currentUserId(authentication));
     }
 
     /**
@@ -127,17 +140,21 @@ public class FeeApiController {
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT', 'STUDENT')")
     public List<FeePaymentHistoryResponse> getPaymentHistory(@PathVariable Long feeId,
                                                              JwtAuthenticationToken authentication) {
-        // FEE-14: PARENT 는 본인 자녀 회비만, STUDENT 는 본인 회비만. 직원은 둘 다 null 로 넘겨 제한 없음.
+        // FEE-14: PARENT 는 본인 자녀 회비만, STUDENT 는 본인 회비만.
+        // TEACHER 는 본인 담당반 회비만 (2026-07-22 결정). ADMIN 만 셋 다 null 로 넘겨 제한 없음.
         Long parentUserId = null;
         Long studentUserId = null;
-        if (!isStaff(authentication)) {
+        Long teacherUserId = null;
+        if (isTeacher(authentication)) {
+            teacherUserId = currentUserId(authentication);
+        } else if (!isAdmin(authentication)) {
             if (isStudent(authentication)) {
                 studentUserId = currentUserId(authentication);
             } else {
                 parentUserId = currentUserId(authentication);
             }
         }
-        return feeService.getPaymentHistory(feeId, parentUserId, studentUserId);
+        return feeService.getPaymentHistory(feeId, parentUserId, studentUserId, teacherUserId);
     }
 
     /**
@@ -148,16 +165,20 @@ public class FeeApiController {
     @PreAuthorize("hasAnyRole('ADMIN', 'TEACHER', 'PARENT', 'STUDENT')")
     public List<FeeDiscountResponse> getDiscountHistory(@PathVariable Long feeId,
                                                          JwtAuthenticationToken authentication) {
+        // 스코핑 규칙은 getPaymentHistory 와 동일 (TEACHER=본인 담당반, 2026-07-22 결정)
         Long parentUserId = null;
         Long studentUserId = null;
-        if (!isStaff(authentication)) {
+        Long teacherUserId = null;
+        if (isTeacher(authentication)) {
+            teacherUserId = currentUserId(authentication);
+        } else if (!isAdmin(authentication)) {
             if (isStudent(authentication)) {
                 studentUserId = currentUserId(authentication);
             } else {
                 parentUserId = currentUserId(authentication);
             }
         }
-        return feeService.getDiscountHistory(feeId, parentUserId, studentUserId);
+        return feeService.getDiscountHistory(feeId, parentUserId, studentUserId, teacherUserId);
     }
 
     /**
@@ -194,13 +215,20 @@ public class FeeApiController {
     }
 
     /**
-     * 직원(ADMIN/TEACHER) 여부 - 직원은 전체 회비를 조회할 수 있어 스코핑에서 제외한다.
+     * ADMIN 여부 - ADMIN 만 스코핑 없이 전체 회비를 조회할 수 있다.
      * SecurityConfig 가 roles 클레임을 ROLE_* 권한으로 변환해 둔 것을 사용.
+     * (2026-07-22 결정으로 isStaff() 를 폐기하고 ADMIN/TEACHER 를 분리함 - TEACHER 는 더 이상
+     * 스코핑 없이 전체 학생 데이터에 접근할 수 없다. 본인 담당반만 조회 가능하도록 제한.)
      */
-    private boolean isStaff(JwtAuthenticationToken authentication) {
+    private boolean isAdmin(JwtAuthenticationToken authentication) {
         return authentication.getAuthorities().stream()
-                .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority())
-                        || "ROLE_TEACHER".equals(auth.getAuthority()));
+                .anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()));
+    }
+
+    /** TEACHER 여부 - 본인 담당반 스코핑용 (2026-07-22 결정) */
+    private boolean isTeacher(JwtAuthenticationToken authentication) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(auth -> "ROLE_TEACHER".equals(auth.getAuthority()));
     }
 
     /** 학생 여부 - 학생 본인 회비 스코핑용 */

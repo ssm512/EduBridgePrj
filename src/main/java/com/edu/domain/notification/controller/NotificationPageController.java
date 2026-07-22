@@ -1,5 +1,6 @@
 package com.edu.domain.notification.controller;
 
+import com.edu.common.dto.PageGroup;
 import com.edu.common.dto.PageResponse;
 import com.edu.domain.notification.dto.request.NotificationSearchRequest;
 import com.edu.domain.notification.dto.response.NotificationListResponse;
@@ -36,6 +37,8 @@ public class NotificationPageController {
 
         model.addAttribute("title", "알림이력");
         model.addAttribute("notificationPage", notificationPage);
+        // 페이징 바 그룹핑(10페이지 단위, 1~10/11~20 ...). 계산 로직은 PageGroup 참고
+        model.addAttribute("pageGroup", PageGroup.of(notificationPage.page(), notificationPage.totalPages(), 10));
         return "admin/notification/notificationList";
     }
 }

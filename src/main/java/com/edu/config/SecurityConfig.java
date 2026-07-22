@@ -154,6 +154,12 @@ public class SecurityConfig {
                         // [추가] 회비 납부 취소 API (명세서 FEE-05) - ADMIN 전용
                         .requestMatchers(HttpMethod.PUT, "/api/fee-payments/*/cancel").hasRole("ADMIN")
 
+                        // [추가] 영수증 조회/PDF 출력 API (명세서 RCT-01/02) - 명세대로 ADMIN/PARENT + STUDENT 만 허용.
+                        // (2026-07-22 결정으로 잠시 TEACHER 도 허용했었으나, 같은 날 재논의 후 철회 - TEACHER 용 화면 자체가
+                        // 없어서(=/teacher/** 밑에 회비/영수증 화면 없음) 굳이 API 접근을 열어둘 이유가 없다고 판단)
+                        .requestMatchers(HttpMethod.GET, "/api/fee-payments/*/receipt", "/api/fee-payments/*/receipt/pdf")
+                            .hasAnyRole("ADMIN", "PARENT", "STUDENT")
+
                         // [추가] 할인정책관리 API (명세서 FEE-10) - 컨트롤러 클래스 레벨 @PreAuthorize("hasRole('ADMIN')")와 이중 방어
                         // 목록/단건조회/등록/수정/계산미리보기(DCP-04, /{id}/preview) 전부 ADMIN 전용
                         // (삭제 API 없음 - active_yn 토글로 대체. /** 와일드카드가 /preview 도 함께 커버함)

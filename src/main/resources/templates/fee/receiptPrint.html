@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<!--
+  영수증 출력용 템플릿 (RCT-02)
+  - FeePaymentApiController#getReceiptPdf() 가 이 템플릿을 렌더링한 HTML 문자열을 openhtmltopdf 로 PDF 변환한다.
+  - openhtmltopdf 기본 파서는 엄격한 XML 파서라 모든 void 태그를 self-closing 으로 작성해야 한다 (예: <meta ... />).
+  - 화면 표시용 별도 print-only 페이지를 따로 만들지 않기 위해 PDF 전용으로만 쓰는 단일 템플릿이다.
+  - 모델 이름: receipt (com.edu.domain.fee.dto.response.PaymentReceiptResponse)
+-->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title th:text="'영수증 ' + ${receipt.receiptNo}">영수증</title>
+    <style>
+        /* "NotoSansKR" 는 FeePaymentApiController#renderPdf() 가 useFont() 로 등록하는 이름과 반드시 일치해야 한다.
+           PDFBox 는 시스템에 설치된 폰트를 이름으로 찾지 않으므로 "맑은 고딕" 같은 시스템 폰트명은 그대로는 동작하지 않는다. */
+        body {
+            font-family: "NotoSansKR", sans-serif;
+            color: #222;
+            margin: 40px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            letter-spacing: 8px;
+            margin-bottom: 4px;
+        }
+        .receipt-no {
+            text-align: center;
+            color: #666;
+            margin-bottom: 24px;
+        }
+        .cancel-badge {
+            text-align: center;
+            color: #c0392b;
+            font-weight: bold;
+            font-size: 18px;
+            border: 2px solid #c0392b;
+            display: inline-block;
+            padding: 4px 16px;
+            margin: 0 auto 16px auto;
+        }
+        .cancel-badge-wrap {
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        table td, table th {
+            border: 1px solid #ccc;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+        table th {
+            background-color: #f5f5f5;
+            width: 30%;
+            text-align: left;
+        }
+        .amount {
+            text-align: right;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: right;
+            font-size: 13px;
+            color: #555;
+        }
+        .cancel-reason {
+            margin-top: 16px;
+            padding: 8px 12px;
+            border: 1px solid #c0392b;
+            color: #c0392b;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <!-- h1 에 letter-spacing:8px 를 이미 줬으므로 글자 사이를 벌리려고 &nbsp; 를 쓸 필요가 없다.
+         &nbsp; 는 HTML 개체지만 openhtmltopdf 의 기본 파서는 엄격한 XML 파서라 DOCTYPE에
+         엔터티가 선언되어 있지 않으면 파싱에 실패한다("entity nbsp was referenced, but not declared") -->
+    <h1>영수증</h1>
+    <p class="receipt-no" th:text="'No. ' + ${receipt.receiptNo}">No. RCP00000000</p>
+
+    <div class="cancel-badge-wrap" th:if="${receipt.cancelled}">
+        <span class="cancel-badge">취소됨</span>
+    </div>
+
+    <table>
+        <tr>
+            <th>학생명</th>
+            <td th:text="${receipt.studentName}">홍길동</td>
+            <th>학번</th>
+            <td th:text="${receipt.studentNo}">S001</td>
+        </tr>
+        <tr>
+            <th>반</th>
+            <td th:text="${receipt.className} ?: '개인 청구'">1반</td>
+            <th>청구월</th>
+            <td th:text="${receipt.billingMonth}">2026-07</td>
+        </tr>
+        <tr>
+            <th>납부일시</th>
+            <td th:text="${#temporals.format(receipt.paidAt, 'yyyy-MM-dd HH:mm')}">2026-07-22 10:00</td>
+            <th>납부수단</th>
+            <td th:text="${receipt.paymentMethod}">CARD</td>
+        </tr>
+        <tr>
+            <th>납부금액</th>
+            <td class="amount" colspan="3" th:text="${#numbers.formatInteger(receipt.paidAmount, 0, 'COMMA')} + '원'">100,000원</td>
+        </tr>
+        <tr>
+            <th>발급일시</th>
+            <td th:text="${#temporals.format(receipt.issuedAt, 'yyyy-MM-dd HH:mm')}">2026-07-22 10:01</td>
+            <th>발급자</th>
+            <td th:text="${receipt.issuedByName}">관리자</td>
+        </tr>
+    </table>
+
+    <div class="cancel-reason" th:if="${receipt.cancelled}">
+        <p th:text="'취소일시: ' + ${#temporals.format(receipt.cancelledAt, 'yyyy-MM-dd HH:mm')}">취소일시: 2026-07-22 11:00</p>
+        <p th:text="'취소사유: ' + ${receipt.cancelReason}">취소사유: 납부 취소에 따른 자동 취소</p>
+    </div>
+
+    <p class="footer">위와 같이 납부되었음을 증명합니다.</p>
+</body>
+</html>

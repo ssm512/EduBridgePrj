@@ -125,7 +125,7 @@
     <div class="target" id="hTarget"></div>
     <table>
       <thead>
-      <tr><th>납부일시</th><th>금액</th><th>수단</th><th>상태</th></tr>
+      <tr><th>납부일시</th><th>금액</th><th>수단</th><th>상태</th><th>영수증</th></tr>
       </thead>
       <tbody id="hRows"></tbody>
     </table>
@@ -228,25 +228,27 @@
     const modal = document.getElementById('historyModalBack');
     const rows = document.getElementById('hRows');
     document.getElementById('hTarget').textContent = btn.dataset.billingMonth;
-    rows.innerHTML = '<tr><td colspan="4">불러오는 중…</td></tr>';
+    rows.innerHTML = '<tr><td colspan="5">불러오는 중…</td></tr>';
     modal.classList.add('show');
 
     const res = await fetch('/api/fees/' + feeId + '/payments');
     if (!res.ok) {
-      rows.innerHTML = '<tr><td colspan="4">납부 내역 조회 실패 (' + res.status + ')</td></tr>';
+      rows.innerHTML = '<tr><td colspan="5">납부 내역 조회 실패 (' + res.status + ')</td></tr>';
       return;
     }
     const list = await res.json();
     if (!list || list.length === 0) {
-      rows.innerHTML = '<tr><td colspan="4">납부 내역이 없습니다.</td></tr>';
+      rows.innerHTML = '<tr><td colspan="5">납부 내역이 없습니다.</td></tr>';
       return;
     }
+    // 영수증(RCT-01/02): receiptNo 가 있는 행만 PDF 링크 노출. paymentId 는 숫자라 그대로 써도 안전
     rows.innerHTML = list.map(p => `
       <tr class="${p.cancelYn === 'Y' ? 'canceled-row' : ''}">
         <td>${fmtDateTime(p.paidAt)}</td>
         <td>${fmtMoney(p.paidAmount)}</td>
         <td>${METHOD_LABEL[p.paymentMethod] || esc(p.paymentMethod) || '-'}</td>
         <td>${p.cancelYn === 'Y' ? '취소됨' : '정상'}</td>
+        <td>${p.receiptNo ? `<a href="/api/fee-payments/${p.paymentId}/receipt/pdf" target="_blank">영수증</a>` : '-'}</td>
       </tr>`).join('');
   }
 

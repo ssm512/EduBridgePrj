@@ -1,5 +1,6 @@
 package com.edu.domain.fee.controller;
 
+import com.edu.common.dto.PageGroup;
 import com.edu.common.dto.PageResponse;
 import com.edu.domain.fee.dto.request.FeeSearchRequest;
 import com.edu.domain.fee.dto.response.FeeListResponse;
@@ -33,6 +34,8 @@ public class FeePageController {
 
         model.addAttribute("title", "회비관리");
         model.addAttribute("feePage", feePage);
+        // 페이징 바 그룹핑(10페이지 단위, 1~10/11~20 ...). 계산 로직은 PageGroup 참고
+        model.addAttribute("pageGroup", PageGroup.of(feePage.page(), feePage.totalPages(), 10));
         return "admin/fee/feeList";
     }
 
