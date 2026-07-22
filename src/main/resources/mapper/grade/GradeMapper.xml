@@ -133,6 +133,13 @@
         WHERE grade_id = #{gradeId}
     </select>
 
+    <!-- 시험 ID로 시험 만점을 조회한다. 학생 점수 상한 검증에 사용한다. -->
+    <select id="selectExamTotalScore" resultType="java.math.BigDecimal">
+        SELECT total_score
+        FROM exams
+        WHERE exam_id = #{examId}
+    </select>
+
     <!-- 시험별 석차 자동 재계산 -->
     <update id="updateGradeRanksByExam">
         UPDATE grades g

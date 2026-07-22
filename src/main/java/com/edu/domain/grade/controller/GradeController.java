@@ -313,7 +313,7 @@ public class GradeController {
         return gradeMapper.selectActiveStudentOptions();
     }
 
-    // 점수 입력값은 화면과 서버 양쪽에서 최대 100점까지만 허용한다.
+    // 시험 만점 입력값은 화면과 서버 양쪽에서 최대 100점까지만 허용한다.
     private BigDecimal limitToHundred(BigDecimal score) {
         if (score == null) {
             return null;
@@ -327,9 +327,21 @@ public class GradeController {
         return score;
     }
 
+    // 학생 점수는 해당 시험의 만점을 넘지 않도록 서버에서 한 번 더 제한한다.
+    private BigDecimal limitToExamTotalScore(BigDecimal score, Long examId) {
+        if (score == null) {
+            return null;
+        }
+
+        BigDecimal limitedScore = score.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : score;
+        BigDecimal examTotalScore = gradeMapper.selectExamTotalScore(examId);
+        BigDecimal maxScore = examTotalScore == null ? BigDecimal.valueOf(100) : limitToHundred(examTotalScore);
+        return limitedScore.compareTo(maxScore) > 0 ? maxScore : limitedScore;
+    }
+
     // 석차는 저장된 점수 기준으로 자동 계산하므로 요청값을 받지 않는다.
     private void prepareGradeScore(GradeVo gradeVo) {
-        gradeVo.setScore(limitToHundred(gradeVo.getScore()));
+        gradeVo.setScore(limitToExamTotalScore(gradeVo.getScore(), gradeVo.getExamId()));
         gradeVo.setRankNo(0);
     }
 
