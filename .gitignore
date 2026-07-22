@@ -44,3 +44,6 @@ out/
 *firebase-adminsdk*.json
 
 .codex-docx-work/
+
+### 업로드 파일 (UPLOAD_PATH 기본 경로 - 실제 업로드된 파일은 저장소에 안 올라가야 함) ###
+/src/main/resources/static/edudata/

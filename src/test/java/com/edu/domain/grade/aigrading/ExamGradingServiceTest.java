@@ -1,6 +1,6 @@
 package com.edu.domain.grade.aigrading;
 
-import com.edu.domain.grade.aigrading.service.impl.ExamGradingRuleServiceImpl;
+import com.edu.domain.grade.aigrading.service.impl.ExamGradingServiceImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -17,10 +17,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * AI 채점 검증/재계산 규칙 단위 테스트 (DB/Gemini 불필요, 혼자 실행 가능).
  * 실행: ./gradlew test  또는 IDE에서 이 클래스 Run
+ *
+ * 원래 이 순수 로직은 의존성이 전혀 없는 ExamGradingRuleServiceImpl에 따로 있었는데(파일명도
+ * ExamGradingRuleServiceTest), 2026-07-22에 mapper/service를 통합하면서 ExamGradingServiceImpl 안으로
+ * 들어갔다. 그래서 여기서 테스트하는 sumConfirmedScores~isValidStatusTransition은 DB/파일/Gemini
+ * 의존성이 있는 다른 메서드들과 같은 클래스에 있지만, 이 메서드들 자체는 여전히 그 필드들을 전혀
+ * 건드리지 않는 순수 로직이라 생성자에 전부 null을 넣어도 문제없이 테스트할 수 있다.
  */
-class ExamGradingRuleServiceTest {
+class ExamGradingServiceTest {
 
-    private final ExamGradingRuleServiceImpl service = new ExamGradingRuleServiceImpl();
+    private final ExamGradingServiceImpl service =
+            new ExamGradingServiceImpl(null, null, null, null, null, null, null, null, null, null);
 
     // ── AIG-09 점수 합산 ──────────────────────────────────────
     @Test

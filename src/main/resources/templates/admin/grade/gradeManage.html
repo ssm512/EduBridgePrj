@@ -576,6 +576,32 @@
             color: #374151;
         }
 
+        /* 탭 (admin/student/attendance.html과 동일한 최소 스타일) */
+        .tabs { display:flex; gap:4px; border-bottom:2px solid #e5e7eb; margin-bottom:16px; }
+        .tab { padding:9px 18px; border:0; background:none; cursor:pointer; font-size:14px;
+               font-weight:600; color:#94a3b8; border-bottom:2px solid transparent; margin-bottom:-2px; }
+        .tab:hover { color:#475569; }
+        .tab.active { color:#1e3a8a; border-bottom-color:#1e3a8a; }
+
+        /* AI채점 탭 전용 - 기존 .grade-panel/.grade-btn 등 공용 클래스는 그대로 재사용 */
+        .ai-step { margin-bottom: 18px; }
+        .ai-step h3 { font-size: 14px; margin: 0 0 10px; color:#1e293b; display:flex; align-items:center; gap:7px; }
+        .ai-step h3::before { content:""; width:3px; height:14px; background:#1e3a8a; border-radius:2px; }
+        .ai-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+        .ai-row select, .ai-row input[type=file], .ai-row input[type=number] {
+            padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; color:#111827; font-size:13px;
+        }
+        .ai-badge { padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:600; }
+        .ai-badge.UPLOADED, .ai-badge.RUNNING { background:#e0e7ff; color:#3730a3; }
+        .ai-badge.ANALYZING { background:#fef9c3; color:#854d0e; }
+        .ai-badge.REVIEW_REQUIRED { background:#ffedd5; color:#9a3412; }
+        .ai-badge.CONFIRMED, .ai-badge.SUCCESS { background:#dcfce7; color:#166534; }
+        .ai-badge.FAILED { background:#fee2e2; color:#991b1b; }
+        .ai-note { font-size:12.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a;
+                   padding:8px 10px; border-radius:8px; margin-bottom:10px; }
+        #aiResultsTable input[type=number] { width:70px; }
+        #aiResultsTable input[type=text] { width:160px; }
+
         .status {
             display: none;
             position: fixed;
@@ -669,8 +695,18 @@
         <h1>성적관리</h1>
         <p class="sub">시험을 등록하고, 시험을 선택한 뒤 수강 학생별 점수를 입력합니다.</p>
 
+        <!-- 탭 (출석관리 admin/student/attendance.html 패턴 재사용, GradePageController 라우트 변경 없음) -->
+        <div class="tabs">
+            <button class="tab active" data-tab="manage" onclick="showGradeTab('manage')">성적관리</button>
+            <button class="tab" data-tab="ai" onclick="showGradeTab('ai')">AI채점</button>
+        </div>
+
+        <!-- 상태 알림 토스트는 tab-panel 밖에 둔다 - tab-manage 안에 있으면 AI채점 탭을 보는 동안
+             tab-manage가 hidden 처리돼서 setStatus() 호출이 화면에 전혀 안 보이는 문제가 있었다
+             (성적관리/AI채점 어느 탭에서도 공통으로 쓰는 알림이라 특정 탭에 속하면 안 됨). -->
         <div id="status" class="status"></div>
 
+        <section class="tab-panel" id="tab-manage">
         <div class="grade-layout exam-layout">
             <section class="grade-panel exam-form-panel">
                 <h2>시험 등록 / 수정</h2>
@@ -1042,6 +1078,99 @@
                 </table>
             </div>
         </section>
+        </section><!-- /tab-manage -->
+
+        <!-- ===== 탭: AI채점 (AIG-01~10) ===== -->
+        <section class="tab-panel" id="tab-ai" hidden>
+            <div class="ai-note">
+                AI 채점 결과는 바로 저장되지 않습니다. 문항 추출/채점 결과는 초안이며, 교사가 검수하고
+                "최종 확정"을 눌러야 성적(grades)에 반영됩니다.
+            </div>
+
+            <div class="grade-panel ai-step">
+                <h3>0. 시험 선택</h3>
+                <div class="ai-row">
+                    <select id="aiExamSelect" onchange="onAiExamChange()">
+                        <option value="">시험을 선택하세요</option>
+                    </select>
+                    <button type="button" class="grade-btn secondary" onclick="loadAiExamOptions()">새로고침</button>
+                </div>
+            </div>
+
+            <div class="grade-panel ai-step">
+                <h3>1. 시험자료 업로드 (문제지 / 정답지)</h3>
+                <div class="ai-row">
+                    <select id="aiDocType">
+                        <option value="QUESTION">문제지</option>
+                        <option value="ANSWER_KEY">정답지</option>
+                    </select>
+                    <input type="file" id="aiDocFiles" multiple>
+                    <button type="button" class="grade-btn" onclick="uploadAiDocuments()">업로드</button>
+                </div>
+                <div id="aiDocList" class="muted" style="font-size:12.5px;">업로드된 자료가 없습니다.</div>
+            </div>
+
+            <div class="grade-panel ai-step">
+                <h3>2. 문항 추출 / 확정</h3>
+                <div class="ai-row">
+                    <button type="button" class="grade-btn" onclick="extractAiQuestions()">AI 자동 추출</button>
+                    <button type="button" class="grade-btn secondary" onclick="loadAiQuestions()">문항 조회</button>
+                    <button type="button" class="grade-btn secondary" onclick="addAiQuestionRow()">문항 직접 추가</button>
+                    <button type="button" class="grade-btn" onclick="saveAiQuestions()">문항 확정 저장</button>
+                </div>
+                <div class="tbl-wrap" style="overflow-x:auto;">
+                    <table id="aiQuestionsTable">
+                        <thead>
+                        <tr>
+                            <th>번호</th><th>유형</th><th>문제</th><th>정답</th><th>배점</th><th>채점기준</th><th>강사검수</th><th></th>
+                        </tr>
+                        </thead>
+                        <tbody id="aiQuestionsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grade-panel ai-step">
+                <h3>3. 학생 답안지 업로드 &amp; AI 채점 실행</h3>
+                <div class="ai-row">
+                    <select id="aiStudentSelect" onchange="onAiStudentChange()">
+                        <option value="">학생을 선택하세요</option>
+                    </select>
+                    <input type="file" id="aiSubmissionFiles" multiple>
+                    <button type="button" class="grade-btn" onclick="uploadAiSubmission()">답안지 업로드</button>
+                </div>
+                <div class="ai-row">
+                    <span>submissionId:</span>
+                    <input type="number" id="aiSubmissionId" placeholder="학생 선택 시 기존 제출이 있으면 자동 입력, 없으면 업로드 후 입력" readonly>
+                    <button type="button" class="grade-btn" onclick="startAiGrading()">AI 채점 실행</button>
+                    <button type="button" class="grade-btn secondary" onclick="retryAiGrading()">재채점</button>
+                    <span id="aiSubmissionStatus"></span>
+                </div>
+                <div id="aiProcessingMsg" class="muted" style="font-size:12.5px; display:none;">
+                    ⏳ 처리중입니다. AI가 답안을 채점하고 있어요 (완료되면 상태가 자동으로 바뀝니다)...
+                </div>
+            </div>
+
+            <div class="grade-panel ai-step">
+                <h3>4. 검수 &amp; 최종 확정</h3>
+                <div class="ai-row">
+                    <button type="button" class="grade-btn secondary" onclick="loadAiResults()">채점 결과 조회</button>
+                    <button type="button" class="grade-btn" onclick="saveAiReview()">검수 결과 저장</button>
+                    <button type="button" class="grade-btn" onclick="confirmAiGrade()">최종 확정</button>
+                </div>
+                <div class="tbl-wrap" style="overflow-x:auto;">
+                    <table id="aiResultsTable">
+                        <thead>
+                        <tr>
+                            <th>문항</th><th>인식답안</th><th>AI점수</th><th>AI근거</th><th>신뢰도</th>
+                            <th>검수필요</th><th>확정점수</th><th>검수코멘트</th>
+                        </tr>
+                        </thead>
+                        <tbody id="aiResultsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section><!-- /tab-ai -->
     </main>
 </div>
 
@@ -2801,6 +2930,333 @@
             closeExamDatePicker();
         }
     });
+
+    // =====================================================================
+    // AI채점 탭 (AIG-01~10). 성적관리 탭의 selectedExamId/examRows 등과는
+    // 별도로 독립 상태(aiXxx)를 쓴다 - 함수명이 기존 것과 겹치지 않게 전부 ai 접두어를 붙였다.
+    // =====================================================================
+
+    let aiTabLoaded = false;
+    let aiSelectedExamId = null;
+    let aiPollTimer = null;
+
+    // 출석관리(admin/student/attendance.html)의 showTab 패턴 - 여기서는 성적관리 파일 안에 이미
+    // showTab이라는 이름이 쓰일 수도 있어 겹치지 않도록 showGradeTab으로 이름을 붙였다.
+    function showGradeTab(name) {
+        ['manage', 'ai'].forEach(t => {
+            document.getElementById('tab-' + t).hidden = (t !== name);
+        });
+        document.querySelectorAll('.tabs .tab').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === name);
+        });
+        if (name === 'ai' && !aiTabLoaded) {
+            aiTabLoaded = true;
+            loadAiExamOptions();
+        }
+    }
+
+    // 서버 에러 응답(GlobalExceptionHandler의 {message: ...} 형태)을 읽어 상태창에 띄운다.
+    async function aiShowError(res, fallback) {
+        let message = fallback;
+        try {
+            const body = await res.json();
+            if (body && body.message) message = body.message;
+        } catch (e) { /* 본문이 JSON이 아니면 기본 메시지 사용 */ }
+        setStatus(message, true);
+    }
+
+    async function aiUploadMultipart(url, formData) {
+        const token = await ensureCsrf();
+        return fetch(url, { method: 'POST', headers: { 'X-XSRF-TOKEN': token }, body: formData });
+    }
+
+    // ---- 0. 시험 선택 ----
+    async function loadAiExamOptions() {
+        const res = await fetch('/api/exams');
+        if (!res.ok) { await aiShowError(res, '시험 목록 조회 실패'); return; }
+        const rows = await res.json();
+        const select = document.getElementById('aiExamSelect');
+        select.innerHTML = '<option value="">시험을 선택하세요</option>' + rows.map(row =>
+            `<option value="${row.exam_id}">${escapeHtml(row.exam_name)} · ${escapeHtml(row.subject ?? '')} (${escapeHtml(String(row.exam_date ?? '').slice(0, 10))})</option>`
+        ).join('');
+    }
+
+    function onAiExamChange() {
+        aiSelectedExamId = document.getElementById('aiExamSelect').value || null;
+        document.getElementById('aiDocList').textContent = '업로드된 자료가 없습니다.';
+        document.getElementById('aiQuestionsBody').innerHTML = '';
+        document.getElementById('aiResultsBody').innerHTML = '';
+        document.getElementById('aiSubmissionId').value = '';
+        document.getElementById('aiSubmissionStatus').innerHTML = '';
+        if (!aiSelectedExamId) return;
+        loadAiStudentOptions();
+        loadAiQuestions();
+    }
+
+    // ---- 1. 시험자료 업로드 (AIG-01) ----
+    async function uploadAiDocuments() {
+        if (!aiSelectedExamId) { setStatus('시험을 먼저 선택하세요', true); return; }
+        const fileInput = document.getElementById('aiDocFiles');
+        if (!fileInput.files.length) { setStatus('업로드할 파일을 선택하세요', true); return; }
+
+        const formData = new FormData();
+        formData.append('documentType', document.getElementById('aiDocType').value);
+        Array.from(fileInput.files).forEach(f => formData.append('files', f));
+
+        const res = await aiUploadMultipart(`/api/exams/${aiSelectedExamId}/documents`, formData);
+        if (!res.ok) { await aiShowError(res, '시험자료 업로드 실패'); return; }
+        const docs = await res.json();
+        document.getElementById('aiDocList').innerHTML = docs.map(d =>
+            `${d.documentType === 'QUESTION' ? '문제지' : '정답지'} - ${escapeHtml(d.originalName)} (${d.pageNo}페이지)`
+        ).join('<br>');
+        fileInput.value = '';
+        setStatus('시험자료 업로드 완료');
+    }
+
+    // ---- 2. 문항 추출 / 확정 (AIG-02/03/04) ----
+    async function extractAiQuestions() {
+        if (!aiSelectedExamId) { setStatus('시험을 먼저 선택하세요', true); return; }
+        setStatus('AI가 문항을 추출하는 중입니다...');
+        const res = await sendJson(`/api/exams/${aiSelectedExamId}/questions/extract`, 'POST', {});
+        if (!res.ok) { await aiShowError(res, 'AI 문항 추출 실패'); return; }
+        const result = await res.json();
+        if (result.extractionStatus !== 'SUCCESS' || !result.questions.length) {
+            setStatus('AI가 문항을 구조화하지 못했습니다. 직접 입력해주세요.', true);
+            return;
+        }
+        document.getElementById('aiQuestionsBody').innerHTML = '';
+        result.questions.forEach(q => addAiQuestionRow(q));
+        setStatus(`AI가 문항 ${result.questions.length}건을 추출했습니다. 확인 후 "문항 확정 저장"을 눌러주세요.`);
+    }
+
+    async function loadAiQuestions() {
+        if (!aiSelectedExamId) return;
+        const res = await fetch(`/api/exams/${aiSelectedExamId}/questions`);
+        if (!res.ok) { await aiShowError(res, '문항 조회 실패'); return; }
+        const rows = await res.json();
+        document.getElementById('aiQuestionsBody').innerHTML = '';
+        rows.forEach(q => addAiQuestionRow(q));
+    }
+
+    // q가 없으면(직접 추가) 빈 행을 만든다. AI 추출 결과/저장된 문항 둘 다 이 함수로 렌더링한다.
+    function addAiQuestionRow(q) {
+        const tbody = document.getElementById('aiQuestionsBody');
+        const tr = document.createElement('tr');
+        // q가 없으면(문항 직접 추가 버튼) 빈 행이라 편의상 기본값을 채워준다.
+        // q가 있는데 개별 필드가 비어있으면(AI가 못 뽑아낸 값) 절대 기본값으로 채우지 않고 진짜 빈 칸으로 남긴다 -
+        // 예전엔 배점이 비어도 5로 채워버려서 누락된 걸 화면에서 못 알아채는 문제가 있었다.
+        const isNewBlankRow = !q;
+        const rowNo = tbody.children.length + 1;
+        const questionNo = q?.questionNo ?? (isNewBlankRow ? rowNo : '');
+        const questionType = q?.questionType ?? '';
+        const maxScoreValue = q?.maxScore ?? (isNewBlankRow ? 5 : '');
+        const reviewChecked = q?.reviewRequiredYn === 'Y' ? 'checked' : '';
+        tr.innerHTML = `
+            <td><input type="number" class="q-no" value="${questionNo}" style="width:52px;"></td>
+            <td>
+                <select class="q-type">
+                    <option value="" ${questionType === '' ? 'selected' : ''}>선택</option>
+                    <option value="MULTIPLE_CHOICE" ${questionType === 'MULTIPLE_CHOICE' ? 'selected' : ''}>객관식</option>
+                    <option value="SHORT_ANSWER" ${questionType === 'SHORT_ANSWER' ? 'selected' : ''}>단답형</option>
+                    <option value="ESSAY" ${questionType === 'ESSAY' ? 'selected' : ''}>서술형</option>
+                </select>
+            </td>
+            <td><input type="text" class="q-text" value="${escapeHtml(q?.questionText ?? '')}" style="width:220px;"></td>
+            <td><input type="text" class="q-answer" value="${escapeHtml(q?.correctAnswer ?? '')}" style="width:120px;"></td>
+            <td><input type="number" class="q-score" value="${maxScoreValue}" style="width:60px;"></td>
+            <td><input type="text" class="q-criteria" value="${escapeHtml(q?.gradingCriteria ?? '')}" style="width:160px;"></td>
+            <td style="text-align:center;"><input type="checkbox" class="q-review" ${reviewChecked}></td>
+            <td><button type="button" class="grade-btn secondary" onclick="this.closest('tr').remove()">삭제</button></td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    // 번호/유형/문제/정답/배점 중 하나라도 비어있으면 어느 행의 무엇이 비었는지 콕 집어 알려준다.
+    // AI 자동추출이 일부만 못 읽어온 문항을 그대로 저장해버리는 걸 막기 위한 저장 전 검사.
+    function findAiQuestionRowError(rows) {
+        for (let i = 0; i < rows.length; i++) {
+            const tr = rows[i];
+            const label = `${i + 1}번째 문항의`;
+            if (!tr.querySelector('.q-no').value) return `${label} 번호를 입력해주세요`;
+            if (!tr.querySelector('.q-type').value) return `${label} 유형을 선택해주세요`;
+            if (!tr.querySelector('.q-text').value.trim()) return `${label} 문제를 입력해주세요`;
+            if (!tr.querySelector('.q-answer').value.trim()) return `${label} 정답을 입력해주세요`;
+            if (tr.querySelector('.q-score').value === '') return `${label} 배점을 입력해주세요`;
+        }
+        return null;
+    }
+
+    async function saveAiQuestions() {
+        if (!aiSelectedExamId) { setStatus('시험을 먼저 선택하세요', true); return; }
+        const rows = Array.from(document.querySelectorAll('#aiQuestionsBody tr'));
+        if (!rows.length) { setStatus('저장할 문항이 없습니다', true); return; }
+
+        const rowError = findAiQuestionRowError(rows);
+        if (rowError) { setStatus(rowError, true); return; }
+
+        const items = rows.map((tr, idx) => ({
+            questionNo: Number(tr.querySelector('.q-no').value),
+            questionType: tr.querySelector('.q-type').value,
+            questionText: tr.querySelector('.q-text').value,
+            correctAnswer: tr.querySelector('.q-answer').value,
+            maxScore: Number(tr.querySelector('.q-score').value),
+            gradingCriteria: tr.querySelector('.q-criteria').value,
+            reviewRequiredYn: tr.querySelector('.q-review').checked ? 'Y' : 'N',
+            sortOrder: idx + 1
+        }));
+
+        const res = await sendJson(`/api/exams/${aiSelectedExamId}/questions`, 'PUT', items);
+        if (!res.ok) { await aiShowError(res, '문항 저장 실패 (이미 학생 답안이 제출된 시험은 문항을 바꿀 수 없어요)'); return; }
+        setStatus('문항 확정 저장 완료');
+        loadAiQuestions();
+    }
+
+    // ---- 3. 학생 답안지 업로드 & AI 채점 실행 (AIG-05/06/10) ----
+    async function loadAiStudentOptions() {
+        const res = await fetch(`/api/exams/${aiSelectedExamId}/students`);
+        if (!res.ok) { await aiShowError(res, '수강 학생 목록 조회 실패'); return; }
+        const rows = await res.json();
+        const select = document.getElementById('aiStudentSelect');
+        select.innerHTML = '<option value="">학생을 선택하세요</option>' + rows.map(row =>
+            `<option value="${row.student_id}">${escapeHtml(row.student_name)} (${escapeHtml(row.student_no ?? '')})</option>`
+        ).join('');
+    }
+
+    // 학생을 고르면 이미 업로드된 답안지(제출)가 있는지 확인해서 submissionId를 자동으로 채운다.
+    // 사용자는 DB를 직접 볼 수 없어 submissionId를 알아낼 방법이 없으므로 화면에서 대신 찾아준다.
+    async function onAiStudentChange() {
+        document.getElementById('aiSubmissionId').value = '';
+        aiRenderSubmissionStatus('');
+        document.getElementById('aiResultsBody').innerHTML = '';
+
+        const studentId = document.getElementById('aiStudentSelect').value;
+        if (!aiSelectedExamId || !studentId) return;
+
+        const res = await fetch(`/api/exams/${aiSelectedExamId}/submissions/by-student/${studentId}`);
+        if (res.status === 404) return;   // 아직 제출한 답안지가 없음 - 정상 상태, 에러 아님
+        if (!res.ok) { await aiShowError(res, '기존 제출 조회 실패'); return; }
+
+        const submission = await res.json();
+        document.getElementById('aiSubmissionId').value = submission.submissionId;
+        aiRenderSubmissionStatus(submission.statusCode);
+        setStatus(`이미 업로드된 답안지가 있습니다 (submissionId=${submission.submissionId}, 상태=${submission.statusCode})`);
+    }
+
+    async function uploadAiSubmission() {
+        if (!aiSelectedExamId) { setStatus('시험을 먼저 선택하세요', true); return; }
+        const studentId = document.getElementById('aiStudentSelect').value;
+        if (!studentId) { setStatus('학생을 먼저 선택하세요', true); return; }
+        const fileInput = document.getElementById('aiSubmissionFiles');
+        if (!fileInput.files.length) { setStatus('업로드할 답안지 파일을 선택하세요', true); return; }
+
+        const formData = new FormData();
+        formData.append('studentId', studentId);
+        Array.from(fileInput.files).forEach(f => formData.append('files', f));
+
+        const res = await aiUploadMultipart(`/api/exams/${aiSelectedExamId}/submissions`, formData);
+        if (!res.ok) { await aiShowError(res, '답안지 업로드 실패'); return; }
+        const submission = await res.json();
+        document.getElementById('aiSubmissionId').value = submission.submissionId;
+        aiRenderSubmissionStatus(submission.statusCode);
+        fileInput.value = '';
+        setStatus(`답안지 업로드 완료 (submissionId=${submission.submissionId})`);
+    }
+
+    function aiRenderSubmissionStatus(statusCode) {
+        document.getElementById('aiSubmissionStatus').innerHTML =
+            statusCode ? `<span class="ai-badge ${statusCode}">${statusCode}</span>` : '';
+    }
+
+    async function startAiGrading() { await aiTriggerGrading('grade'); }
+    async function retryAiGrading() { await aiTriggerGrading('retry'); }
+
+    async function aiTriggerGrading(action) {
+        const submissionId = document.getElementById('aiSubmissionId').value;
+        if (!submissionId) { setStatus('submissionId를 먼저 입력(또는 답안지 업로드)하세요', true); return; }
+
+        const res = await sendJson(`/api/exam-submissions/${submissionId}/${action}`, 'POST', {});
+        if (!res.ok) { await aiShowError(res, 'AI 채점 요청 실패'); return; }
+        const submission = await res.json();
+        aiRenderSubmissionStatus(submission.statusCode);
+        document.getElementById('aiProcessingMsg').style.display = 'block';
+        setStatus('AI 채점을 요청했습니다. 처리중입니다...');
+        aiStartPolling(submissionId);
+    }
+
+    // AIG-06은 비동기라 즉시 결과가 오지 않는다 - 3초마다 상태를 확인해서 화면에 반영한다.
+    function aiStartPolling(submissionId) {
+        if (aiPollTimer) clearInterval(aiPollTimer);
+        aiPollTimer = setInterval(async () => {
+            const res = await fetch(`/api/exam-submissions/${submissionId}`);
+            if (!res.ok) return;
+            const submission = await res.json();
+            aiRenderSubmissionStatus(submission.statusCode);
+            if (submission.statusCode !== 'ANALYZING') {
+                clearInterval(aiPollTimer);
+                aiPollTimer = null;
+                document.getElementById('aiProcessingMsg').style.display = 'none';
+                if (submission.statusCode === 'REVIEW_REQUIRED') {
+                    setStatus('AI 채점이 완료됐습니다. 검수를 진행해주세요.');
+                    loadAiResults();
+                } else if (submission.statusCode === 'FAILED') {
+                    setStatus('AI 채점에 실패했습니다: ' + (submission.errorMessage ?? ''), true);
+                }
+            }
+        }, 3000);
+    }
+
+    // ---- 4. 검수 & 최종 확정 (AIG-07/08/09) ----
+    async function loadAiResults() {
+        const submissionId = document.getElementById('aiSubmissionId').value;
+        if (!submissionId) { setStatus('submissionId를 먼저 입력하세요', true); return; }
+        const res = await fetch(`/api/exam-submissions/${submissionId}/results`);
+        if (!res.ok) { await aiShowError(res, '채점 결과 조회 실패'); return; }
+        const rows = await res.json();
+        const tbody = document.getElementById('aiResultsBody');
+        tbody.innerHTML = rows.map(r => `
+            <tr data-answer-result-id="${r.answerResultId}">
+                <td>${r.questionNo}번 (${escapeHtml(r.questionType)})</td>
+                <td>${escapeHtml(r.recognizedAnswer ?? '')}</td>
+                <td>${r.aiScore ?? ''} / ${r.maxScore}</td>
+                <td style="max-width:220px; font-size:12px; color:#64748b;">${escapeHtml(r.aiReason ?? '')}</td>
+                <td>${r.confidence ?? ''}</td>
+                <td style="text-align:center;">${r.reviewRequiredYn === 'Y' ? '⚠️ 필요' : '-'}</td>
+                <td><input type="number" class="r-score" value="${r.confirmedScore ?? r.aiScore ?? ''}" min="0" max="${r.maxScore}"></td>
+                <td><input type="text" class="r-comment" value="${escapeHtml(r.teacherComment ?? '')}"></td>
+            </tr>
+        `).join('');
+        if (!rows.length) setStatus('아직 채점 결과가 없습니다', true);
+    }
+
+    async function saveAiReview() {
+        const submissionId = document.getElementById('aiSubmissionId').value;
+        if (!submissionId) { setStatus('submissionId를 먼저 입력하세요', true); return; }
+        const rows = Array.from(document.querySelectorAll('#aiResultsBody tr'));
+        if (!rows.length) { setStatus('검수할 결과가 없습니다. 먼저 조회하세요.', true); return; }
+
+        const items = rows.map(tr => ({
+            answerResultId: Number(tr.dataset.answerResultId),
+            confirmedScore: Number(tr.querySelector('.r-score').value),
+            teacherComment: tr.querySelector('.r-comment').value
+        }));
+
+        const res = await sendJson(`/api/exam-submissions/${submissionId}/results`, 'PUT', items);
+        if (!res.ok) { await aiShowError(res, '검수 결과 저장 실패'); return; }
+        setStatus('검수 결과 저장 완료. 준비되면 "최종 확정"을 눌러주세요.');
+        loadAiResults();
+    }
+
+    async function confirmAiGrade() {
+        const submissionId = document.getElementById('aiSubmissionId').value;
+        if (!submissionId) { setStatus('submissionId를 먼저 입력하세요', true); return; }
+        if (!confirm('이 학생의 AI 채점 결과를 최종 확정하시겠습니까? 확정하면 성적(grades)에 반영됩니다.')) return;
+
+        const res = await sendJson(`/api/exam-submissions/${submissionId}/confirm`, 'POST', {});
+        if (!res.ok) { await aiShowError(res, '최종 확정 실패'); return; }
+        const result = await res.json();
+        aiRenderSubmissionStatus(result.statusCode);
+        setStatus(`최종 확정 완료 (점수: ${result.confirmedScore}, gradeId=${result.gradeId})`);
+    }
 </script>
 
 </body>

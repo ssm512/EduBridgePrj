@@ -47,4 +47,10 @@ public interface NotificationService {
      * @return 실제로 생성된 알림 수 (중복으로 건너뛴 건 제외)
      */
     int notifyParentsOfStudentOnce(Long studentId, String notificationType, String title, String message);
+
+    /**
+     * 학생 본인 + 학부모 전원에게 알림 생성 - 성적 입력/수정 알림처럼 학생 당사자도 함께 받아야 하는 경우용.
+     * 학생 본인 계정이 없거나 연결된 학부모가 없어도 나머지 수신자에게는 정상 발송한다 (예외 아님).
+     */
+    void notifyStudentAndParents(Long studentId, String notificationType, String title, String message);
 }

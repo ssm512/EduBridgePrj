@@ -30,7 +30,7 @@ public class ExamQuestionItemRequest {
     @Pattern(regexp = "^(MULTIPLE_CHOICE|SHORT_ANSWER|ESSAY)$", message = "문항 유형은 MULTIPLE_CHOICE, SHORT_ANSWER, ESSAY 중 하나여야 합니다")
     private String questionType;
 
-    /** 문제 내용 (선택 - 이미지 문제지만으로 채점하는 경우 비워둘 수 있음) */
+    /** 문제 내용 (2026-07-22부터 필수 - ExamGradingServiceImpl.validateQuestionItem에서 빈 값 거부) */
     private String questionText;
 
     /** 정답 */
@@ -47,7 +47,7 @@ public class ExamQuestionItemRequest {
 
     /**
      * 검수 필요 여부 요청값 (Y/N, 선택 - 미입력 시 N).
-     * ESSAY는 서버가 무조건 Y로 강제한다(ExamGradingRuleService.resolveQuestionReviewRequired).
+     * ESSAY는 서버가 무조건 Y로 강제한다(ExamGradingService.resolveQuestionReviewRequired).
      */
     @Pattern(regexp = "^[YN]$", message = "검수 필요 여부는 Y 또는 N 이어야 합니다")
     private String reviewRequiredYn;

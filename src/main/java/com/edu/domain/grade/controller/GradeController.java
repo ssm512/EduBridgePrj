@@ -5,6 +5,7 @@ import com.edu.domain.grade.vo.ExamVo;
 import com.edu.domain.grade.vo.GradeVo;
 import com.edu.domain.member.dto.UserDto;
 import com.edu.domain.member.mapper.UserMapper;
+import com.edu.domain.notification.service.NotificationService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -25,10 +26,36 @@ public class GradeController {
 
     private final GradeMapper gradeMapper;
     private final UserMapper userMapper;
+    private final NotificationService notificationService;
 
-    public GradeController(GradeMapper gradeMapper, UserMapper userMapper) {
+    public GradeController(GradeMapper gradeMapper, UserMapper userMapper,
+                            NotificationService notificationService) {
         this.gradeMapper = gradeMapper;
         this.userMapper = userMapper;
+        this.notificationService = notificationService;
+    }
+
+    /**
+     * 성적 입력/수정 알림 - 학생 본인 + 학부모 전원에게 발송한다.
+     * "[학생이름 학생]의 [강의명] 강의 [시험명]시험 성적이 입력/수정되었습니다." 형태.
+     * 수기 입력(insertGrade/saveGradesBatch)/수정(updateGrade)과 AI채점 확정(ExamGradingServiceImpl.confirmGrade)
+     * 4곳에서 같은 문구 규칙을 쓴다 - GradeMapper.selectGradeNotificationContext로 필요한 정보를 한 번에 모은다.
+     */
+    private void notifyGradeSaved(Long examId, Long studentId, boolean isUpdate) {
+        Map<String, Object> context = gradeMapper.selectGradeNotificationContext(examId, studentId);
+        if (context == null) {
+            return;   // 시험/학생 정보를 못 찾으면 알림은 조용히 건너뛴다 (성적 저장 자체는 이미 끝난 뒤이므로)
+        }
+        String studentName = String.valueOf(context.get("student_name"));
+        String className = String.valueOf(context.get("class_name"));
+        String examName = String.valueOf(context.get("exam_name"));
+        String action = isUpdate ? "수정" : "입력";
+
+        String title = isUpdate ? "성적 수정 안내" : "성적 입력 안내";
+        String message = "[" + studentName + " 학생]의 [" + className + "] 강의 [" + examName + "]시험 성적이 "
+                + action + "되었습니다.";
+
+        notificationService.notifyStudentAndParents(studentId, "GRADE", title, message);
     }
 
     // 시험 등록
@@ -77,6 +104,7 @@ public class GradeController {
         prepareGradeScore(gradeVo);
         gradeMapper.insertGrade(gradeVo);
         gradeMapper.updateGradeRanksByExam(gradeVo.getExamId());
+        notifyGradeSaved(gradeVo.getExamId(), gradeVo.getStudentId(), false);
         return gradeVo;
     }
 
@@ -97,11 +125,13 @@ public class GradeController {
             }
             prepareGradeScore(gradeVo);
 
-            if (gradeVo.getGradeId() == null) {
-                gradeMapper.insertGrade(gradeVo);
-            } else {
+            boolean isUpdate = gradeVo.getGradeId() != null;
+            if (isUpdate) {
                 gradeMapper.updateGrade(gradeVo);
+            } else {
+                gradeMapper.insertGrade(gradeVo);
             }
+            notifyGradeSaved(gradeVo.getExamId(), gradeVo.getStudentId(), isUpdate);
         }
 
         gradeMapper.updateGradeRanksByExam(examId);
@@ -120,6 +150,7 @@ public class GradeController {
         prepareGradeScore(gradeVo);
         gradeMapper.updateGrade(gradeVo);
         gradeMapper.updateGradeRanksByExam(gradeVo.getExamId());
+        notifyGradeSaved(gradeVo.getExamId(), gradeVo.getStudentId(), true);
         return "성적 수정 완료";
     }
 

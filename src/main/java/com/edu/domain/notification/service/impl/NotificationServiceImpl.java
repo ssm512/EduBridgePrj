@@ -122,4 +122,18 @@ public class NotificationServiceImpl implements NotificationService {
         }
         return created;
     }
+
+    @Override
+    @Transactional
+    public void notifyStudentAndParents(Long studentId, String notificationType, String title, String message) {
+        Long studentUserId = notificationMapper.selectStudentUserIdByStudentId(studentId);
+        if (studentUserId != null) {
+            createNotification(studentUserId, notificationType, title, message);
+        }
+
+        List<Long> parentUserIds = notificationMapper.selectParentUserIdsByStudentId(studentId);
+        for (Long parentUserId : parentUserIds) {
+            createNotification(parentUserId, notificationType, title, message);
+        }
+    }
 }

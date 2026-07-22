@@ -60,6 +60,7 @@
     .type-attendance { background: #dbeafe; color: #1e40af; }
     .type-fee        { background: #ffedd5; color: #9a3412; }
     .type-notice     { background: #ede9fe; color: #5b21b6; }
+    .type-grade      { background: #dcfce7; color: #166534; }
 
     .send-badge { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
     .send-sent    { background: #dcfce7; color: #166534; }
@@ -117,6 +118,7 @@
           <option value="ATTENDANCE" th:selected="${search.notificationType == 'ATTENDANCE'}">출석</option>
           <option value="FEE"        th:selected="${search.notificationType == 'FEE'}">회비</option>
           <option value="NOTICE"     th:selected="${search.notificationType == 'NOTICE'}">공지</option>
+          <option value="GRADE"      th:selected="${search.notificationType == 'GRADE'}">성적</option>
         </select>
         <select name="readYn">
           <option value=""  th:selected="${search.readYn == null or search.readYn == ''}">읽음 전체</option>
@@ -158,8 +160,8 @@
         <td th:text="${#temporals.format(noti.sentAt != null ? noti.sentAt : noti.createdAt, 'yyyy-MM-dd HH:mm')}">2026-07-14 10:30</td>
         <td>
           <span class="noti-type-badge"
-                th:classappend="${noti.notificationType == 'ATTENDANCE'} ? 'type-attendance' : (${noti.notificationType == 'FEE'} ? 'type-fee' : 'type-notice')"
-                th:text="${noti.notificationType == 'ATTENDANCE'} ? '출석' : (${noti.notificationType == 'FEE'} ? '회비' : '공지')">유형</span>
+                th:classappend="${noti.notificationType == 'ATTENDANCE'} ? 'type-attendance' : (${noti.notificationType == 'FEE'} ? 'type-fee' : (${noti.notificationType == 'GRADE'} ? 'type-grade' : 'type-notice'))"
+                th:text="${noti.notificationType == 'ATTENDANCE'} ? '출석' : (${noti.notificationType == 'FEE'} ? '회비' : (${noti.notificationType == 'GRADE'} ? '성적' : '공지'))">유형</span>
         </td>
         <td th:text="${noti.userName}">홍길동</td>
         <td class="noti-title-cell" th:text="${noti.title}" th:attr="title=${noti.title}">7월 회비 안내</td>

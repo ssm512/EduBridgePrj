@@ -36,6 +36,12 @@ public interface NotificationMapper {
     List<Long> selectParentUserIdsByStudentId(@Param("studentId") Long studentId);
 
     /**
+     * 학생 본인의 user_id 조회 - 성적 알림처럼 학생 본인에게도 보내야 하는 경우 사용.
+     * students.user_id는 UNIQUE라 1건만 나온다.
+     */
+    Long selectStudentUserIdByStudentId(@Param("studentId") Long studentId);
+
+    /**
      * 같은 수신자에게 동일 (타입 + 제목) 알림이 이미 있는지 - 중복 알림 방지용.
      * 회비 예정/미납 배치 알림을 청구월 기준 1회만 보내기 위함 (FEE-08/09).
      */

@@ -5,6 +5,7 @@ import com.edu.domain.grade.vo.GradeVo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -45,6 +46,20 @@ public interface GradeMapper {
     // 성적 ID로 연결된 시험 ID 조회
     // 성적 삭제 후 해당 시험의 석차를 다시 계산하기 위해 사용한다.
     Long selectExamIdByGradeId(@Param("gradeId") Long gradeId);
+
+    // 시험+학생 단위 기존 성적 단건 조회 (uk_grades_exam_student)
+    // AIG-09 AI채점 최종 확정 시 이미 입력된 성적이 있으면 insert 대신 update로 반영하기 위해 사용한다.
+    GradeVo selectByExamAndStudent(@Param("examId") Long examId, @Param("studentId") Long studentId);
+
+    // 시험의 만점(exams.total_score) 단건 조회
+    // AIG-09 서버 재검증(합산 점수가 만점을 넘지 않는지)에 사용한다.
+    BigDecimal selectExamTotalScore(@Param("examId") Long examId);
+
+    // 성적 알림 문구 조립용 - 학생이름/강의명/시험명을 한 번에 조회
+    // "[학생이름 학생]의 [강의명] 강의 [시험명]시험 성적이 입력/수정되었습니다." 알림에 사용
+    // (수기 입력/수정/일괄입력 + AI채점 확정 4곳에서 공용으로 쓴다)
+    Map<String, Object> selectGradeNotificationContext(@Param("examId") Long examId,
+                                                        @Param("studentId") Long studentId);
 
     // 특정 시험의 석차 자동 재계산
     // 점수 높은 순으로 RANK를 다시 매겨 동점자는 같은 석차로 저장한다.

@@ -96,6 +96,30 @@
         WHERE grade_id = #{gradeId}       -- 수정 대상 성적 ID
     </update>
 
+    <!-- 시험+학생 단위 기존 성적 단건 조회 (AIG-09) -->
+    <select id="selectByExamAndStudent" resultType="com.edu.domain.grade.vo.GradeVo">
+        SELECT grade_id, exam_id, student_id, score, rank_no, comment, created_at, updated_at
+          FROM grades
+         WHERE exam_id = #{examId} AND student_id = #{studentId}
+    </select>
+
+    <!-- 시험 만점 단건 조회 (AIG-09) -->
+    <select id="selectExamTotalScore" resultType="java.math.BigDecimal">
+        SELECT total_score FROM exams WHERE exam_id = #{examId}
+    </select>
+
+    <!-- 성적 알림 문구 조립용 - 학생이름/강의명/시험명 한 번에 조회 -->
+    <select id="selectGradeNotificationContext" resultType="hashmap">
+        SELECT u.name AS student_name,
+               c.class_name,
+               e.exam_name
+          FROM exams e
+          JOIN classes c ON c.class_id = e.class_id
+          JOIN students s ON s.student_id = #{studentId}
+          JOIN users u ON u.user_id = s.user_id
+         WHERE e.exam_id = #{examId}
+    </select>
+
     <!-- 성적 삭제 -->
     <delete id="deleteGrade">
         DELETE FROM grades
