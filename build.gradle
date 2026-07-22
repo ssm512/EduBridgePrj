@@ -36,6 +36,8 @@ dependencies {
     implementation 'com.google.firebase:firebase-admin:9.4.1'
     implementation 'org.springframework.ai:spring-ai-starter-model-google-genai'
     implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+    // RCT-02: 영수증 PDF 출력 - Thymeleaf로 렌더링한 HTML을 그대로 PDF로 변환 (별도 print-only 페이지를 새로 만들지 않기 위함)
+    implementation 'com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10'
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     runtimeOnly 'org.postgresql:postgresql'

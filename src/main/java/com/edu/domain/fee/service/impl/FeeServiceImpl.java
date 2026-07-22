@@ -15,13 +15,16 @@ import com.edu.domain.fee.dto.response.FeePaymentResponse;
 import com.edu.domain.fee.dto.response.FeeStatisticsResponse;
 import com.edu.domain.fee.dto.response.FeeDiscountResponse;
 import com.edu.domain.fee.dto.response.FeeUpdateResponse;
+import com.edu.domain.fee.dto.response.PaymentReceiptResponse;
 import com.edu.domain.fee.mapper.FeeDiscountMapper;
 import com.edu.domain.fee.mapper.FeeMapper;
+import com.edu.domain.fee.mapper.PaymentReceiptMapper;
 import com.edu.domain.fee.service.DiscountPolicyService;
 import com.edu.domain.fee.service.FeeService;
 import com.edu.domain.fee.vo.FeeDiscountVo;
 import com.edu.domain.fee.vo.FeePaymentVo;
 import com.edu.domain.fee.vo.FeeVo;
+import com.edu.domain.fee.vo.PaymentReceiptVo;
 import com.edu.domain.notification.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -42,17 +45,24 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class FeeServiceImpl implements FeeService {
 
+    /** FEE-20: 납부 취소 시 영수증에 남기는 취소 사유 - 명세의 cancelReason 파라미터를 payFee 쪽에서 받지 않기로 한
+     * 기존 결정(FeePaymentApiController 참고)을 유지하기 위해 고정 문구를 쓴다 (2026-07-22 결정) */
+    private static final String RECEIPT_CANCEL_REASON = "납부 취소에 따른 자동 취소";
+
     private final FeeMapper feeMapper;
     private final NotificationService notificationService;
     private final DiscountPolicyService discountPolicyService;
     private final FeeDiscountMapper feeDiscountMapper;
+    private final PaymentReceiptMapper paymentReceiptMapper;
 
     public FeeServiceImpl(FeeMapper feeMapper, NotificationService notificationService,
-                          DiscountPolicyService discountPolicyService, FeeDiscountMapper feeDiscountMapper) {
+                          DiscountPolicyService discountPolicyService, FeeDiscountMapper feeDiscountMapper,
+                          PaymentReceiptMapper paymentReceiptMapper) {
         this.feeMapper = feeMapper;
         this.notificationService = notificationService;
         this.discountPolicyService = discountPolicyService;
         this.feeDiscountMapper = feeDiscountMapper;
+        this.paymentReceiptMapper = paymentReceiptMapper;
     }
 
     @Override
@@ -167,7 +177,7 @@ public class FeeServiceImpl implements FeeService {
 
     @Override
     @Transactional
-    public FeePaymentResponse payFee(Long feeId, FeePaymentRequest request) {
+    public FeePaymentResponse payFee(Long feeId, FeePaymentRequest request, Long issuedByUserId) {
         FeeVo fee = feeMapper.selectByFeeId(feeId);
         if (fee == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 회비입니다");
@@ -193,6 +203,16 @@ public class FeeServiceImpl implements FeeService {
 
         feeMapper.insertPayment(payment);   // useGeneratedKeys 로 payment.paymentId 채워짐
 
+        // FEE-19: 납부 처리 직후 영수증을 자동 발급한다. 명세에 별도 발급(POST) API 가 없어 여기서 처리.
+        // 영수증 번호는 payment_id 가 이미 DB UNIQUE 라 이 값을 그대로 zero-pad 하면 중복 방지가 구조적으로 보장된다.
+        String receiptNo = String.format("RCP%08d", payment.getPaymentId());
+        PaymentReceiptVo receipt = PaymentReceiptVo.builder()
+                .paymentId(payment.getPaymentId())
+                .receiptNo(receiptNo)
+                .issuedBy(issuedByUserId)
+                .build();
+        paymentReceiptMapper.insert(receipt);
+
         // 납부 후 상태 재계산 (부분 납부면 PAID 가 아닐 수 있음)
         String statusCode = recalculateFeeStatus(fee);
         return new FeePaymentResponse(payment.getPaymentId(), statusCode);
@@ -211,6 +231,10 @@ public class FeeServiceImpl implements FeeService {
 
         feeMapper.cancelPayment(paymentId);
 
+        // FEE-20: 연결된 영수증도 함께 취소 처리. status_code='ISSUED' 조건 덕분에 영수증이 없거나
+        // 이미 취소된 경우엔 0건 UPDATE 로 조용히 끝난다(에러 아님) - 이 기능 배포 전 이력 방어.
+        paymentReceiptMapper.cancelByPaymentId(paymentId, RECEIPT_CANCEL_REASON);
+
         // 취소분이 빠졌으니 회비 상태 재계산 (PAID -> UNPAID/SCHEDULED 로 돌아갈 수 있음)
         FeeVo fee = feeMapper.selectByFeeId(payment.getFeeId());
         String statusCode = recalculateFeeStatus(fee);
@@ -218,7 +242,29 @@ public class FeeServiceImpl implements FeeService {
     }
 
     @Override
-    public List<FeePaymentHistoryResponse> getPaymentHistory(Long feeId, Long parentUserId, Long studentUserId) {
+    public PaymentReceiptResponse getReceipt(Long paymentId, Long parentUserId, Long studentUserId) {
+        // 존재하지 않는 납부 이력이면 404 - 스코핑 체크보다 먼저 확인해 케이스를 명확히 구분
+        if (feeMapper.selectPaymentByPaymentId(paymentId) == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 납부 이력입니다");
+        }
+        // getPaymentHistory 와 동일한 스코핑 규칙 (403으로 응답해 존재 여부 노출 최소화)
+        // TEACHER 는 이 API 자체를 호출할 권한이 없으므로(컨트롤러 @PreAuthorize) teacher 스코핑 분기가 필요 없다.
+        if (parentUserId != null && !feeMapper.existsPaymentForParent(paymentId, parentUserId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "본인 자녀의 영수증만 조회할 수 있습니다");
+        }
+        if (studentUserId != null && !feeMapper.existsPaymentForStudent(paymentId, studentUserId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "본인 영수증만 조회할 수 있습니다");
+        }
+        // 이 기능 배포 전 납부 이력이면 영수증이 없을 수 있음 - 404
+        PaymentReceiptResponse receipt = paymentReceiptMapper.selectDetailByPaymentId(paymentId);
+        if (receipt == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "발급된 영수증이 없습니다");
+        }
+        return receipt;
+    }
+
+    @Override
+    public List<FeePaymentHistoryResponse> getPaymentHistory(Long feeId, Long parentUserId, Long studentUserId, Long teacherUserId) {
         // 존재하지 않는 회비면 404 - 빈 목록과 "잘못된 회비"를 구분하기 위함
         if (feeMapper.selectByFeeId(feeId) == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 회비입니다");
@@ -233,11 +279,15 @@ public class FeeServiceImpl implements FeeService {
         if (studentUserId != null && !feeMapper.existsFeeForStudent(feeId, studentUserId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "본인 회비만 조회할 수 있습니다");
         }
+        // 담당 강사 스코핑 (2026-07-22 결정): teacherUserId 가 있으면(=TEACHER 요청) 본인 담당반 회비인지 확인.
+        if (teacherUserId != null && !feeMapper.existsFeeForTeacher(feeId, teacherUserId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "본인 담당반의 회비만 조회할 수 있습니다");
+        }
         return feeMapper.selectPaymentsByFeeId(feeId);
     }
 
     @Override
-    public List<FeeDiscountResponse> getDiscountHistory(Long feeId, Long parentUserId, Long studentUserId) {
+    public List<FeeDiscountResponse> getDiscountHistory(Long feeId, Long parentUserId, Long studentUserId, Long teacherUserId) {
         // 존재하지 않는 회비면 404 - getPaymentHistory 와 동일한 이유(빈 목록과 구분)
         if (feeMapper.selectByFeeId(feeId) == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 회비입니다");
@@ -248,6 +298,10 @@ public class FeeServiceImpl implements FeeService {
         }
         if (studentUserId != null && !feeMapper.existsFeeForStudent(feeId, studentUserId)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "본인 회비만 조회할 수 있습니다");
+        }
+        // 담당 강사 스코핑 (2026-07-22 결정): getPaymentHistory 와 동일한 규칙 재사용
+        if (teacherUserId != null && !feeMapper.existsFeeForTeacher(feeId, teacherUserId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "본인 담당반의 회비만 조회할 수 있습니다");
         }
         return feeDiscountMapper.findByFeeId(feeId).stream()
                 .map(v -> FeeDiscountResponse.builder()

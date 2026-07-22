@@ -32,6 +32,17 @@
                     SELECT s.student_id FROM students s WHERE s.user_id = #{studentUserId}
                 )
             </if>
+            <!-- 담당 강사 회비 조회 스코핑 (2026-07-22 결정): 로그인 강사(user_id)가 담당하는 반의 회비만.
+                 fees.class_id 는 NULL 허용 컬럼(반 미지정 청구)이라, class_id 가 없는 청구는 이 조건에 걸리면
+                 IN 절 결과가 비어 있으므로 자동으로 제외된다 - 소속 근거가 없는 건 어떤 강사에게도 노출하지 않는 게 맞다. -->
+            <if test="teacherUserId != null">
+                AND f.class_id IN (
+                    SELECT c.class_id
+                      FROM classes c
+                      JOIN teachers t ON t.teacher_id = c.teacher_id
+                     WHERE t.user_id = #{teacherUserId}
+                )
+            </if>
             <!-- FEE-07 미납 조회: 저장된 status_code 는 기한이 지나도 SCHEDULED 로 남을 수 있어
                  신뢰하지 않고, "기한 경과(due_date < 오늘) + 완납 아님(status <> PAID)" 으로 직접 판정 -->
             <if test="overdueOnly">
@@ -143,17 +154,20 @@
     </select>
 
     <!-- 회비 1건의 납부 이력 목록 (FEE-06) - 취소분 포함.
-         최신 납부가 위로 오도록 paid_at DESC, 동시각이면 payment_id DESC -->
+         최신 납부가 위로 오도록 paid_at DESC, 동시각이면 payment_id DESC
+         payment_receipts LEFT JOIN: 영수증이 있는 행만 화면에서 영수증 버튼을 노출할 수 있도록 receipt_no 를 같이 내려준다 (RCT-01/02) -->
     <select id="selectPaymentsByFeeId" resultType="com.edu.domain.fee.dto.response.FeePaymentHistoryResponse">
-        SELECT payment_id,
-               fee_id,
-               paid_amount,
-               paid_at,
-               payment_method,
-               cancel_yn
-          FROM fee_payments
-         WHERE fee_id = #{feeId}
-         ORDER BY paid_at DESC NULLS LAST, payment_id DESC
+        SELECT fp.payment_id,
+               fp.fee_id,
+               fp.paid_amount,
+               fp.paid_at,
+               fp.payment_method,
+               fp.cancel_yn,
+               pr.receipt_no
+          FROM fee_payments fp
+          LEFT JOIN payment_receipts pr ON pr.payment_id = fp.payment_id
+         WHERE fp.fee_id = #{feeId}
+         ORDER BY fp.paid_at DESC NULLS LAST, fp.payment_id DESC
     </select>
 
     <!-- 취소분 제외한 유효 납부 합계. 납부 이력이 없으면 0 -->
@@ -266,5 +280,44 @@
                AND s.user_id = #{studentUserId}
         )
     </select>
+
+    <!-- 담당 강사 회비 조회 접근 제어 (2026-07-22 결정): 해당 회비의 반(class_id)이 로그인 강사의 담당반인지.
+         fees.class_id 가 NULL(반 미지정 청구)이면 조인 자체가 안 걸려 항상 false - 소속 근거 없는 건은 강사에게 403. -->
+    <select id="existsFeeForTeacher" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fees f
+              JOIN classes c  ON c.class_id   = f.class_id
+              JOIN teachers t ON t.teacher_id = c.teacher_id
+             WHERE f.fee_id    = #{feeId}
+               AND t.user_id   = #{teacherUserId}
+        )
+    </select>
+
+    <!-- 영수증 조회 접근 제어 (RCT-01/02): 납부 이력이 해당 학부모(user_id)의 자녀 것인지.
+         fee_payments -> fees -> student_parents -> parents 순으로 조인해 existsFeeForParent 와 동일한 판정을 payment 기준으로 옮긴다 -->
+    <select id="existsPaymentForParent" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fee_payments fp
+              JOIN fees f              ON f.fee_id      = fp.fee_id
+              JOIN student_parents sp  ON sp.student_id = f.student_id
+              JOIN parents p           ON p.parent_id   = sp.parent_id
+             WHERE fp.payment_id = #{paymentId}
+               AND p.user_id     = #{parentUserId}
+        )
+    </select>
+
+    <select id="existsPaymentForStudent" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fee_payments fp
+              JOIN fees f     ON f.fee_id     = fp.fee_id
+              JOIN students s ON s.student_id = f.student_id
+             WHERE fp.payment_id = #{paymentId}
+               AND s.user_id     = #{studentUserId}
+        )
+    </select>
+
 
 </mapper>

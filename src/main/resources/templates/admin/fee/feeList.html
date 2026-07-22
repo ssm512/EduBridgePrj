@@ -332,6 +332,7 @@
           <th>금액</th>
           <th>수단</th>
           <th>상태</th>
+          <th>영수증</th>
         </tr>
         </thead>
         <!-- 행은 renderPaymentHistory() 가 채움 -->
@@ -434,18 +435,23 @@
       </tbody>
     </table>
 
-    <!-- 페이지네이션: 필터 조건 유지한 채 page 만 변경 -->
+    <!-- 페이지네이션: 필터 조건 유지한 채 page 만 변경
+         10페이지 단위로 그룹핑(1~10, 11~20 ...). totalPages 를 그냥 전부 나열하면 데이터가 쌓여서
+         페이지가 많아질 때 페이징 바 한 줄에 번호가 계속 늘어나는 문제가 있어서 그룹 단위로 잘라서 보여줌.
+         그룹 시작/끝(pageGroup)은 컨트롤러에서 계산해서 넘겨줌 (com.edu.common.dto.PageGroup) -
+         정수 나눗셈을 템플릿(SpEL)이 아니라 Java 쪽에서 계산해 타입 강제 문제 없이 정확히 처리.
+         이전/다음은 1페이지씩이 아니라 그룹(10페이지) 단위로 이동 -->
     <div class="fee-paging" th:if="${feePage.totalPages > 1}">
-      <a th:if="${feePage.page > 1}"
-         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${feePage.page - 1})}">이전</a>
+      <a th:if="${pageGroup.start > 1}"
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${pageGroup.start - 1})}">이전</a>
 
-      <a th:each="i : ${#numbers.sequence(1, feePage.totalPages)}"
+      <a th:each="i : ${#numbers.sequence(pageGroup.start, pageGroup.end)}"
          th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${i})}"
          th:text="${i}"
          th:classappend="${i == feePage.page} ? 'now-page'">1</a>
 
-      <a th:if="${feePage.page < feePage.totalPages}"
-         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${feePage.page + 1})}">다음</a>
+      <a th:if="${pageGroup.end < feePage.totalPages}"
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${pageGroup.end + 1})}">다음</a>
     </div>
   </main>
 </div>
@@ -834,6 +840,18 @@
       row.insertCell().textContent = Number(p.paidAmount).toLocaleString() + '원';
       row.insertCell().textContent = methodLabel[p.paymentMethod] || p.paymentMethod || '-';
       row.insertCell().textContent = canceled ? '취소됨' : '정상';
+
+      // 영수증 (RCT-01/02): receiptNo 가 있는 행만 PDF 링크 노출 (이 기능 배포 전 이력은 receiptNo 가 없음)
+      const receiptCell = row.insertCell();
+      if (p.receiptNo) {
+        const link = document.createElement('a');
+        link.href = '/api/fee-payments/' + p.paymentId + '/receipt/pdf';
+        link.target = '_blank';
+        link.textContent = '영수증';
+        receiptCell.appendChild(link);
+      } else {
+        receiptCell.textContent = '-';
+      }
     });
   }
 </script>

@@ -1,5 +1,6 @@
 package com.edu.domain.fee.controller;
 
+import com.edu.common.dto.PageGroup;
 import com.edu.common.dto.PageResponse;
 import com.edu.domain.fee.dto.response.DiscountPolicyResponse;
 import com.edu.domain.fee.service.DiscountPolicyService;
@@ -41,6 +42,8 @@ public class DiscountPolicyPageController {
         model.addAttribute("policyPage", policyPage);
         model.addAttribute("activeYn", activeYn);
         model.addAttribute("targetDate", targetDate);
+        // 페이징 바 그룹핑(10페이지 단위, 1~10/11~20 ...). 계산 로직은 PageGroup 참고
+        model.addAttribute("pageGroup", PageGroup.of(policyPage.page(), policyPage.totalPages(), 10));
         return "admin/discountPolicy/discountPolicyList";
     }
 }

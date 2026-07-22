@@ -35,6 +35,9 @@ public class FeePaymentHistoryResponse {
     /** 취소 여부 (Y / N) */
     private String cancelYn;
 
+    /** 영수증 번호 - 있으면 화면에 영수증 버튼 노출 (없으면 이 기능 배포 전 납부 이력이거나 아직 발급 전) */
+    private String receiptNo;
+
     /** 취소된 납부인지 - 화면 뱃지/합계 제외 판단용 */
     public boolean isCanceled() {
         return "Y".equals(cancelYn);
