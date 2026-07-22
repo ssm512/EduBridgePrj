@@ -5,6 +5,7 @@ import com.edu.domain.grade.vo.GradeVo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -45,6 +46,10 @@ public interface GradeMapper {
     // 성적 ID로 연결된 시험 ID 조회
     // 성적 삭제 후 해당 시험의 석차를 다시 계산하기 위해 사용한다.
     Long selectExamIdByGradeId(@Param("gradeId") Long gradeId);
+
+    // 시험 ID로 시험 만점 조회
+    // 학생 점수가 시험 만점을 넘지 않도록 서버에서 한 번 더 검증할 때 사용한다.
+    BigDecimal selectExamTotalScore(@Param("examId") Long examId);
 
     // 특정 시험의 석차 자동 재계산
     // 점수 높은 순으로 RANK를 다시 매겨 동점자는 같은 석차로 저장한다.
