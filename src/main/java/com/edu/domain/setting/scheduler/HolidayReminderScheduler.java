@@ -65,7 +65,7 @@ public class HolidayReminderScheduler {
         int sent = 0;
         for (Long userId : adminIds) {
             try {
-                notificationService.createNotification(userId, "ATTENDANCE", title, message);
+                notificationService.createNotification(userId, "NOTICE", title, message);
                 sent++;
             } catch (Exception e) {
                 log.warn("공휴일 리마인더 발송 실패 userId={}", userId, e);
