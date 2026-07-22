@@ -88,9 +88,13 @@ public class AttendanceController {
         return attendanceService.registerManual(request, createdBy);
     }
 
-    /** ATT-03 출석 이력 조회 (페이징) */
+    /**
+     * ATT-03 출석 이력 조회 (페이징) — 전체 범위 관리자 전용.
+     * 강사는 /teacher(담당반), 학생은 /my(본인), 학부모는 /child/{id}(자녀) 스코프 엔드포인트를 사용한다.
+     * (과거 전 역할 개방 + 서비스 스코프 미적용 상태라 타 학생 이력 열람이 가능했던 것을 ADMIN 전용으로 제한)
+     */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','TEACHER','PARENT','STUDENT')")
+    @PreAuthorize("hasRole('ADMIN')")
     public PageResponse<AttendanceResponse> history(
             @RequestParam(required = false) Long studentId,
             @RequestParam(required = false) Long classId,

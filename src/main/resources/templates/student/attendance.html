@@ -48,8 +48,9 @@
 <div th:replace="~{fragments/common :: topbar('학생')}"></div>
 
 <div class="shell">
+  <div th:replace="~{fragments/common :: studentSidebar('attendance')}"></div>
   <main class="content">
-    <a class="back" href="/studentPage">← 학생 홈</a>
+    <a class="home-btn" href="/studentPage">홈으로</a>
     <h1>내 출석</h1>
     <p class="page-sub">내 출석 현황과 이력을 확인할 수 있어요.</p>
 

@@ -701,10 +701,9 @@
 <div th:replace="~{fragments/common :: topbar('강사')}"></div>
 
 <div class="shell">
+    <div th:replace="~{fragments/common :: teacherSidebar('grades')}"></div>
     <main class="content">
-        <div class="page-actions">
-            <button type="button" class="back-btn" onclick="location.href='/teacherPage'">뒤로가기</button>
-        </div>
+        <a class="home-btn" href="/teacherPage">홈으로</a>
         <h1>성적입력</h1>
         <p class="sub">시험을 등록하고, 시험을 선택한 뒤 수강 학생별 점수를 입력합니다.</p>
 

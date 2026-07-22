@@ -80,13 +80,10 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     /**
      * ATT-01 자동 출석.
-     * 중복 확인 후 AUTO 출석기록으로 저장한다.
-     *
-     * TODO(협업): 완전한 검증(UGPS 반경/등록 비콘 UUID/RSSI/수업시간)은
-     *      *   - 반(class)의 기준 좌표와 등록 비콘(beacons) 데이터,
-     *      *   - system_settings의 GPS_RADIS_METERS / RSSI_DEFAULT_THRESHOLD / ATTENDANCE_ALLOW_MINUTES
-     *   가 갖춰지면 verificationService로 연결한다.
-     *   (현재 스키마엔 반의 기준 좌표 컬럼이 없어 반/설정 도메인과 합의 필요 → 지금은 PRESENT로 저장)
+     * 검증 순서: 중복 → 비콘 UUID → RSSI → GPS 반경 → 지각 판정(반 시작시간 기준).
+     * 비콘/RSSI/GPS 기준값은 beacons(V5 기준좌표) + system_settings(GPS_RADIUS_METERS/
+     * RSSI_DEFAULT_THRESHOLD/ATTENDANCE_ALLOW_MINUTES)에서 읽어 verificationService로 판정한다.
+     * 검증 실패 시 activity_logs에 기록(REQUIRES_NEW) 후 예외. AUTO 기록으로 저장.
      */
     @Override
     public AttendanceResponse checkIn(AttendanceCheckRequest request, String loginId) {
@@ -225,7 +222,8 @@ public class AttendanceServiceImpl implements AttendanceService {
     public PageResponse<AttendanceResponse> getHistory(Long studentId, Long classId,
                                                        LocalDate fromDate, LocalDate toDate, String keyword,
                                                        int page, int size) {
-        // TODO: 권한별 조회 범위 제한(본인/자녀 등)은 정책 확정 후 반영
+        // 이 메서드는 관리자 전용(전체 범위). 역할별 스코프 조회는 별도 메서드
+        // (getMyHistory/getChildHistory/getTeacherHistory)로 분리돼 있다.
         int safePage = Math.max(page, 1);
         int safeSize = size <= 0 ? 10 : Math.min(size, 100);
         int offset = (safePage - 1) * safeSize;
@@ -457,6 +455,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         List<Long> studentIds = attendanceMapper.findAbsentCandidates(classId, date);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String checkDate = date.format(formatter);
+        int marked = 0;
         for (Long studentId : studentIds) {
             AttendanceRecord record = AttendanceRecord.builder()
                     .studentId(studentId)
@@ -467,15 +466,20 @@ public class AttendanceServiceImpl implements AttendanceService {
                     .failureReason("미출석 자동 결석 처리")
                     .build();
 
+            // 이미 그날 기록이 있으면(동시 체크인/중복 수강행) 0행 → 알림도 보내지 않는다.
+            int inserted = attendanceMapper.insertAbsentIfAbsent(record);
+            if (inserted == 0) {
+                continue;
+            }
+            marked++;
+
             String studentName = attendanceMapper.getStudentName(studentId);
             String className = attendanceMapper.getClassName(classId);
             String notifyMsg = " : " + studentName + " 학생이 " + checkDate + ", [" + className +  "] 강의에 결석 하였습니다.";
-
-            attendanceMapper.insert(record);
             notificationService.notifyParentsOfStudent(
                     studentId, "ATTENDANCE", "결석 안내", notifyMsg);
         }
-        return studentIds.size();
+        return marked;
     }
 
     @Override

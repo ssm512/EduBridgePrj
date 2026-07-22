@@ -56,8 +56,9 @@
 <div th:replace="~{fragments/common :: topbar('강사')}"></div>
 
 <div class="shell">
+  <div th:replace="~{fragments/common :: teacherSidebar('attendance')}"></div>
   <main class="content">
-    <a class="back" href="/teacherPage">← 강사 홈</a>
+    <a class="home-btn" href="/teacherPage">홈으로</a>
     <h1>출석 관리</h1>
     <p class="page-sub">담당 반의 출석을 등록·조회하고 통계를 볼 수 있어요.</p>
 

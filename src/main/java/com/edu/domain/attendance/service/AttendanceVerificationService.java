@@ -12,7 +12,7 @@ import java.time.LocalTime;
  *   - RSSI_DEFAULT_THRESHOLD  (기본 -75)  : BLE 신호 인정 기준
  *   - ATTENDANCE_ALLOW_MINUTES(기본 10)   : 지각/출석 허용 시간(분)
  *
- * 지금은 시그니처만 잡아둔 뼈대. 각 메서드 본문은 TODO.
+ * 구현 완료(AttendanceVerificationServiceImpl) + 단위 테스트 보유. checkIn/checkOut에서 호출된다.
  */
 public interface AttendanceVerificationService {
 

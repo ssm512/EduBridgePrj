@@ -98,9 +98,11 @@
 <div th:replace="~{fragments/common :: topbar('공지사항')}"></div>
 
 <div class="shell">
+  <div th:replace="~{fragments/common :: teacherSidebar('notices')}"></div>
   <main class="content">
+    <a class="home-btn" href="/teacherPage">홈으로</a>
     <h1>공지사항</h1>
-    <p class="sub"><a class="back-link" href="/teacherPage">← 강사 홈으로</a> · 받은 공지를 확인하고, 반/학생 대상 공지를 작성합니다.</p>
+    <p class="sub">받은 공지를 확인하고, 반/학생 대상 공지를 작성합니다.</p>
 
     <div class="toolbar">
       <input type="text" id="fKeyword" placeholder="제목 / 내용 검색">

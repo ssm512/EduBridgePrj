@@ -118,10 +118,9 @@
 <body>
 <div th:replace="~{fragments/common :: topbar('학부모')}"></div>
 <div class="shell">
+    <div th:replace="~{fragments/common :: parentSidebar('grades')}"></div>
     <main class="content">
-        <div class="page-actions">
-            <button type="button" class="back-btn" onclick="location.href='/parentPage'">뒤로가기</button>
-        </div>
+        <a class="home-btn" href="/parentPage">홈으로</a>
         <h1>자녀 성적</h1>
         <p class="sub">자녀의 시험 점수와 과목별 성적 추이를 확인합니다.</p>
 

@@ -113,10 +113,9 @@
 <body>
 <div th:replace="~{fragments/common :: topbar('학생')}"></div>
 <div class="shell">
+    <div th:replace="~{fragments/common :: studentSidebar('grades')}"></div>
     <main class="content">
-        <div class="page-actions">
-            <button type="button" class="back-btn" onclick="location.href='/studentPage'">뒤로가기</button>
-        </div>
+        <a class="home-btn" href="/studentPage">홈으로</a>
         <h1>내 성적</h1>
         <p class="sub">내 시험 점수와 과목별 성적 추이를 확인합니다.</p>
 

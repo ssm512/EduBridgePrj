@@ -83,9 +83,11 @@
 <div th:replace="~{fragments/common :: topbar('공지사항')}"></div>
 
 <div class="shell">
+  <div th:replace="~{fragments/common :: parentSidebar('notices')}"></div>
   <main class="content">
+    <a class="home-btn" href="/parentPage">홈으로</a>
     <h1>공지사항</h1>
-    <p class="sub"><a class="back-link" href="/parentPage">← 학부모 홈으로</a> · 나에게 온 공지를 확인합니다. 열람하면 자동으로 읽음 처리됩니다.</p>
+    <p class="sub">나에게 온 공지를 확인합니다. 열람하면 자동으로 읽음 처리됩니다.</p>
 
     <!-- 검색 : GET /notices (NOT-02, 대상자별 목록) -->
     <div class="toolbar">
