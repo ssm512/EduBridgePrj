@@ -217,6 +217,15 @@
     </select>
 
     <!-- 결석 대상: 해당 반 ACTIVE 수강생 중 그 날짜 출석 기록 없는 학생 -->
+    <!-- 오늘(dayCode)이 이 반 수업 요일인지. days_of_week NULL=매일 → 1. 자동 출석 요일검증용 -->
+    <select id="countClassOnDay" resultType="int">
+        SELECT COUNT(*)
+        FROM classes
+        WHERE class_id = #{classId}
+          AND status_code = 'ACTIVE'
+          AND (days_of_week IS NULL OR days_of_week LIKE '%' || #{dayCode} || '%')
+    </select>
+
     <select id="findAbsentCandidates" resultType="long">
         SELECT e.student_id
         FROM enrollments e
