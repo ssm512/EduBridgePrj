@@ -97,6 +97,8 @@ public class ExamGradingServiceImpl implements ExamGradingService {
             - 문항 번호(questionNo)는 문제지에 표기된 순서를 따르세요.
             - JSON 배열 외의 텍스트(설명, 코드블록 표시 등)는 절대 포함하지 마세요.
             """;
+    /** ExtractQuestionsRequest.additionalInstruction 길이 제한과 동일 - 서비스 레이어에서도 한 번 더 방어 */
+    private static final int MAX_ADDITIONAL_INSTRUCTION_LENGTH = 1000;
 
     // ── AIG-09 grades.score 스케일 반올림 ────────────────────────────
     /** grades.score 컬럼 정밀도 (NUMERIC(5,1)) - 소수 첫째자리까지 */
@@ -205,6 +207,11 @@ public class ExamGradingServiceImpl implements ExamGradingService {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "업로드 폴더를 만들 수 없습니다");
         }
 
+        // 재업로드는 "추가"가 아니라 "교체"가 되어야 한다 - 지우지 않으면 잘못 올린 파일이 그대로 남아
+        // AIG-02 문항 추출 때 새 파일과 함께 Gemini에 전달되는 문제가 있었다. 같은 documentType만 지우고
+        // 다른 유형(QUESTION/ANSWER_KEY)은 건드리지 않는다.
+        aiGradingMapper.deleteDocumentsByExamAndType(examId, documentType);
+
         List<ExamDocumentResponse> saved = new ArrayList<>();
         int pageNo = 1;
         for (MultipartFile file : files) {
@@ -239,14 +246,29 @@ public class ExamGradingServiceImpl implements ExamGradingService {
         return saved;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ExamDocumentResponse> getDocuments(Long examId) {
+        if (!aiGradingMapper.existsExam(examId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 시험입니다. examId=" + examId);
+        }
+        return aiGradingMapper.selectDocumentsByExamId(examId).stream()
+                .map(ExamDocumentResponse::from)
+                .toList();
+    }
+
     // =====================================================================
     // AIG-02 문항 자동 추출
     // =====================================================================
 
     @Override
-    public ExamQuestionExtractResponse extractQuestions(Long examId, String loginId) {
+    public ExamQuestionExtractResponse extractQuestions(Long examId, String loginId, String additionalInstruction) {
         if (!aiGradingMapper.existsExam(examId)) {
             throw new ApiException(HttpStatus.NOT_FOUND, "존재하지 않는 시험입니다. examId=" + examId);
+        }
+        if (additionalInstruction != null && additionalInstruction.length() > MAX_ADDITIONAL_INSTRUCTION_LENGTH) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "추가 요청사항은 " + MAX_ADDITIONAL_INSTRUCTION_LENGTH + "자 이하로 입력해주세요");
         }
 
         List<ExamDocumentVo> documents = aiGradingMapper.selectDocumentsByExamId(examId);
@@ -256,17 +278,18 @@ public class ExamGradingServiceImpl implements ExamGradingService {
         }
 
         Long userId = resolveCurrentUserId(loginId);
+        String prompt = buildExtractionPrompt(additionalInstruction);
 
         AiUsageLogVo log = new AiUsageLogVo();
         log.setUserId(userId);
         log.setFeatureCode(EXTRACT_FEATURE_CODE);
-        log.setRequestPrompt(EXTRACTION_PROMPT + "\n[첨부 이미지 " + documents.size() + "장]");
+        log.setRequestPrompt(prompt + "\n[첨부 이미지 " + documents.size() + "장]");
         log.setModelName(modelName);
 
         String rawResponse;
         try {
             ensureGeminiKey();
-            rawResponse = callGeminiForExtraction(documents);
+            rawResponse = callGeminiForExtraction(documents, prompt);
             log.setResponseText(rawResponse);
             log.setSuccessYn("Y");
         } catch (Exception e) {
@@ -283,11 +306,25 @@ public class ExamGradingServiceImpl implements ExamGradingService {
         return new ExamQuestionExtractResponse(questions, status, log.getAiLogId());
     }
 
+    /**
+     * 고정 EXTRACTION_PROMPT(JSON 형식/규칙 강제) 뒤에 교사가 입력한 추가 요청사항을 덧붙인다.
+     * 자유 입력 뒤에 다시 한 번 형식 준수를 못박아, 사용자가 쓴 문구 때문에 JSON 형식이 깨지는 걸 방지한다.
+     * additionalInstruction이 비어있으면 기존과 완전히 동일한 프롬프트를 그대로 반환한다(하위호환).
+     */
+    private String buildExtractionPrompt(String additionalInstruction) {
+        if (additionalInstruction == null || additionalInstruction.isBlank()) {
+            return EXTRACTION_PROMPT;
+        }
+        return EXTRACTION_PROMPT
+                + "\n[선생님 추가 요청사항]\n" + additionalInstruction.trim() + "\n"
+                + "\n위 추가 요청사항을 참고하되, 앞서 정한 JSON 배열 형식과 규칙은 반드시 그대로 지켜서 응답하세요.";
+    }
+
     /** exam_documents.file_path(로컬 저장 경로)를 그대로 Resource로 읽어 Gemini에 전달한다 (멀티모달, 검증 완료) */
-    private String callGeminiForExtraction(List<ExamDocumentVo> documents) {
+    private String callGeminiForExtraction(List<ExamDocumentVo> documents, String prompt) {
         return chatClient().prompt()
                 .user(userSpec -> {
-                    userSpec.text(EXTRACTION_PROMPT);
+                    userSpec.text(prompt);
                     for (ExamDocumentVo doc : documents) {
                         userSpec.media(MimeTypeUtils.parseMimeType(doc.getMimeType()),
                                 new FileSystemResource(doc.getFilePath()));
@@ -454,10 +491,20 @@ public class ExamGradingServiceImpl implements ExamGradingService {
                     .uploadedBy(uploaderId)
                     .build();
             aiGradingMapper.insertSubmission(submission);   // submissionId 채워짐
+        } else if (STATUS_REVIEW_REQUIRED.equals(submission.getStatusCode())
+                || "FAILED".equals(submission.getStatusCode())) {
+            // 채점이 끝났거나 실패한 제출에 답안지를 재업로드하는 경우 - "새 파일로 재채점"이 되도록
+            // 이전 채점 결과/파일을 지우고 완전히 교체한다. UPLOADED로 되돌려서 AIG-06(또는 AIG-10)을
+            // 다시 타면 정상적으로 ANALYZING 전이가 되게 한다.
+            aiGradingMapper.deleteAnswerResultsBySubmissionId(submission.getSubmissionId());
+            aiGradingMapper.deleteFilesBySubmissionId(submission.getSubmissionId());
+            aiGradingMapper.resetForReupload(submission.getSubmissionId());
+            submission = aiGradingMapper.selectBySubmissionId(submission.getSubmissionId());
         } else if (!STATUS_UPLOADED.equals(submission.getStatusCode())) {
+            // ANALYZING(채점 진행 중) / CONFIRMED(이미 확정)는 재업로드를 막는다
             throw new ApiException(HttpStatus.CONFLICT,
-                    "이미 채점이 시작된 제출은 답안지를 다시 업로드할 수 없습니다. submissionId="
-                            + submission.getSubmissionId() + ", statusCode=" + submission.getStatusCode());
+                    "지금 상태(" + submission.getStatusCode() + ")에서는 답안지를 다시 업로드할 수 없습니다. submissionId="
+                            + submission.getSubmissionId());
         }
 
         Path dir = Paths.get(uploadPath, "submission-file");

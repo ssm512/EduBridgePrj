@@ -51,8 +51,15 @@ public interface AiGradingMapper {
     /** 시험자료 단건 조회 (업로드 응답 재조회용) */
     ExamDocumentVo selectByDocumentId(@Param("examDocumentId") Long examDocumentId);
 
-    /** AIG-02 문항 자동 추출용 - 이 시험에 업로드된 문제지/정답지 전체 조회 (page_no 순) */
+    /** AIG-02 문항 자동 추출용 - 이 시험에 업로드된 문제지/정답지 전체 조회 (QUESTION 먼저, page_no 순) */
     List<ExamDocumentVo> selectDocumentsByExamId(@Param("examId") Long examId);
+
+    /**
+     * 문제지/정답지 재업로드 시 같은 (examId, documentType)의 기존 파일을 전부 삭제한다(교체 방식).
+     * 재업로드가 "추가"가 아니라 "교체"가 되도록 하기 위함 - 그렇지 않으면 잘못 올린 파일이 남아
+     * AIG-02 문항 추출 때 새 파일과 함께 Gemini에 전달되는 버그가 있었다.
+     */
+    int deleteDocumentsByExamAndType(@Param("examId") Long examId, @Param("documentType") String documentType);
 
     // =====================================================================
     // exam_questions (AIG-03/04)
@@ -103,6 +110,21 @@ public interface AiGradingMapper {
     /** AIG-09 최종 확정 - statusCode=CONFIRMED, confirmedScore/gradeId/confirmed_at 반영 */
     int confirmSubmission(ExamSubmissionVo submission);
 
+    /**
+     * grades 삭제 전 호출 - exam_submissions.grade_id는 grades FK(ON DELETE 액션 없음)라서 AI 확정(AIG-09)으로
+     * grade_id가 연결된 채로 grades 행을 지우면 FK 위반이 난다(GradeController.deleteGrade에서 발견된 버그).
+     * 이 gradeId를 참조하는 제출이 있으면 REVIEW_REQUIRED로 되돌리고 grade_id/confirmed_score/confirmed_at을
+     * 비워 참조를 끊는다. 수기 등록 성적(연결된 제출 없음)이면 영향 0건으로 아무 일도 안 일어난다.
+     */
+    int revertConfirmationByGradeId(@Param("gradeId") Long gradeId);
+
+    /**
+     * REVIEW_REQUIRED/FAILED 상태에서 답안지가 재업로드될 때 제출 상태를 UPLOADED로 되돌리고
+     * 이전 채점 관련 필드(ai_total_score/ai_confidence/error_message/reviewed_by/reviewed_at)를 초기화한다.
+     * 이후 AIG-06을 다시 타면 UPLOADED-&gt;ANALYZING 전이가 그대로 허용된다.
+     */
+    int resetForReupload(@Param("submissionId") Long submissionId);
+
     // =====================================================================
     // submission_files (AIG-05)
     // =====================================================================
@@ -115,6 +137,12 @@ public interface AiGradingMapper {
 
     /** 재업로드 시 페이지 번호를 이어서 채번하기 위한 현재 최대 page_no (파일 없으면 null) */
     Integer selectMaxPageNo(@Param("submissionId") Long submissionId);
+
+    /**
+     * 채점 완료/실패(REVIEW_REQUIRED/FAILED) 후 답안지를 재업로드할 때 기존 파일을 전부 삭제한다(교체 방식).
+     * "새 파일로 재채점"이 되려면 이전 페이지가 남아 새 파일과 섞여 채점되면 안 되므로 필요하다.
+     */
+    int deleteFilesBySubmissionId(@Param("submissionId") Long submissionId);
 
     // =====================================================================
     // ai_grading_runs (AIG-06/AIG-10)

@@ -35,9 +35,14 @@ public interface ExamGradingService {
     /**
      * 시험자료 업로드. documentType은 QUESTION(문제지) 또는 ANSWER_KEY(정답지).
      * 여러 파일을 한 번에 올리면 업로드 순서대로 pageNo(1부터)를 채운다.
+     * 같은 시험+같은 documentType으로 재업로드하면 기존 파일은 삭제하고 새 파일로 완전히 교체한다
+     * (다른 documentType은 영향받지 않음) - 잘못 올린 문제지/정답지를 다시 올리는 시나리오를 위함.
      */
     List<ExamDocumentResponse> uploadDocuments(Long examId, String documentType,
                                                 List<MultipartFile> files, Authentication authentication);
+
+    /** 시험자료 업로드 목록 조회 - 화면에서 이 시험에 현재 어떤 문제지/정답지가 올라와 있는지 확인용 */
+    List<ExamDocumentResponse> getDocuments(Long examId);
 
     // =====================================================================
     // AIG-02 문항 자동 추출 (Gemini 이미지 분석, DB 미저장 - 초안만 반환)
@@ -46,8 +51,10 @@ public interface ExamGradingService {
     /**
      * examId에 업로드된 시험자료(문제지/정답지) 이미지를 Gemini에 보내 문항을 구조화한다.
      * DB에 저장하지 않는다 - 결과는 초안이며, 화면에서 검토/수정 후 saveQuestions(AIG-04)로 확정 저장해야 한다.
+     * additionalInstruction(선택, 최대 1000자)이 있으면 고정 프롬프트 뒤에 덧붙여 Gemini에 함께 전달한다 -
+     * 저장하지 않는 일회성 값이라 매 호출마다 다시 전달해야 한다.
      */
-    ExamQuestionExtractResponse extractQuestions(Long examId, String loginId);
+    ExamQuestionExtractResponse extractQuestions(Long examId, String loginId, String additionalInstruction);
 
     // =====================================================================
     // AIG-03/04 문항 조회/확정

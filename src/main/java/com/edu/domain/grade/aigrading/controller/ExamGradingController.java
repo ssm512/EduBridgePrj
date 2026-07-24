@@ -2,6 +2,7 @@ package com.edu.domain.grade.aigrading.controller;
 
 import com.edu.domain.grade.aigrading.dto.request.AnswerReviewItemRequest;
 import com.edu.domain.grade.aigrading.dto.request.ExamQuestionItemRequest;
+import com.edu.domain.grade.aigrading.dto.request.ExtractQuestionsRequest;
 import com.edu.domain.grade.aigrading.dto.response.AnswerResultResponse;
 import com.edu.domain.grade.aigrading.dto.response.ExamDocumentResponse;
 import com.edu.domain.grade.aigrading.dto.response.ExamQuestionExtractResponse;
@@ -62,6 +63,12 @@ public class ExamGradingController {
         return examGradingService.uploadDocuments(examId, documentType, files, authentication);
     }
 
+    /** GET /api/exams/{examId}/documents - 이 시험에 현재 업로드된 문제지/정답지 목록 조회 */
+    @GetMapping("/exams/{examId}/documents")
+    public List<ExamDocumentResponse> getDocuments(@PathVariable Long examId) {
+        return examGradingService.getDocuments(examId);
+    }
+
     // =====================================================================
     // AIG-02/03/04 문항 자동추출/조회/확정
     // =====================================================================
@@ -69,11 +76,15 @@ public class ExamGradingController {
     /**
      * AIG-02 POST /api/exams/{examId}/questions/extract - AI 문항 자동 추출 (초안, DB 미저장)
      * 결과는 화면에서 검토/수정 후 AIG-04(PUT)로 확정 저장해야 한다.
+     * body는 선택 - additionalInstruction(최대 1000자)으로 Gemini에게 추가 요청사항을 함께 전달할 수 있다.
+     * body 없이 호출해도 기존과 동일하게 동작한다(하위호환).
      */
     @PostMapping("/exams/{examId}/questions/extract")
     public ExamQuestionExtractResponse extractQuestions(@PathVariable Long examId,
+                                                         @RequestBody(required = false) @Valid ExtractQuestionsRequest request,
                                                          Authentication authentication) {
-        return examGradingService.extractQuestions(examId, authentication.getName());
+        String additionalInstruction = request != null ? request.getAdditionalInstruction() : null;
+        return examGradingService.extractQuestions(examId, authentication.getName(), additionalInstruction);
     }
 
     /** AIG-03 GET /api/exams/{examId}/questions - 시험 문항 조회 */

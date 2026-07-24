@@ -42,13 +42,21 @@
          WHERE exam_document_id = #{examDocumentId}
     </select>
 
+    <!-- QUESTION을 항상 먼저 정렬(document_type 알파벳순이면 ANSWER_KEY가 먼저 와버려서 EXTRACTION_PROMPT의
+         "문제지가 먼저, 정답지가 있다면 뒤에 첨부됩니다"라는 전제와 어긋났던 버그) -->
     <select id="selectDocumentsByExamId" resultType="com.edu.domain.grade.aigrading.vo.ExamDocumentVo">
         SELECT exam_document_id, exam_id, document_type, original_name, stored_name,
                file_path, mime_type, file_size, page_no, uploaded_by, created_at
           FROM exam_documents
          WHERE exam_id = #{examId}
-         ORDER BY document_type, page_no NULLS LAST, exam_document_id
+         ORDER BY CASE WHEN document_type = 'QUESTION' THEN 0 ELSE 1 END,
+                  page_no NULLS LAST, exam_document_id
     </select>
+
+    <!-- 재업로드(교체) 시 같은 문서유형의 기존 파일 전체 삭제 -->
+    <delete id="deleteDocumentsByExamAndType">
+        DELETE FROM exam_documents WHERE exam_id = #{examId} AND document_type = #{documentType}
+    </delete>
 
     <!-- ===================================================================
          exam_questions (AIG-03/04)
@@ -140,6 +148,28 @@
          WHERE submission_id = #{submissionId}
     </update>
 
+    <!-- 재업로드(교체) 시 제출을 UPLOADED로 되돌리고 이전 채점 결과 관련 필드를 비운다 -->
+    <update id="resetForReupload">
+        UPDATE exam_submissions
+           SET status_code    = 'UPLOADED',
+               ai_total_score = NULL,
+               ai_confidence  = NULL,
+               error_message  = NULL,
+               reviewed_by    = NULL,
+               reviewed_at    = NULL
+         WHERE submission_id = #{submissionId}
+    </update>
+
+    <!-- grades 삭제 전 참조 끊기 - 이 gradeId로 확정된 제출을 REVIEW_REQUIRED로 되돌린다 -->
+    <update id="revertConfirmationByGradeId">
+        UPDATE exam_submissions
+           SET status_code     = 'REVIEW_REQUIRED',
+               confirmed_score = NULL,
+               grade_id        = NULL,
+               confirmed_at    = NULL
+         WHERE grade_id = #{gradeId}
+    </update>
+
     <!-- ===================================================================
          submission_files (AIG-05)
          =================================================================== -->
@@ -162,6 +192,11 @@
     <select id="selectMaxPageNo" resultType="java.lang.Integer">
         SELECT MAX(page_no) FROM submission_files WHERE submission_id = #{submissionId}
     </select>
+
+    <!-- 채점 완료/실패 후 답안지 재업로드 시 기존 파일 전체 삭제(교체 방식) -->
+    <delete id="deleteFilesBySubmissionId">
+        DELETE FROM submission_files WHERE submission_id = #{submissionId}
+    </delete>
 
     <!-- ===================================================================
          ai_grading_runs (AIG-06/AIG-10)

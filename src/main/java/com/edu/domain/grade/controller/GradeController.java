@@ -1,5 +1,6 @@
 package com.edu.domain.grade.controller;
 
+import com.edu.domain.grade.aigrading.mapper.AiGradingMapper;
 import com.edu.domain.grade.mapper.GradeMapper;
 import com.edu.domain.grade.vo.ExamVo;
 import com.edu.domain.grade.vo.GradeVo;
@@ -27,12 +28,18 @@ public class GradeController {
     private final GradeMapper gradeMapper;
     private final UserMapper userMapper;
     private final NotificationService notificationService;
+    /**
+     * 성적 삭제 시에만 사용 - exam_submissions.grade_id(grades FK, ON DELETE 액션 없음)가 이 grade를
+     * 참조 중이면(AI채점 확정 건) FK 위반으로 삭제가 실패하는 버그가 있어, 삭제 전 참조를 끊기 위해 주입받는다.
+     */
+    private final AiGradingMapper aiGradingMapper;
 
     public GradeController(GradeMapper gradeMapper, UserMapper userMapper,
-                            NotificationService notificationService) {
+                            NotificationService notificationService, AiGradingMapper aiGradingMapper) {
         this.gradeMapper = gradeMapper;
         this.userMapper = userMapper;
         this.notificationService = notificationService;
+        this.aiGradingMapper = aiGradingMapper;
     }
 
     /**
@@ -160,6 +167,10 @@ public class GradeController {
     @Transactional
     public String deleteGrade(@PathVariable Long gradeId) {
         Long examId = gradeMapper.selectExamIdByGradeId(gradeId);
+        // AI채점 확정(AIG-09)으로 만들어진 성적은 exam_submissions.grade_id가 이 grade를 참조하고 있어
+        // 그대로 지우면 FK 위반이 난다. 참조를 먼저 끊어야(REVIEW_REQUIRED로 되돌림) 삭제가 가능하다.
+        // 수기 등록 성적은 참조하는 제출이 없어 0건 영향, 그대로 진행된다.
+        aiGradingMapper.revertConfirmationByGradeId(gradeId);
         gradeMapper.deleteGrade(gradeId);
         if (examId != null) {
             gradeMapper.updateGradeRanksByExam(examId);
