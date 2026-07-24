@@ -12,7 +12,10 @@ import com.edu.domain.attendance.dto.response.ChildOptionResponse;
 import com.edu.domain.attendance.dto.response.ClassOptionResponse;
 import com.edu.domain.attendance.service.AttendanceService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -104,6 +108,22 @@ public class AttendanceController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
         return attendanceService.getHistory(studentId, classId, fromDate, toDate, keyword, page, size);
+    }
+
+    /** ATT 출결 이력 CSV(엑셀) 내보내기 — 관리자 전용. 반/기간/이름 필터 그대로 전체 내보냄. */
+    @GetMapping("/export")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<byte[]> exportCsv(
+            @RequestParam(required = false) Long classId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) String keyword) {
+        byte[] csv = attendanceService.exportCsv(classId, fromDate, toDate, keyword);
+        String filename = "attendance_" + LocalDate.now() + ".csv";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(csv);
     }
 
     /** ATT-04 출석 수정 (관리자 전용) */

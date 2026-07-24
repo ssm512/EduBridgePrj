@@ -155,6 +155,7 @@
         <div class="f"><label>시작일</label><input id="q_from" type="date"></div>
         <div class="f"><label>종료일</label><input id="q_to" type="date"></div>
         <button class="btn sub" onclick="loadHistory()">조회</button>
+        <button class="btn" style="background:#166534" onclick="exportHistory()">엑셀 내보내기</button>
       </div>
       <div class="row quick" style="margin-bottom:12px;">
         <button class="btn sub sm" onclick="setHistRange('today')">오늘</button>
@@ -319,6 +320,19 @@
     document.getElementById('q_from').value = ymd(r.from);
     document.getElementById('q_to').value = ymd(r.to);
     loadHistory();
+  }
+  // 현재 이력 필터(반/기간/이름) 그대로 CSV(엑셀) 다운로드. 쿠키 인증이라 location 이동으로 받음.
+  function exportHistory() {
+    const qs = new URLSearchParams();
+    const c = document.getElementById('q_classSel').value;
+    const k = document.getElementById('q_keyword').value.trim();
+    const f = document.getElementById('q_from').value;
+    const t = document.getElementById('q_to').value;
+    if (c) qs.append('classId', c);
+    if (k) qs.append('keyword', k);
+    if (f) qs.append('fromDate', f);
+    if (t) qs.append('toDate', t);
+    window.location.href = '/api/attendance/export?' + qs.toString();
   }
   function statusOptions(sel) {
     return STATUSES.map(([v,l]) => `<option value="${v}" ${v===sel?'selected':''}>${l}</option>`).join('');

@@ -22,11 +22,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 출석 서비스 구현.
@@ -89,6 +92,15 @@ public class AttendanceServiceImpl implements AttendanceService {
     public AttendanceResponse checkIn(AttendanceCheckRequest request, String loginId) {
         Long studentId = resolveStudentId(loginId);   // 본인만 출석 (요청의 studentId 무시)
         LocalDate today = LocalDate.now();
+
+        // ATT 요일 검증(자동 출석 전용): 오늘이 이 반 수업 요일이 아니면 거부.
+        // 수동 등록/결석 일괄(registerManual/markAbsent)은 요일 무관하게 그대로 허용된다(보강·정정 대응).
+        String dayCode = today.getDayOfWeek()
+                .getDisplayName(TextStyle.SHORT, Locale.ENGLISH).toUpperCase(Locale.ENGLISH);
+        if (attendanceMapper.countClassOnDay(request.classId(), dayCode) == 0) {
+            failAndLog(loginId, request.classId(), "NOT_CLASS_DAY", request.beaconUuid(),
+                    request.rssiValue(), request.gpsLatitude(), request.gpsLongitude(), HttpStatus.BAD_REQUEST);
+        }
 
         // 중복 출석 방지 (실패 시 활동로그 기록)
         if (attendanceMapper.countByStudentClassDate(studentId, request.classId(), today) > 0) {
@@ -232,6 +244,57 @@ public class AttendanceServiceImpl implements AttendanceService {
                 .findPage(studentId, classId, fromDate, toDate, keyword, safeSize, offset)
                 .stream().map(AttendanceResponse::from).toList();
         return PageResponse.of(items, safePage, safeSize, total);
+    }
+
+    /** ATT 출결 이력 CSV(엑셀) 내보내기 — 관리자용. 전체 조회 후 UTF-8 BOM CSV 바이트 생성. */
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] exportCsv(Long classId, LocalDate fromDate, LocalDate toDate, String keyword) {
+        List<AttendanceRecord> rows = attendanceMapper.findList(null, classId, fromDate, toDate, keyword);
+        DateTimeFormatter dt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        StringBuilder sb = new StringBuilder();
+        sb.append('﻿'); // UTF-8 BOM — 엑셀에서 한글 깨짐 방지
+        sb.append("날짜,학생,반,상태,유형,입실,퇴실,실패사유\n");
+        for (AttendanceRecord r : rows) {
+            appendCsv(sb, r.getAttendanceDate() == null ? "" : r.getAttendanceDate().toString());
+            sb.append(',');
+            appendCsv(sb, r.getStudentName());
+            sb.append(',');
+            appendCsv(sb, r.getClassName());
+            sb.append(',');
+            appendCsv(sb, statusLabel(r.getStatusCode()));
+            sb.append(',');
+            appendCsv(sb, r.getCheckType());
+            sb.append(',');
+            appendCsv(sb, r.getCheckedAt() == null ? "" : r.getCheckedAt().format(dt));
+            sb.append(',');
+            appendCsv(sb, r.getCheckOutAt() == null ? "" : r.getCheckOutAt().format(dt));
+            sb.append(',');
+            appendCsv(sb, r.getFailureReason());
+            sb.append('\n');
+        }
+        return sb.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private String statusLabel(String code) {
+        if (code == null) return "";
+        return switch (code) {
+            case "PRESENT" -> "출석";
+            case "LATE" -> "지각";
+            case "LEAVE" -> "조퇴";
+            case "ABSENT" -> "결석";
+            default -> code;
+        };
+    }
+
+    /** CSV 셀 이스케이프: 쉼표/따옴표/개행 포함 시 따옴표로 감싸고 내부 따옴표는 두 개로. */
+    private void appendCsv(StringBuilder sb, String v) {
+        if (v == null) v = "";
+        if (v.contains(",") || v.contains("\"") || v.contains("\n") || v.contains("\r")) {
+            sb.append('"').append(v.replace("\"", "\"\"")).append('"');
+        } else {
+            sb.append(v);
+        }
     }
 
     /** ATT-04 출석 수정 */
@@ -559,6 +622,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             case "BEACON_UUID_MISMATCH" -> "강의실 비콘이 감지되지 않았습니다. 비콘 근처에서 다시 시도하세요.";
             case "RSSI_TOO_LOW"        -> "비콘 신호가 약합니다. 비콘에 더 가까이서 다시 시도하세요.";
             case "GPS_OUT_OF_RANGE"    -> "강의실 위치를 벗어났습니다. 강의실 근처에서 다시 시도하세요.";
+            case "NOT_CLASS_DAY"       -> "오늘은 이 반의 수업일이 아닙니다.";
             default                     -> "출석 검증에 실패했습니다.";
         };
     }

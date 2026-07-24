@@ -41,6 +41,9 @@ public interface AttendanceService {
                                                 LocalDate fromDate, LocalDate toDate, String keyword,
                                                 int page, int size);
 
+    /** ATT 출결 이력 CSV(엑셀) 내보내기 — 관리자용. 반/기간/이름 필터 그대로, UTF-8 BOM 포함 바이트 반환. */
+    byte[] exportCsv(Long classId, LocalDate fromDate, LocalDate toDate, String keyword);
+
     /** ATT-04 출석 수정 */
     AttendanceResponse update(Long attendanceId, AttendanceUpdateRequest request);
 

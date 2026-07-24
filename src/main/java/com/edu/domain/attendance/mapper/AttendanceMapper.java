@@ -21,6 +21,12 @@ public interface AttendanceMapper {
     int insert(AttendanceRecord record);
 
     /**
+     * 오늘(dayCode: MON~SUN)이 이 반의 수업 요일인지. days_of_week가 NULL이면 매일 수업(1 반환).
+     * 자동 출석의 요일 검증(NOT_CLASS_DAY)에 사용. (classes는 신상민 도메인 — 읽기 전용)
+     */
+    int countClassOnDay(@Param("classId") Long classId, @Param("dayCode") String dayCode);
+
+    /**
      * 자동 결석 전용 등록 (ATT-08). 이미 같은 날 기록이 있으면(동시 체크인/중복 수강행) 조용히 무시한다.
      * ON CONFLICT DO NOTHING 이라 유니크 위반 예외를 던지지 않으며, 반환값 = 실제 삽입 행수(1=삽입, 0=이미 있음).
      */
