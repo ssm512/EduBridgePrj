@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 시스템설정 매퍼. map-underscore-to-camel-case=true -->
+<mapper namespace="com.edu.domain.setting.mapper.SettingMapper">
+
+    <select id="findAll" resultType="SystemSetting">
+        SELECT * FROM system_settings ORDER BY setting_key
+    </select>
+
+    <select id="findByKey" resultType="SystemSetting">
+        SELECT * FROM system_settings WHERE setting_key = #{key}
+    </select>
+
+    <select id="getValue" resultType="string">
+        SELECT setting_value FROM system_settings WHERE setting_key = #{key}
+    </select>
+
+    <update id="updateValue">
+        UPDATE system_settings
+        SET setting_value = #{value},
+            <if test="description != null"> description = #{description}, </if>
+            updated_by  = #{updatedBy},
+            updated_at  = CURRENT_TIMESTAMP
+        WHERE setting_key = #{key}
+    </update>
+
+    <select id="findUserIdByLoginId" resultType="long">
+        SELECT user_id FROM users WHERE login_id = #{loginId}
+    </select>
+
+    <!-- 활동로그 저장. created_at은 DEFAULT -->
+    <insert id="insertActivityLog">
+        INSERT INTO activity_logs (user_id, action_type, target_table, description)
+        VALUES (#{userId}, #{actionType}, #{targetTable}, #{description})
+    </insert>
+
+    <!-- 공휴일 리마인더 수신자: 활성 관리자 -->
+    <select id="findAdminUserIds" resultType="long">
+        SELECT user_id FROM users
+        WHERE role_code = 'ADMIN' AND status_code = 'ACTIVE'
+    </select>
+
+</mapper>

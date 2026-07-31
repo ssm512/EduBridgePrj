@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${@branding.name} + ' · ' + ${title}">EduBridge</title>
+  <link rel="stylesheet" href="/css/common.css">
+
+  <!-- 회비관리 페이지 전용 스타일 (팀 규칙: 개인 구간은 html 내 style 태그)
+       사용 중인 클래스:
+       .tabs / .tab   : 상단 탭(회비 목록/통계·매출/할인정책관리 3페이지 이동, admin/attendance 탭 디자인 재사용)
+       .fee-toolbar   : 필터 폼 + 등록 버튼 영역
+       .fee-filter    : 검색 필터 폼
+       .fee-table     : 회비 목록 테이블
+       .status-badge  : 상태 뱃지 공통
+       .status-paid / .status-unpaid / .status-scheduled : 상태별 색상
+       .fee-actions   : 행 우측 관리 버튼 영역
+       .fee-paid-info : 부분납부 시 금액 옆 청구/납부 병기 (작은 글씨)
+       .fee-discount-info : 할인 금액 옆 사유(정책명/직접입력) 병기 (작은 글씨, FEE-10)
+       .fee-student-info : 학생 이름 옆 학번/생년월일 병기 (작은 글씨, 동명이인 구분)
+       .fee-paging    : 페이지네이션
+       .empty-row     : 데이터 없음 표시 행
+       .fee-modal     : 회비 등록 모달 (dialog)
+       .fee-modal-buttons : 모달 하단 버튼 영역
+       .fee-student-picker  : 등록 모달 내 학생 검색 영역
+       .fee-student-results : 학생 검색 결과 리스트 (li 클릭 선택, .no-result / .more-hint 포함)
+       .fee-student-selected : 선택된 학생 표시 줄
+  -->
+  <style>
+    /* ===== 회비 목록 화면 ===== */
+    .fee-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+    .fee-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .fee-filter input[type="month"],
+    .fee-filter input[type="date"],
+    .fee-filter select {
+      height: 36px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; background: #fff;
+    }
+    .fee-filter .fee-overdue-check { font-size: 13px; color: #374151; display: flex; align-items: center; gap: 4px; }
+    .fee-toolbar button {
+      height: 36px; padding: 0 16px; border: none; border-radius: 6px;
+      font-size: 14px; cursor: pointer; background: #1e3a8a; color: #fff;
+    }
+    .fee-toolbar button:hover { background: #1d4ed8; }
+
+    /* 상단 탭 (회비 목록 / 통계·매출 / 할인정책관리) - admin/attendance 페이지의 .tabs/.tab 디자인 재사용.
+       거기는 같은 페이지 안에서 JS로 섹션을 전환하지만 여긴 실제로 다른 페이지로 이동하는 링크라 a 태그로 구현 */
+    .tabs { display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; margin-bottom: 16px; }
+    .tabs .tab {
+      display: inline-block; padding: 9px 18px; background: none; cursor: pointer; font-size: 14px;
+      font-weight: 600; color: #94a3b8; border-bottom: 2px solid transparent; margin-bottom: -2px;
+    }
+    .tabs .tab:hover { color: #475569; }
+    .tabs .tab.active { color: #1e3a8a; border-bottom-color: #1e3a8a; }
+
+    /* table-layout: fixed + colgroup 로 컬럼 폭을 고정.
+       원래(auto) 방식은 현재 페이지에 보이는 행의 내용 길이에 따라 컬럼 폭이 매번 재계산돼서
+       페이지를 넘길 때마다 표 전체가 좌우로 흔들리는 문제가 있었음 */
+    .fee-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; background: #fff; border: 1px solid #e5e7eb; }
+    .fee-table thead th {
+      text-align: left; background: #f8fafc; color: #0f2a5f; font-weight: 600;
+      padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 13px;
+    }
+    .fee-table tbody td {
+      padding: 10px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle;
+      overflow-wrap: break-word; word-break: break-word;
+    }
+    .fee-table tbody tr:last-child td { border-bottom: none; }
+    .fee-table tbody tr:hover { background: #f8faff; }
+
+    .empty-row td { text-align: center; color: #9ca3af; padding: 32px !important; }
+
+    .fee-paid-info, .fee-discount-info, .fee-student-info {
+      display: block; font-size: 12px; color: #6b7280; margin-top: 2px;
+    }
+
+    .status-badge { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+    .status-paid      { background: #dcfce7; color: #166534; }
+    .status-unpaid     { background: #fee2e2; color: #991b1b; }
+    .status-scheduled { background: #fef9c3; color: #854d0e; }
+
+    .fee-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .fee-actions button {
+      height: 30px; padding: 0 10px; border: 1px solid #d1d5db; background: #fff; color: #374151;
+      border-radius: 6px; font-size: 12.5px; cursor: pointer;
+    }
+    .fee-actions button:hover { background: #f3f4f6; }
+    .fee-actions button:disabled { color: #d1d5db; border-color: #e5e7eb; cursor: default; background: #fff; }
+
+    .fee-paging { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 16px; }
+    .fee-paging a {
+      min-width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid #d1d5db; background: #fff; border-radius: 6px; font-size: 13px; color: #374151;
+    }
+    .fee-paging a:hover { background: #f3f4f6; }
+    .fee-paging a.now-page { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+
+    /* 등록/수정/납부/이력 모달 (네이티브 dialog 태그) */
+    .fee-modal {
+      border: none; border-radius: 12px; padding: 24px; width: 480px; max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 60px); overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,.2);
+    }
+    .fee-modal::backdrop { background: rgba(0,0,0,.4); }
+    .fee-modal h2 { margin: 0 0 16px; font-size: 17px; }
+    .fee-modal label { display: block; font-size: 13px; color: #6b7280; margin: 12px 0 4px; }
+    .fee-modal input, .fee-modal select {
+      width: 100%; height: 38px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;
+    }
+    .fee-modal-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+    .fee-modal-buttons button {
+      height: 36px; padding: 0 16px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer;
+      background: #1e3a8a; color: #fff;
+    }
+    .fee-modal-buttons button[type="button"] { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+
+    .fee-student-picker {
+      margin: 12px 0; padding: 12px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px;
+    }
+    .fee-student-picker label { margin-top: 0; }
+    .fee-student-picker > button {
+      margin-top: 8px; height: 32px; padding: 0 12px; border: 1px solid #d1d5db; background: #fff;
+      border-radius: 6px; font-size: 13px; cursor: pointer;
+    }
+    .fee-student-results {
+      list-style: none; margin: 10px 0 0; padding: 0; max-height: 160px; overflow-y: auto;
+      border: 1px solid #e5e7eb; border-radius: 6px;
+    }
+    .fee-student-results li { padding: 8px 10px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
+    .fee-student-results li:last-child { border-bottom: none; }
+    .fee-student-results li:hover { background: #eef2ff; }
+    .fee-student-results li.no-result,
+    .fee-student-results li.more-hint { color: #9ca3af; cursor: default; }
+    .fee-student-results li.no-result:hover,
+    .fee-student-results li.more-hint:hover { background: none; }
+    .fee-student-selected { margin-top: 10px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #166534; }
+    .fee-student-selected button {
+      height: 28px; padding: 0 10px; border: 1px solid #d1d5db; background: #fff; border-radius: 6px;
+      font-size: 12px; cursor: pointer;
+    }
+
+    .fee-history-target { font-size: 13px; color: #6b7280; margin: -8px 0 12px; }
+    .fee-history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .fee-history-table th, .fee-history-table td { padding: 8px 6px; border-bottom: 1px solid #f3f4f6; text-align: left; }
+    .fee-history-canceled td { color: #9ca3af; text-decoration: line-through; }
+  </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/common :: topbar(${title})}"></div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <a href="/admin/dashboard">대시보드</a>
+    <a href="/admin/members">회원관리</a>
+    <div class="group-label">반 / 수강</div>
+    <a href="/admin/classes">반관리</a>
+    <a href="/admin/enrollments">수강관리</a>
+    <div class="group-label">학생</div>
+    <a href="/admin/attendance">출석관리</a>
+    <a href="/admin/fees">회비관리</a>
+    <a href="/admin/grades">성적관리</a>
+    <div class="group-label">소통</div>
+    <a href="/admin/notices">공지관리</a>
+    <a href="/admin/counseling">상담관리</a>
+    <div class="group-label">운영</div>
+    <a href="/admin/ai">AI 리포트</a>
+    <a href="/admin/notifications">알림이력</a>
+    <a href="/admin/logs">활동로그</a>
+    <a href="/admin/settings">시스템설정</a>
+  </nav>
+
+  <main class="content">
+    <h1>회비 목록</h1>
+    <p class="sub">학생·반별 월 회비 청구/납부 현황 (SCR-W-11)</p>
+
+    <!-- 상단 탭: 회비 목록 / 통계·매출 / 할인정책관리 (3개 페이지 간 이동, admin/attendance 페이지 탭 디자인 참고) -->
+    <div class="tabs">
+      <a class="tab active" href="/admin/fees">회비 목록</a>
+      <a class="tab" href="/admin/fees/statistics">통계/매출</a>
+      <a class="tab" href="/admin/discount-policies">할인정책관리</a>
+    </div>
+
+    <!-- 필터 + 등록 버튼 -->
+    <div class="fee-toolbar">
+      <form class="fee-filter" th:action="@{/admin/fees}" method="get">
+        <input type="month" name="billingMonth" th:value="${search.billingMonth}">
+        <select name="statusCode">
+          <option value=""          th:selected="${search.statusCode == null or search.statusCode == ''}">전체 상태</option>
+          <option value="PAID"      th:selected="${search.statusCode == 'PAID'}">납부완료</option>
+          <option value="UNPAID"    th:selected="${search.statusCode == 'UNPAID'}">미납</option>
+          <option value="SCHEDULED" th:selected="${search.statusCode == 'SCHEDULED'}">예정</option>
+        </select>
+        <!-- FEE-07 미납 조회: 기한 지난 미납만 필터. 체크 시 due_date 경과 + 미완납 건만 표시 -->
+        <label class="fee-overdue-check">
+          <input type="checkbox" name="overdueOnly" value="true" th:checked="${search.overdueOnly}">
+          기한 지난 미납만
+        </label>
+        <button type="submit">조회</button>
+      </form>
+      <button type="button" onclick="openFeeCreateModal()">+ 회비 등록</button>
+    </div>
+
+    <!-- 회비 등록 모달 (FEE-01) -->
+    <dialog id="feeCreateModal" class="fee-modal">
+      <form id="feeCreateForm">
+        <h2>회비 등록</h2>
+
+        <!-- 학생 선택: 이름 검색 -> 후보 리스트 -> 선택 (팀원 STU-02 GET /api/students 재사용) -->
+        <div class="fee-student-picker">
+          <label>학생 검색 (이름/학번)
+            <input type="text" id="studentKeyword" placeholder="이름 입력 후 검색" autocomplete="off">
+          </label>
+          <button type="button" onclick="searchStudents()">검색</button>
+
+          <!-- 검색 결과: 동명이인 구분을 위해 학교/학년/생년월일/학번 병기 -->
+          <ul id="studentResults" class="fee-student-results" hidden></ul>
+
+          <!-- 선택 완료 표시 -->
+          <div id="studentSelected" class="fee-student-selected" hidden>
+            <span id="studentSelectedLabel"></span>
+            <button type="button" onclick="resetStudentSelect()">다시 검색</button>
+          </div>
+
+          <!-- 실제 전송값: 리스트에서 선택한 학생의 PK (서버에서 존재 여부 재검증) -->
+          <input type="hidden" name="studentId" id="studentIdInput">
+        </div>
+
+        <!-- 반 선택: 팀원 CLS-02(GET /api/classes) 재사용.
+             모달 열 때 ACTIVE 반 전체를 1회 로딩하고,
+             필터 입력은 서버 재호출 없이 클라이언트에서 옵션만 걸러냄 -->
+        <label>반 (개인 청구 시 그대로 두기)
+          <input type="text" id="classFilter" placeholder="반이름/과목/강사명으로 거르기" autocomplete="off">
+          <select name="classId" id="classSelect">
+            <option value="">개인 청구 (반 없음)</option>
+          </select>
+        </label>
+        <label>청구 월
+          <input type="month" name="billingMonth" required>
+        </label>
+        <label>청구 금액
+          <input type="number" name="feeAmount" required min="0" step="1000">
+        </label>
+        <!-- 할인정책(FEE-10) 선택 시 서버가 정책 기준으로 discountAmount 를 자동 계산하고
+             수동 입력값은 무시하므로, 정책 선택 중엔 할인 금액 입력을 비활성화한다 -->
+        <label>할인정책 (선택)
+          <select name="discountPolicyId" id="discountPolicySelect" onchange="onDiscountPolicyChange(this, 'discountAmountInput')">
+            <option value="">직접 입력</option>
+          </select>
+        </label>
+        <label>할인 금액
+          <input type="number" name="discountAmount" id="discountAmountInput" min="0" step="1000" placeholder="0">
+        </label>
+        <label>납부 기한
+          <input type="date" name="dueDate" required>
+        </label>
+        <label>비고
+          <input type="text" name="description" maxlength="255">
+        </label>
+
+        <div class="fee-modal-buttons">
+          <button type="submit">등록</button>
+          <button type="button" onclick="closeFeeCreateModal()">취소</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 회비 수정 모달 (FEE-03) - 금액/할인/기한/비고만 수정 가능 -->
+    <dialog id="feeUpdateModal" class="fee-modal">
+      <form id="feeUpdateForm">
+        <h2>회비 수정</h2>
+        <input type="hidden" name="feeId">
+
+        <label>청구 금액
+          <input type="number" name="feeAmount" required min="0" step="1000">
+        </label>
+        <label>할인정책 (선택)
+          <select name="discountPolicyId" id="discountPolicySelectUpdate" onchange="onDiscountPolicyChange(this, 'discountAmountInputUpdate')">
+            <option value="">직접 입력</option>
+          </select>
+        </label>
+        <label>할인 금액
+          <input type="number" name="discountAmount" id="discountAmountInputUpdate" min="0" step="1000" placeholder="0">
+        </label>
+        <label>납부 기한
+          <input type="date" name="dueDate" required>
+        </label>
+        <label>비고
+          <input type="text" name="description" maxlength="255">
+        </label>
+
+        <div class="fee-modal-buttons">
+          <button type="submit">저장</button>
+          <button type="button" onclick="closeModal('feeUpdateModal')">취소</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 납부 처리 모달 (FEE-04) -->
+    <dialog id="feePaymentModal" class="fee-modal">
+      <form id="feePaymentForm">
+        <h2>납부 처리</h2>
+        <input type="hidden" name="feeId">
+
+        <label>납부 금액
+          <!-- step 은 min 을 기준점으로 검증되므로 min=1 + step=1000 이면 300000 같은 값이 invalid 가 됨 -->
+          <input type="number" name="paidAmount" required min="1" step="1">
+        </label>
+        <label>납부 수단
+          <select name="paymentMethod" required>
+            <option value="CASH">현금</option>
+            <option value="TRANSFER">계좌이체</option>
+            <option value="CARD">카드</option>
+          </select>
+        </label>
+
+        <div class="fee-modal-buttons">
+          <button type="submit">납부</button>
+          <button type="button" onclick="closeModal('feePaymentModal')">취소</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 납부 이력 조회 모달 (FEE-06) - 취소분 포함 전체 납부 기록.
+         목록의 '이력' 버튼으로 열고, 내용은 JS 가 API 로 받아서 tbody 에 그림 -->
+    <dialog id="feeHistoryModal" class="fee-modal">
+      <h2>납부 이력</h2>
+      <p id="feeHistoryTarget" class="fee-history-target"></p>
+
+      <table class="fee-history-table">
+        <thead>
+        <tr>
+          <th>납부일시</th>
+          <th>금액</th>
+          <th>수단</th>
+          <th>상태</th>
+          <th>영수증</th>
+        </tr>
+        </thead>
+        <!-- 행은 renderPaymentHistory() 가 채움 -->
+        <tbody id="feeHistoryBody"></tbody>
+      </table>
+
+      <div class="fee-modal-buttons">
+        <button type="button" onclick="document.getElementById('feeHistoryModal').close()">닫기</button>
+      </div>
+    </dialog>
+
+    <!-- 회비 목록 테이블 -->
+    <table class="fee-table">
+      <!-- colgroup: 컬럼 폭을 페이지 내용과 무관하게 고정 (page 전환 시 좌우로 흔들리는 문제 방지) -->
+      <colgroup>
+        <col style="width:7%">
+        <col style="width:14%">
+        <col style="width:14%">
+        <col style="width:15%">
+        <col style="width:10%">
+        <col style="width:10%">
+        <col style="width:8%">
+        <col style="width:22%">
+      </colgroup>
+      <thead>
+      <tr>
+        <th>월</th>
+        <th>학생</th>
+        <th>반</th>
+        <th>남은 금액</th>
+        <th>할인</th>
+        <th>납부기한</th>
+        <th>상태</th>
+        <th>관리</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="fee : ${feePage.items}">
+        <td th:text="${fee.billingMonth}">2026-07</td>
+        <td>
+          <!-- 동명이인 구분: 이름 옆에 학번/생년월일 병기 -->
+          <span th:text="${fee.studentName}">홍길동</span>
+          <small class="fee-student-info"
+                 th:text="'(' + (${fee.studentNo} ?: '학번없음') + ' · ' + (${fee.birthDate} ?: '-') + ')'">(S001 · 2011-03-02)</small>
+        </td>
+        <td th:text="${fee.className} ?: '-'">수학A반</td>
+        <td>
+          <!-- 남은 금액을 메인으로, 부분납부가 있으면 청구/납부 내역을 작게 병기 -->
+          <span th:text="${#numbers.formatInteger(fee.remainingAmount, 1, 'COMMA')} + '원'">200,000원</span>
+          <small class="fee-paid-info" th:if="${fee.paidSum > 0}"
+                 th:text="'(청구 ' + ${#numbers.formatInteger(fee.billableAmount, 1, 'COMMA')} + ' / 납부 ' + ${#numbers.formatInteger(fee.paidSum, 1, 'COMMA')} + ')'">(청구 300,000 / 납부 100,000)</small>
+        </td>
+        <td>
+          <!-- 할인 금액이 메인, 사유(정책명 또는 직접입력)는 작게 병기.
+               discountPolicyName 이 없어도 discountAmount 만 있는 경우(수동 할인)가 있어 금액 기준으로 분기 -->
+          <span th:if="${fee.discountAmount != null and fee.discountAmount > 0}"
+                th:text="${#numbers.formatInteger(fee.discountAmount, 1, 'COMMA')} + '원'">30,000원</span>
+          <span th:unless="${fee.discountAmount != null and fee.discountAmount > 0}">-</span>
+          <small class="fee-discount-info" th:if="${fee.discountAmount != null and fee.discountAmount > 0}"
+                 th:text="'(' + (${fee.discountPolicyName} ?: '직접입력') + ')'">(형제할인)</small>
+        </td>
+        <td th:text="${fee.dueDate}">2026-07-25</td>
+        <td>
+          <span class="status-badge"
+                th:classappend="${fee.statusCode == 'PAID'} ? 'status-paid' : (${fee.statusCode == 'UNPAID'} ? 'status-unpaid' : 'status-scheduled')"
+                th:text="${fee.statusCode == 'PAID'} ? '납부완료' : (${fee.statusCode == 'UNPAID'} ? '미납' : '예정')">상태</span>
+        </td>
+        <td class="fee-actions">
+          <!-- 납부(FEE-04): 완납 상태면 비활성 -->
+          <button type="button"
+                  th:disabled="${fee.statusCode == 'PAID'}"
+                  th:attr="data-fee-id=${fee.feeId}, data-remaining-amount=${fee.remainingAmount}"
+                  onclick="openFeePaymentModal(this)">납부</button>
+          <!-- 수정(FEE-03): 현재 값을 data-* 로 실어서 모달에 프리필 -->
+          <button type="button"
+                  th:attr="data-fee-id=${fee.feeId}, data-fee-amount=${fee.feeAmount}, data-discount-amount=${fee.discountAmount}, data-discount-policy-id=${fee.discountPolicyId}, data-due-date=${fee.dueDate}, data-description=${fee.description}"
+                  onclick="openFeeUpdateModal(this)">수정</button>
+          <!-- 납부취소(FEE-05): 유효 납부 이력이 있을 때만 활성 (가장 최근 이력 취소) -->
+          <button type="button"
+                  th:disabled="${fee.lastPaymentId == null}"
+                  th:attr="data-payment-id=${fee.lastPaymentId}"
+                  onclick="cancelPayment(this)">납부취소</button>
+          <!-- 삭제(명세서 외 추가): 잘못 등록된 청구 정리용.
+               납부 이력(취소분 포함)이 있으면 비활성 - 서버에서도 409 로 이중 방어 -->
+          <button type="button"
+                  th:disabled="${fee.paymentCount > 0}"
+                  th:title="${fee.paymentCount > 0} ? '납부 이력이 있는 회비는 삭제할 수 없습니다' : ''"
+                  th:attr="data-fee-id=${fee.feeId}, data-student-name=${fee.studentName}, data-billing-month=${fee.billingMonth}"
+                  onclick="deleteFee(this)">삭제</button>
+          <!-- 납부 이력(FEE-06): 취소분 포함 전체 납부 기록 조회. 이력이 없으면 비활성 -->
+          <button type="button"
+                  th:disabled="${fee.paymentCount == 0}"
+                  th:attr="data-fee-id=${fee.feeId}, data-student-name=${fee.studentName}, data-billing-month=${fee.billingMonth}"
+                  onclick="openFeeHistoryModal(this)">이력</button>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(feePage.items)}" class="empty-row">
+        <td colspan="8">조회된 회비 내역이 없습니다.</td>
+      </tr>
+      </tbody>
+    </table>
+
+    <!-- 페이지네이션: 필터 조건 유지한 채 page 만 변경
+         10페이지 단위로 그룹핑(1~10, 11~20 ...). totalPages 를 그냥 전부 나열하면 데이터가 쌓여서
+         페이지가 많아질 때 페이징 바 한 줄에 번호가 계속 늘어나는 문제가 있어서 그룹 단위로 잘라서 보여줌.
+         그룹 시작/끝(pageGroup)은 컨트롤러에서 계산해서 넘겨줌 (com.edu.common.dto.PageGroup) -
+         정수 나눗셈을 템플릿(SpEL)이 아니라 Java 쪽에서 계산해 타입 강제 문제 없이 정확히 처리.
+         이전/다음은 1페이지씩이 아니라 그룹(10페이지) 단위로 이동 -->
+    <div class="fee-paging" th:if="${feePage.totalPages > 1}">
+      <a th:if="${pageGroup.start > 1}"
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${pageGroup.start - 1})}">이전</a>
+
+      <a th:each="i : ${#numbers.sequence(pageGroup.start, pageGroup.end)}"
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${i})}"
+         th:text="${i}"
+         th:classappend="${i == feePage.page} ? 'now-page'">1</a>
+
+      <a th:if="${pageGroup.end < feePage.totalPages}"
+         th:href="@{/admin/fees(billingMonth=${search.billingMonth}, statusCode=${search.statusCode}, overdueOnly=${search.overdueOnly}, page=${pageGroup.end + 1})}">다음</a>
+    </div>
+  </main>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+
+<script>
+  // getCsrfCookie() 는 fragments/common :: logoutScript 에 정의된 것을 재사용
+
+  // ===== 공통: CSRF 포함 JSON 요청 헬퍼 =====
+  // 등록/수정/납부/취소가 전부 같은 패턴이라 한 곳으로 모음
+  async function feeApi(url, method, body) {
+    if (!getCsrfCookie()) { await fetch('/api/auth/csrf'); }
+    return fetch(url, {
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-XSRF-TOKEN': getCsrfCookie()
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+  }
+
+  // 성공이면 새로고침(필터 유지), 실패면 서버 메시지 alert
+  async function handleResult(res, failPrefix) {
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      const error = await res.json();
+      alert(failPrefix + ': ' + (error.message || res.status));
+    }
+  }
+
+  function closeModal(id) {
+    const dialog = document.getElementById(id);
+    dialog.querySelector('form').reset();
+    dialog.close();
+  }
+
+  // ===== 학생 이름 검색 -> 선택 (등록 모달) =====
+  // 팀원 STU-02(GET /api/students) 재사용. keyword 는 이름/로그인ID/학번을 검색함.
+  // GET 이라 CSRF 헤더 불필요
+  async function searchStudents() {
+    const keyword = document.getElementById('studentKeyword').value.trim();
+    if (!keyword) { alert('검색어를 입력해 주세요'); return; }
+
+    const res = await fetch('/api/students?keyword=' + encodeURIComponent(keyword) + '&size=20');
+    if (!res.ok) { alert('학생 검색 실패: ' + res.status); return; }
+    const page = await res.json();
+
+    const list = document.getElementById('studentResults');
+    list.innerHTML = '';
+    list.hidden = false;
+    document.getElementById('studentSelected').hidden = true;
+    document.getElementById('studentIdInput').value = '';
+
+    if (page.items.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'no-result';
+      li.textContent = '검색 결과가 없습니다';
+      list.appendChild(li);
+      return;
+    }
+
+    // XSS 방지: 서버 데이터는 innerHTML 이 아닌 textContent 로만 바인딩
+    page.items.forEach(function (s) {
+      const li = document.createElement('li');
+      const school = [s.schoolName, s.gradeLevel].filter(Boolean).join(' ');
+      li.textContent = s.name
+        + ' · ' + (school || '-')
+        + ' · ' + (s.birthDate || '생년월일 없음')
+        + ' · ' + (s.studentNo || '학번 없음');
+      li.onclick = function () { selectStudent(s); };
+      list.appendChild(li);
+    });
+
+    // 페이지 크기(20)보다 결과가 많으면 검색어를 좁히도록 안내
+    if (page.totalCount > page.items.length) {
+      const li = document.createElement('li');
+      li.className = 'more-hint';
+      li.textContent = '총 ' + page.totalCount + '건 중 20건만 표시 중입니다. 검색어를 더 정확히 입력해 주세요';
+      list.appendChild(li);
+    }
+  }
+
+  function selectStudent(s) {
+    const school = [s.schoolName, s.gradeLevel].filter(Boolean).join(' ');
+    document.getElementById('studentIdInput').value = s.studentId;
+    document.getElementById('studentSelectedLabel').textContent =
+      '선택됨: ' + s.name + (school ? ' (' + school + ')' : '');
+    document.getElementById('studentResults').hidden = true;
+    document.getElementById('studentSelected').hidden = false;
+  }
+
+  function resetStudentSelect() {
+    document.getElementById('studentIdInput').value = '';
+    document.getElementById('studentKeyword').value = '';
+    document.getElementById('studentSelected').hidden = true;
+    const list = document.getElementById('studentResults');
+    list.innerHTML = '';
+    list.hidden = true;
+  }
+
+  // 검색창에서 Enter 를 치면 폼 제출(등록)이 아니라 검색이 실행되게
+  document.getElementById('studentKeyword').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); searchStudents(); }
+  });
+
+  // ===== 반 select 옵션 로딩 + 클라이언트 필터 =====
+  // 팀원 CLS-02(GET /api/classes) 재사용. 운영중(ACTIVE) 반만 조회.
+  // 서버 호출은 모달 열 때 1회뿐 - 필터는 캐시(classOptions)를 걸러서 다시 그림.
+  // (반 규모 수십 개 전제. size=100 초과 시 학생처럼 서버 검색 방식으로 전환 필요)
+  let classOptions = [];
+
+  async function loadClassOptions() {
+    const select = document.getElementById('classSelect');
+    classOptions = [];
+    renderClassOptions('');
+
+    const res = await fetch('/api/classes?statusCode=ACTIVE&size=100');
+    if (!res.ok) {
+      // 반 로딩이 실패해도 개인 청구는 가능해야 하므로 모달은 막지 않고 표시만
+      const opt = document.createElement('option');
+      opt.disabled = true;
+      opt.textContent = '반 목록 로딩 실패 (' + res.status + ')';
+      select.appendChild(opt);
+      return;
+    }
+
+    const page = await res.json();
+    classOptions = page.items;
+    renderClassOptions('');
+  }
+
+  // 필터 문자열(반이름/과목/강사명)에 맞는 옵션만 다시 그림
+  function renderClassOptions(filterText) {
+    const select = document.getElementById('classSelect');
+    const keyword = filterText.trim().toLowerCase();
+    const prevValue = select.value; // 필터 중에도 기존 선택 유지 시도
+
+    select.length = 1; // 첫 옵션(개인 청구)만 남기고 초기화
+
+    const filtered = classOptions.filter(function (c) {
+      if (!keyword) return true;
+      const target = [c.className, c.subject, c.teacherName].filter(Boolean).join(' ').toLowerCase();
+      return target.includes(keyword);
+    });
+
+    filtered.forEach(function (c) {
+      const opt = document.createElement('option');
+      opt.value = c.classId;
+      opt.textContent = c.className
+        + (c.subject ? ' · ' + c.subject : '')
+        + (c.teacherName ? ' (' + c.teacherName + ')' : '');
+      select.appendChild(opt);
+    });
+
+    if (classOptions.length > 0 && filtered.length === 0) {
+      const opt = document.createElement('option');
+      opt.disabled = true;
+      opt.textContent = '일치하는 반 없음';
+      select.appendChild(opt);
+    }
+
+    // 이전에 고른 반이 필터 결과에 남아 있으면 선택 복원 (없으면 개인 청구로 초기화됨)
+    if (prevValue) select.value =
+      [...select.options].some(o => o.value === prevValue) ? prevValue : '';
+  }
+
+  document.getElementById('classFilter').addEventListener('input', function () {
+    renderClassOptions(this.value);
+  });
+
+  // 필터 칸에서 Enter 를 쳐도 폼 제출(등록)로 이어지지 않게 차단
+  document.getElementById('classFilter').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') e.preventDefault();
+  });
+
+  // ===== 할인정책 select 옵션 로딩 (FEE-10) =====
+  // 활성 정책만 노출. 정책을 고르면 서버가 자동으로 discountAmount 를 계산하고
+  // 수동 입력값은 무시하므로, 정책 선택 중엔 할인 금액 입력을 잠가서 혼동을 막는다.
+  async function loadDiscountPolicyOptions(selectId, selectedPolicyId, amountInputId) {
+    const select = document.getElementById(selectId);
+    select.length = 1; // "직접 입력" 옵션만 남기고 초기화
+
+    const res = await fetch('/api/discount-policies?activeYn=Y&size=100');
+    if (!res.ok) {
+      const opt = document.createElement('option');
+      opt.disabled = true;
+      opt.textContent = '할인정책 로딩 실패 (' + res.status + ')';
+      select.appendChild(opt);
+      return;
+    }
+
+    const page = await res.json();
+    page.items.forEach(function (p) {
+      const opt = document.createElement('option');
+      opt.value = p.discountPolicyId;
+      opt.textContent = p.policyName
+        + (p.discountType === 'RATE' ? ' (' + p.discountValue + '%)' : ' (' + Number(p.discountValue).toLocaleString() + '원)');
+      select.appendChild(opt);
+    });
+
+    if (selectedPolicyId) {
+      select.value = String(selectedPolicyId);
+    }
+    onDiscountPolicyChange(select, amountInputId); // 선택 상태에 맞춰 할인 금액 입력 잠금/해제 동기화
+  }
+
+  // 정책을 선택하면 수동 할인 금액 입력을 비활성화(서버가 정책 기준으로 자동 계산),
+  // "직접 입력"으로 되돌리면 다시 활성화
+  function onDiscountPolicyChange(select, amountInputId) {
+    const amountInput = document.getElementById(amountInputId);
+    if (select.value) {
+      amountInput.value = '';
+      amountInput.disabled = true;
+      amountInput.placeholder = '정책 적용 시 자동 계산';
+    } else {
+      amountInput.disabled = false;
+      amountInput.placeholder = '0';
+    }
+  }
+
+  // ===== 회비 등록 (FEE-01) =====
+  function openFeeCreateModal() {
+    loadClassOptions(); // 비동기 로딩 - 모달은 먼저 열리고 옵션이 채워짐
+    loadDiscountPolicyOptions('discountPolicySelect', null, 'discountAmountInput');
+    document.getElementById('feeCreateModal').showModal();
+  }
+
+  function closeFeeCreateModal() {
+    closeModal('feeCreateModal');
+    resetStudentSelect(); // 결과 리스트/선택 표시는 form.reset() 으로 안 지워지므로 별도 초기화
+  }
+
+  document.getElementById('feeCreateForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const form = new FormData(this);
+
+    // hidden 이라 required 브라우저 검증이 안 걸리므로 직접 확인
+    if (!form.get('studentId')) {
+      alert('학생을 검색해서 선택해 주세요');
+      return;
+    }
+
+    const body = {
+      studentId:      Number(form.get('studentId')),
+      classId:        form.get('classId') ? Number(form.get('classId')) : null,
+      billingMonth:   form.get('billingMonth'),
+      feeAmount:      Number(form.get('feeAmount')),
+      discountAmount: form.get('discountAmount') ? Number(form.get('discountAmount')) : 0,
+      discountPolicyId: form.get('discountPolicyId') ? Number(form.get('discountPolicyId')) : null,
+      dueDate:        form.get('dueDate'),
+      description:    form.get('description') || null
+    };
+
+    const res = await feeApi('/api/fees', 'POST', body);
+    await handleResult(res, '등록 실패');
+  });
+
+  // ===== 회비 수정 (FEE-03) =====
+  // 버튼의 data-* 값으로 현재 값을 프리필
+  function openFeeUpdateModal(btn) {
+    const form = document.getElementById('feeUpdateForm');
+    form.feeId.value          = btn.dataset.feeId;
+    form.feeAmount.value      = btn.dataset.feeAmount;
+    form.discountAmount.value = btn.dataset.discountAmount || 0;
+    form.dueDate.value        = btn.dataset.dueDate;
+    form.description.value    = btn.dataset.description || '';
+    loadDiscountPolicyOptions('discountPolicySelectUpdate', btn.dataset.discountPolicyId, 'discountAmountInputUpdate');
+    document.getElementById('feeUpdateModal').showModal();
+  }
+
+  document.getElementById('feeUpdateForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const form = new FormData(this);
+    const body = {
+      feeAmount:      Number(form.get('feeAmount')),
+      discountAmount: form.get('discountAmount') ? Number(form.get('discountAmount')) : 0,
+      discountPolicyId: form.get('discountPolicyId') ? Number(form.get('discountPolicyId')) : null,
+      dueDate:        form.get('dueDate'),
+      description:    form.get('description') || null
+    };
+
+    const res = await feeApi('/api/fees/' + form.get('feeId'), 'PUT', body);
+    await handleResult(res, '수정 실패');
+  });
+
+  // ===== 납부 처리 (FEE-04) =====
+  function openFeePaymentModal(btn) {
+    const form = document.getElementById('feePaymentForm');
+    form.feeId.value = btn.dataset.feeId;
+    // 기본값으로 남은 금액(잔액)을 넣어줌 (부분 납부 시 수정 가능)
+    form.paidAmount.value = btn.dataset.remainingAmount;
+    document.getElementById('feePaymentModal').showModal();
+  }
+
+  document.getElementById('feePaymentForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const form = new FormData(this);
+    const body = {
+      paidAmount:    Number(form.get('paidAmount')),
+      paymentMethod: form.get('paymentMethod')
+      // paidAt 은 생략 -> 서버에서 현재 시각 사용
+    };
+
+    const res = await feeApi('/api/fees/' + form.get('feeId') + '/payments', 'POST', body);
+    await handleResult(res, '납부 실패');
+  });
+
+  // ===== 납부 취소 (FEE-05) =====
+  // 목록에서는 가장 최근 유효 납부 이력(lastPaymentId)만 취소 가능
+  async function cancelPayment(btn) {
+    if (!confirm('가장 최근 납부 내역을 취소하시겠습니까?')) return;
+
+    const res = await feeApi('/api/fee-payments/' + btn.dataset.paymentId + '/cancel', 'PUT', null);
+    await handleResult(res, '납부 취소 실패');
+  }
+
+  // ===== 회비 삭제 (명세서 외 추가) =====
+  // 잘못 등록된 청구 정리용. 되돌릴 수 없는 작업이라 confirm 에 대상 정보를 명시
+  async function deleteFee(btn) {
+    const target = btn.dataset.studentName + ' / ' + btn.dataset.billingMonth;
+    if (!confirm('[' + target + '] 회비 청구를 삭제하시겠습니까?\n삭제하면 되돌릴 수 없습니다.')) return;
+
+    const res = await feeApi('/api/fees/' + btn.dataset.feeId, 'DELETE', null);
+    await handleResult(res, '삭제 실패');
+  }
+
+  // ===== 납부 이력 조회 (FEE-06) =====
+  // 목록의 '이력' 버튼 -> 해당 회비의 납부 기록(취소분 포함)을 모달에 표로 출력.
+  // GET 이라 CSRF 헤더 불필요.
+  async function openFeeHistoryModal(btn) {
+    const feeId = btn.dataset.feeId;
+    const modal = document.getElementById('feeHistoryModal');
+    const body  = document.getElementById('feeHistoryBody');
+
+    document.getElementById('feeHistoryTarget').textContent =
+      btn.dataset.studentName + ' / ' + btn.dataset.billingMonth;
+
+    // 로딩 중 표시 후 모달을 먼저 연다
+    body.innerHTML = '';
+    const loadingRow = body.insertRow();
+    loadingRow.insertCell().colSpan = 5;
+    loadingRow.cells[0].textContent = '불러오는 중...';
+    modal.showModal();
+
+    const res = await fetch('/api/fees/' + feeId + '/payments');
+    if (!res.ok) {
+      body.innerHTML = '';
+      const row = body.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 5;
+      cell.textContent = '납부 이력 조회 실패: ' + res.status;
+      return;
+    }
+
+    renderPaymentHistory(await res.json());
+  }
+
+  function renderPaymentHistory(list) {
+    const body = document.getElementById('feeHistoryBody');
+    body.innerHTML = '';
+
+    if (!list || list.length === 0) {
+      const row = body.insertRow();
+      const cell = row.insertCell();
+      cell.colSpan = 5;
+      cell.textContent = '납부 이력이 없습니다.';
+      return;
+    }
+
+    // XSS 방지: 서버 데이터는 textContent 로만 바인딩
+    const methodLabel = { CASH: '현금', TRANSFER: '계좌이체', CARD: '카드' };
+
+    list.forEach(function (p) {
+      const row = body.insertRow();
+      const canceled = p.cancelYn === 'Y';
+      if (canceled) row.className = 'fee-history-canceled';
+
+      // 납부일시: 'T' 를 공백으로 바꿔 보기 좋게 (2026-07-15T10:30:00 -> 2026-07-15 10:30:00)
+      row.insertCell().textContent = p.paidAt ? p.paidAt.replace('T', ' ') : '-';
+      row.insertCell().textContent = Number(p.paidAmount).toLocaleString() + '원';
+      row.insertCell().textContent = methodLabel[p.paymentMethod] || p.paymentMethod || '-';
+      row.insertCell().textContent = canceled ? '취소됨' : '정상';
+
+      // 영수증 (RCT-01/02): receiptNo 가 있는 행만 PDF 링크 노출 (이 기능 배포 전 이력은 receiptNo 가 없음)
+      const receiptCell = row.insertCell();
+      if (p.receiptNo) {
+        const link = document.createElement('a');
+        link.href = '/api/fee-payments/' + p.paymentId + '/receipt/pdf';
+        link.target = '_blank';
+        link.textContent = '영수증';
+        receiptCell.appendChild(link);
+      } else {
+        receiptCell.textContent = '-';
+      }
+    });
+  }
+</script>
+</body>
+</html>

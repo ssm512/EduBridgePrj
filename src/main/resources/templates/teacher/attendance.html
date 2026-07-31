@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${@branding.name} + ' · 강사 출석'">EduBridge · 강사 출석</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root { color-scheme: light; }
+    input, select { background:#fff; color:#111827; font-family:inherit; }
+    .page-sub { color:#6b7280; font-size:13px; margin:-6px 0 14px; }
+    .back { font-size:13px; color:#1e3a8a; text-decoration:none; }
+    .tabs { display:flex; gap:4px; border-bottom:2px solid #e5e7eb; margin-bottom:16px; }
+    .tab { padding:9px 18px; border:0; background:none; cursor:pointer; font-size:14px; font-weight:600;
+           color:#94a3b8; border-bottom:2px solid transparent; margin-bottom:-2px; }
+    .tab:hover { color:#475569; } .tab.active { color:#1e3a8a; border-bottom-color:#1e3a8a; }
+    .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;
+             margin-bottom:14px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .panel > h2 { margin:0 0 12px; font-size:14px; color:#1e293b; display:flex; align-items:center; gap:7px; }
+    .panel > h2::before { content:""; width:3px; height:14px; background:#1e3a8a; border-radius:2px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+    .row.quick { gap:6px; }
+    .row .f { display:flex; flex-direction:column; font-size:12px; gap:4px; color:#475569; }
+    .row input, .row select { padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px; min-width:140px; font-size:13px; }
+    .btn { padding:7px 13px; border:0; border-radius:7px; background:#1e3a8a; color:#fff; cursor:pointer; font-size:13px; font-weight:600; }
+    .btn:hover { filter:brightness(1.12); } .btn.sub { background:#64748b; color:#fff; } .btn.danger { background:#dc2626; color:#fff; }
+    .btn.sm { padding:4px 9px; font-size:11.5px; font-weight:500; }
+    .tbl-wrap { border:1px solid #eef2f7; border-radius:8px; overflow:hidden; margin-top:2px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { padding:7px 10px; text-align:left; vertical-align:middle; }
+    thead th { background:#f8fafc; color:#64748b; font-size:11.5px; font-weight:600; border-bottom:1px solid #e5e7eb; }
+    tbody tr { border-bottom:1px solid #f1f5f9; } tbody tr:nth-child(even) { background:#fcfcfd; }
+    td select, td input { padding:4px 6px; border:1px solid #cbd5e1; border-radius:6px; font-size:11.5px; }
+    .muted { color:#9ca3af; }
+    .manage { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+    .manage .lbl { color:#94a3b8; font-size:11px; }
+    .stat-cards { display:flex; gap:8px; flex-wrap:wrap; }
+    .stat { flex:1; min-width:84px; background:#f8fafc; border:1px solid #eef2f7; border-radius:8px; padding:10px 8px; text-align:center; }
+    .stat .num { font-size:20px; font-weight:700; line-height:1.1; }
+    .stat .lbl2 { font-size:11.5px; color:#64748b; margin-top:3px; }
+    .stat .lbl2 .muted { font-size:9.5px; display:block; }
+    .chart-wrap { display:flex; gap:20px; flex-wrap:wrap; align-items:center; margin-top:16px; }
+    .chart-box { flex:1; min-width:240px; max-width:340px; }
+    .chart-box canvas { max-height:260px; }
+    .tag { padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+    .PRESENT{background:#dcfce7;color:#166534;} .LATE{background:#fef9c3;color:#854d0e;}
+    .ABSENT{background:#fee2e2;color:#991b1b;} .LEAVE{background:#e0e7ff;color:#3730a3;}
+    .note { font-size:12.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:8px 10px; border-radius:8px; margin-bottom:8px; }
+    #msg { font-size:13px; margin-top:10px; font-weight:500; }
+    .pager { display:flex; align-items:center; justify-content:center; gap:12px; margin-top:10px; }
+    .pager .pageinfo { font-size:12.5px; color:#475569; }
+    .pager button[disabled] { opacity:.4; cursor:default; filter:none; }
+  </style>
+</head>
+<body>
+<div th:replace="~{fragments/common :: topbar('강사')}"></div>
+
+<div class="shell">
+  <div th:replace="~{fragments/common :: teacherSidebar('attendance')}"></div>
+  <main class="content">
+    <a class="home-btn" href="/teacherPage">홈으로</a>
+    <h1>출석 관리</h1>
+    <p class="page-sub">담당 반의 출석을 등록·조회하고 통계를 볼 수 있어요.</p>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="sheet" onclick="showTab('sheet')">출석부</button>
+      <button class="tab"        data-tab="stats" onclick="showTab('stats')">출결 통계</button>
+      <button class="tab"        data-tab="hist"  onclick="showTab('hist')">출석 이력</button>
+    </div>
+
+    <!-- 출석부 -->
+    <section class="tab-panel" id="tab-sheet">
+    <div class="panel">
+      <h2>반 출석부 (오늘 현황 · 조회 전용)</h2>
+      <p class="page-sub" style="margin:-2px 0 10px;">출결은 학생 앱으로 자동 기록됩니다. 강사는 조회만 가능하고, 결석은 <b>수업 종료 후</b> 아래 버튼으로 일괄 처리할 수 있어요. (개별 수정은 관리자)</p>
+      <div class="row" style="margin-bottom:12px;">
+        <div class="f" id="classPickWrap"><label>반</label>
+          <select id="classSel"><option value="">불러오는 중…</option></select>
+        </div>
+        <div class="f"><label>날짜</label><input id="sheetDate" type="date"></div>
+        <button class="btn" onclick="loadRoster()">명단 불러오기</button>
+        <button class="btn sub" onclick="markAbsent()">결석 일괄 처리</button>
+      </div>
+      <div id="rosterNote"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>학생</th><th>상태</th><th>입실</th><th>퇴실</th></tr></thead>
+          <tbody id="roster"><tr><td colspan="4" class="muted">반을 고르고 명단을 불러오세요.</td></tr></tbody>
+        </table>
+      </div>
+      <div id="rosterPager" class="pager"></div>
+      <div id="msg"></div>
+    </div>
+    </section>
+
+    <!-- 통계 -->
+    <section class="tab-panel" id="tab-stats" hidden>
+    <div class="panel">
+      <h2>출석 통계</h2>
+      <div class="row" style="margin-bottom:14px;">
+        <div class="f"><label>반</label><select id="s_classSel"><option value="">전체</option></select></div>
+        <div class="f"><label>시작일</label><input id="s_from" type="date"></div>
+        <div class="f"><label>종료일</label><input id="s_to" type="date"></div>
+        <button class="btn" onclick="loadStats()">통계 조회</button>
+      </div>
+      <div class="row quick" style="margin-bottom:12px;">
+        <button class="btn sub sm" onclick="setRange('today')">오늘</button>
+        <button class="btn sub sm" onclick="setRange('week')">이번주</button>
+        <button class="btn sub sm" onclick="setRange('month')">이번달</button>
+        <button class="btn sub sm" onclick="setRange('3m')">3개월</button>
+      </div>
+      <div id="statCards" class="stat-cards"><div class="muted" style="font-size:13px;">반·기간을 고르고 통계를 조회하세요.</div></div>
+      <div class="chart-wrap" id="chartWrap" style="display:none;">
+        <div class="chart-box"><canvas id="statDoughnut"></canvas></div>
+        <div class="chart-box"><canvas id="statBar"></canvas></div>
+      </div>
+    </div>
+    </section>
+
+    <!-- 이력 -->
+    <section class="tab-panel" id="tab-hist" hidden>
+    <div class="panel">
+      <h2>출석 이력</h2>
+      <div class="row" style="margin-bottom:10px;">
+        <div class="f"><label>반</label><select id="q_classSel"><option value="">전체</option></select></div>
+        <div class="f"><label>학생 이름</label>
+          <input id="q_keyword" placeholder="이름 일부 검색" onkeydown="if(event.key==='Enter')loadHistory(1)">
+        </div>
+        <div class="f"><label>시작일</label><input id="q_from" type="date"></div>
+        <div class="f"><label>종료일</label><input id="q_to" type="date"></div>
+        <button class="btn sub" onclick="loadHistory(1)">조회</button>
+      </div>
+      <div class="row quick" style="margin-bottom:12px;">
+        <button class="btn sub sm" onclick="setHistRange('today')">오늘</button>
+        <button class="btn sub sm" onclick="setHistRange('week')">이번주</button>
+        <button class="btn sub sm" onclick="setHistRange('month')">이번달</button>
+        <button class="btn sub sm" onclick="setHistRange('3m')">3개월</button>
+        <button class="btn sub sm" onclick="document.getElementById('q_from').value='';document.getElementById('q_to').value='';loadHistory(1)">전체기간</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>학생</th><th>반</th><th>날짜</th><th>상태</th><th>유형</th><th>입실/퇴실</th></tr></thead>
+          <tbody id="tbody"><tr><td colspan="6" class="muted">조회를 눌러 이력을 불러오세요.</td></tr></tbody>
+        </table>
+      </div>
+      <div id="histPager" class="pager"></div>
+    </div>
+    </section>
+  </main>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script th:inline="none">
+  function csrf(){ const m=document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/); return m?decodeURIComponent(m[1]):null; }
+  async function ensureCsrf(){ if(!csrf()) await fetch('/api/auth/csrf'); return csrf(); }
+  const STATUSES=[['PRESENT','출석'],['LATE','지각'],['ABSENT','결석'],['LEAVE','조퇴']];
+  const WEEKDAYS=['일','월','화','수','목','금','토'];
+  function toInput(s){ return s ? s.replace(' ','T').slice(0,16) : ''; }
+  function fmtDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); return isNaN(dt)?d:`${d}(${WEEKDAYS[dt.getDay()]})`; }
+  function checkTypeName(t){ return t==='AUTO'?'비콘':t==='MANUAL'?'수동':(t ?? ''); }
+  function statusName(c){ return ({PRESENT:'출석',LATE:'지각',ABSENT:'결석',LEAVE:'조퇴'})[c] || (c ?? ''); }
+  function statusOptions(sel){ return STATUSES.map(([v,l])=>`<option value="${v}" ${v===sel?'selected':''}>${l}</option>`).join(''); }
+  function ymd(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
+  function rangeDates(kind){
+    const now=new Date(); let from=new Date(now), to=new Date(now);
+    if(kind==='week'){const mon=(now.getDay()+6)%7; from=new Date(now); from.setDate(now.getDate()-mon); to=new Date(from); to.setDate(from.getDate()+6);}
+    else if(kind==='month'){from=new Date(now.getFullYear(),now.getMonth(),1); to=new Date(now.getFullYear(),now.getMonth()+1,0);}
+    else if(kind==='3m'){from=new Date(now); from.setMonth(now.getMonth()-3); to=new Date(now);}
+    return {from,to};
+  }
+  function setRange(kind){ const r=rangeDates(kind); document.getElementById('s_from').value=ymd(r.from); document.getElementById('s_to').value=ymd(r.to); loadStats(); }
+  function setHistRange(kind){ const r=rangeDates(kind); document.getElementById('q_from').value=ymd(r.from); document.getElementById('q_to').value=ymd(r.to); loadHistory(1); }
+
+  function renderPager(elId, data, fnName){
+    const el=document.getElementById(elId);
+    const page=data.page??1, totalPages=data.totalPages??1, totalCount=data.totalCount??0;
+    if(totalCount===0||totalPages<=1){ el.innerHTML=''; return; }
+    const prev=page<=1?'disabled':'', next=page>=totalPages?'disabled':'';
+    el.innerHTML=`<button class="btn sub sm" ${prev} onclick="${fnName}(${page-1})">이전</button>
+      <span class="pageinfo">${page} / ${totalPages} <span class="muted">(총 ${totalCount}건)</span></span>
+      <button class="btn sub sm" ${next} onclick="${fnName}(${page+1})">다음</button>`;
+  }
+
+  let statsLoaded=false;
+  function showTab(name){
+    ['sheet','stats','hist'].forEach(t=>document.getElementById('tab-'+t).hidden=(t!==name));
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+    if(name==='stats' && !statsLoaded){ statsLoaded=true; loadStats(); }
+  }
+
+  async function loadClasses(){
+    try{
+      // 본인 담당반만 (서버가 classes.teacher_id로 한정)
+      const res=await fetch('/api/attendance/teacher-classes');
+      if(!res.ok) throw new Error(res.status);
+      const list=await res.json();
+      const opts=(list??[]).map(c=>`<option value="${c.classId}">${c.className ?? ('반 '+c.classId)}</option>`).join('');
+      document.getElementById('classSel').innerHTML=opts||'<option value="">담당 반 없음</option>';
+      document.getElementById('q_classSel').innerHTML='<option value="">전체(내 담당반)</option>'+opts;
+      document.getElementById('s_classSel').innerHTML='<option value="">전체(내 담당반)</option>'+opts;
+    }catch(e){
+      document.getElementById('classPickWrap').innerHTML='<label>반ID (직접입력)</label><input id="classSel" type="number" placeholder="예: 1">';
+      document.getElementById('rosterNote').innerHTML=`<div class="note">담당반 목록을 불러오지 못했습니다 (${e}).</div>`;
+    }
+  }
+
+  let rosterAll=[]; let rosterRecords={}; let rosterPage=1; const ROSTER_SIZE=10;
+  function fmtHM(s){ return s ? s.slice(11,16) : '-'; }
+  async function loadRoster(){
+    const classId=document.getElementById('classSel').value;
+    const tbody=document.getElementById('roster');
+    if(!classId){ tbody.innerHTML='<tr><td colspan="4">반을 먼저 선택하세요.</td></tr>'; return; }
+    try{
+      const res=await fetch(`/api/classes/${classId}`);
+      if(!res.ok) throw new Error(res.status);
+      const data=await res.json();
+      rosterAll=(data.students??[]).filter(s=>s.statusCode==='ACTIVE');
+      if(!rosterAll.length){ tbody.innerHTML='<tr><td colspan="4" class="muted">수강생 없음</td></tr>'; document.getElementById('rosterPager').innerHTML=''; return; }
+      rosterPage=1;
+      await refreshRosterRecords();   // 그날 기록 반영 후 렌더 (조회 전용)
+    }catch(e){
+      rosterAll=[]; document.getElementById('rosterPager').innerHTML='';
+      tbody.innerHTML=`<tr><td colspan="4" class="muted">명단을 불러오지 못했습니다 (${e}).</td></tr>`;
+    }
+  }
+  // 담당반 스코프 API로 그날 기록 조회 → 있는 학생은 읽기전용
+  async function refreshRosterRecords(){
+    const classId=document.getElementById('classSel').value;
+    const date=document.getElementById('sheetDate').value;
+    rosterRecords={};
+    if(classId && date){
+      const qs=new URLSearchParams({ classId, fromDate:date, toDate:date, page:1, size:500 });
+      const res=await fetch('/api/attendance/teacher?'+qs.toString());
+      if(res.ok){ const data=await res.json(); (data.items??[]).forEach(r=>{ rosterRecords[r.studentId]=r; }); }
+    }
+    renderRosterPage(rosterPage);
+  }
+  function renderRosterPage(page){
+    const totalPages=Math.max(1, Math.ceil(rosterAll.length/ROSTER_SIZE));
+    const p=Math.min(Math.max(page,1), totalPages);
+    rosterPage=p;
+    const slice=rosterAll.slice((p-1)*ROSTER_SIZE, p*ROSTER_SIZE);
+    document.getElementById('roster').innerHTML=slice.map(s=>rosterRow(s.studentId, s.name ?? '')).join('');
+    renderPager('rosterPager', {page:p,totalPages,totalCount:rosterAll.length}, 'renderRosterPage');
+  }
+  // 강사 출석부는 조회 전용: 온 학생/안 온 학생을 한눈에. (임의 입력 불가 — 관리자만)
+  function rosterRow(studentId, name){
+    const nameCell = `${name||''} <span style="color:#9ca3af">(#${studentId})</span>`;
+    const rec = rosterRecords[studentId];
+    if(rec){
+      return `<tr>
+        <td>${nameCell}</td>
+        <td><span class="tag ${rec.statusCode ?? ''}">${statusName(rec.statusCode)}</span></td>
+        <td>${fmtHM(rec.checkedAt)}</td>
+        <td>${fmtHM(rec.checkOutAt)}</td>
+      </tr>`;
+    }
+    return `<tr>
+      <td>${nameCell}</td>
+      <td><span class="muted">미출석</span></td>
+      <td>-</td>
+      <td>-</td>
+    </tr>`;
+  }
+  async function markAbsent(){
+    const classId=Number(document.getElementById('classSel').value);
+    const date=document.getElementById('sheetDate').value||ymd(new Date());
+    const msg=document.getElementById('msg');
+    if(!classId){ msg.textContent='반을 먼저 선택/입력하세요.'; msg.style.color='#b91c1c'; return; }
+    if(!confirm(`이 반의 ${date} 미출석 학생을 모두 결석 처리할까요?`)) return;
+    const token=await ensureCsrf();
+    const res=await fetch('/api/attendance/teacher/mark-absent',{method:'POST',
+      headers:{'Content-Type':'application/json','X-XSRF-TOKEN':token},body:JSON.stringify({classId,date})});
+    if(res.ok){ const d=await res.json(); msg.textContent=`결석 처리 완료: ${d.markedAbsent}명`; msg.style.color='#166534'; refreshRosterRecords(); }
+    else{ const d=await res.json().catch(()=>({})); msg.textContent=`결석 처리 실패 (${res.status}): ${d.message||''}`; msg.style.color='#b91c1c'; }
+  }
+
+  let doughnutChart=null, barChart=null;
+  async function loadStats(){
+    const c=document.getElementById('s_classSel').value;
+    const from=document.getElementById('s_from').value, to=document.getElementById('s_to').value;
+    const qs=new URLSearchParams(); if(c)qs.append('classId',c); if(from)qs.append('fromDate',from); if(to)qs.append('toDate',to);
+    const box=document.getElementById('statCards');
+    const res=await fetch('/api/attendance/teacher/statistics?'+qs.toString());
+    if(!res.ok){ box.innerHTML=`<div class="muted">통계 조회 실패 (${res.status})</div>`; return; }
+    const s=await res.json();
+    const present=s.present||0, late=s.late||0, absent=s.absent||0, leave=s.leave||0;
+    const total=present+late+absent+leave, came=present+late+leave;
+    const lateRate=total?Math.round(late*10000/total)/100:0;
+    box.innerHTML=`
+      <div class="stat"><div class="num" style="color:#166534">${came}</div><div class="lbl2">출석 <span class="muted">(지각·조퇴 포함)</span></div></div>
+      <div class="stat"><div class="num" style="color:#854d0e">${late}</div><div class="lbl2">지각</div></div>
+      <div class="stat"><div class="num" style="color:#3730a3">${leave}</div><div class="lbl2">조퇴</div></div>
+      <div class="stat"><div class="num" style="color:#991b1b">${absent}</div><div class="lbl2">결석</div></div>
+      <div class="stat"><div class="num" style="color:#1e3a8a">${s.attendanceRate ?? 0}%</div><div class="lbl2">출석률</div></div>
+      <div class="stat"><div class="num" style="color:#854d0e">${lateRate}%</div><div class="lbl2">지각율</div></div>
+      <div class="stat"><div class="num" style="color:#64748b">${total}</div><div class="lbl2">총 건수</div></div>`;
+    const wrap=document.getElementById('chartWrap'); const values=[present,late,leave,absent];
+    if(typeof Chart==='undefined'||total===0){ wrap.style.display='none'; return; }
+    wrap.style.display='flex';
+    if(doughnutChart) doughnutChart.destroy(); if(barChart) barChart.destroy();
+    const labels=['정상출석','지각','조퇴','결석'], colors=['#16a34a','#d97706','#4f46e5','#dc2626'];
+    doughnutChart=new Chart(document.getElementById('statDoughnut'),{type:'doughnut',
+      data:{labels,datasets:[{data:values,backgroundColor:colors,borderWidth:1}]},
+      options:{plugins:{legend:{position:'bottom',labels:{font:{size:11}}},title:{display:true,text:'출결 구성'}}}});
+    barChart=new Chart(document.getElementById('statBar'),{type:'bar',
+      data:{labels,datasets:[{label:'인원(건)',data:values,backgroundColor:colors}]},
+      options:{plugins:{legend:{display:false},title:{display:true,text:'상태별 건수'}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  }
+
+  const HIST_SIZE=10;
+  async function loadHistory(page=1){
+    const kw=document.getElementById('q_keyword').value.trim();
+    const c=document.getElementById('q_classSel').value;
+    const from=document.getElementById('q_from').value, to=document.getElementById('q_to').value;
+    const qs=new URLSearchParams();
+    if(kw)qs.append('keyword',kw); if(c)qs.append('classId',c); if(from)qs.append('fromDate',from); if(to)qs.append('toDate',to);
+    qs.append('page',page); qs.append('size',HIST_SIZE);
+    const tbody=document.getElementById('tbody'); document.getElementById('histPager').innerHTML='';
+    const res=await fetch('/api/attendance/teacher?'+qs.toString());
+    if(!res.ok){ tbody.innerHTML=`<tr><td colspan="6">조회 실패 (${res.status})</td></tr>`; return; }
+    const data=await res.json(); const list=data.items??[];
+    if(!list.length){ tbody.innerHTML=`<tr><td colspan="6" class="muted">기록 없음</td></tr>`; return; }
+    tbody.innerHTML=list.map(a=>`
+      <tr>
+        <td><b>${a.studentName ?? ('#'+(a.studentId ?? ''))}</b></td>
+        <td>${a.className ?? ('#'+(a.classId ?? ''))}</td>
+        <td>${fmtDate(a.attendanceDate)}</td>
+        <td><span class="tag ${a.statusCode ?? ''}">${statusName(a.statusCode)}</span></td>
+        <td>${checkTypeName(a.checkType)}</td>
+        <td>${fmtHM(a.checkedAt)} / ${fmtHM(a.checkOutAt)}</td>
+      </tr>`).join('');
+    renderPager('histPager', data, 'loadHistory');
+  }
+
+  document.getElementById('sheetDate').value=ymd(new Date());
+  loadClasses();
+  loadHistory(1);
+</script>
+</body>
+</html>

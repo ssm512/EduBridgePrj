@@ -3,6 +3,9 @@ package com.edu.domain.auth.controller;
 import com.edu.domain.auth.dto.AuthResponse;
 import com.edu.domain.auth.dto.LoginRequest;
 import com.edu.domain.auth.dto.MessageResponse;
+import com.edu.domain.auth.dto.MyPageUpdateRequest;
+import com.edu.domain.auth.dto.PasswordChangeRequest;
+import com.edu.domain.auth.dto.PasswordResetRequest;
 import com.edu.domain.auth.dto.SignupRequest;
 import com.edu.domain.auth.dto.TokenRefreshRequest;
 import com.edu.domain.auth.dto.UserResponse;
@@ -11,13 +14,12 @@ import com.edu.common.util.CookieUtil;
 import com.edu.domain.member.mapper.UserMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.apache.ibatis.annotations.Param;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -95,9 +97,42 @@ public class AuthController {
         return new MessageResponse("로그아웃되었습니다");
     }
 
+    /**
+     * POST /api/auth/password-reset - 셀프 비밀번호 재설정 (비로그인)
+     * 아이디+이메일 일치 시 임시 비밀번호를 이메일로 발송한다. (개발 단계: 콘솔 출력)
+     * 계정 존재 여부를 노출하지 않기 위해 항상 동일한 응답을 반환한다.
+     */
+    @PostMapping("/password-reset")
+    public MessageResponse passwordReset(@Valid @RequestBody PasswordResetRequest request) {
+        authService.requestPasswordReset(request);
+        return new MessageResponse("입력하신 정보가 일치하면 등록된 이메일로 임시 비밀번호가 발송됩니다");
+    }
+
+    /**
+     * PUT /api/auth/password - 본인 비밀번호 변경 (인증 필요)
+     * 현재 비밀번호 확인 후 교체. 성공 시 기존 Refresh Token 전부 폐기되므로
+     * 다른 기기에서는 재로그인이 필요하다.
+     */
+    @PutMapping("/password")
+    public MessageResponse changePassword(@Valid @RequestBody PasswordChangeRequest request,
+                                          Authentication authentication) {
+        authService.changePassword(authentication.getName(), request);
+        return new MessageResponse("비밀번호가 변경되었습니다");
+    }
+
     /** GET /api/auth/me - 내 정보 (Bearer Access Token 필요) */
     @GetMapping("/me")
     public UserResponse me(Authentication authentication) {
         return UserResponse.from(userMapper.selectByLoginId(authentication.getName()));
+    }
+
+    /**
+     * PUT /api/auth/me - 마이페이지 본인 정보 수정 (인증 필요)
+     * 이름/이메일/연락처만 수정 가능. 아이디/권한/상태는 이 API로 바꿀 수 없다.
+     */
+    @PutMapping("/me")
+    public UserResponse updateMe(@Valid @RequestBody MyPageUpdateRequest request,
+                                 Authentication authentication) {
+        return authService.updateMyInfo(authentication.getName(), request);
     }
 }

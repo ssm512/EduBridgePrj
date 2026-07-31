@@ -2,20 +2,33 @@
 <html xmlns:th="http://www.thymeleaf.org" lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>EduBridge 강사</title>
+  <title th:text="${@branding.name} + ' 강사'">EduBridge 강사</title>
   <link rel="stylesheet" href="/css/common.css">
 </head>
 <body>
 <div th:replace="~{fragments/common :: topbar('강사')}"></div>
 <div class="shell">
+  <div th:replace="~{fragments/common :: teacherSidebar('home')}"></div>
   <main class="content">
     <h1>강사 홈</h1>
-    <p class="sub">담당 반·출석·성적·상담 기능이 여기에 붙습니다. (담당자 구현 예정)</p>
+    <p class="sub">담당 반·출석·성적·상담·공지를 관리할 수 있습니다.</p>
     <div class="cards">
-      <div class="card"><div class="card-title">내 반</div><div class="card-desc">담당 강의반 목록</div></div>
-      <div class="card"><div class="card-title">출석 체크</div><div class="card-desc">수업별 출석 관리</div></div>
-      <div class="card"><div class="card-title">성적 입력</div><div class="card-desc">시험 등록·점수 입력</div></div>
-      <div class="card"><div class="card-title">상담 기록</div><div class="card-desc">학생·학부모 상담</div></div>
+      <a class="card" href="/teacher/classes" style="text-decoration:none;color:inherit">
+        <div class="card-title">내 반</div><div class="card-desc">담당 강의반 목록</div>
+      </a>
+      <a class="card" href="/teacher/attendance" style="text-decoration:none;color:inherit">
+        <div class="card-title">출석 체크</div><div class="card-desc">수업별 출석 관리</div>
+      </a>
+      <a class="card" href="/teacherPage/grades">
+        <div class="card-title">성적 입력</div><div class="card-desc">시험 등록·점수 입력</div>
+      </a>
+      <a class="card" href="/teacherPage/counseling">
+        <div class="card-title">상담 기록</div><div class="card-desc">학생·학부모 상담</div>
+      </a>
+      <!-- [추가] 공지 화면 연결 (조회 + 반/학생 대상 공지 작성, notice 도메인) -->
+      <a class="card" href="/teacherPage/notices" style="text-decoration:none;color:inherit">
+        <div class="card-title">공지사항</div><div class="card-desc">공지 확인·작성</div>
+      </a>
     </div>
   </main>
 </div>

@@ -5,16 +5,52 @@
 
     <!-- map-underscore-to-camel-case: true 이므로 resultMap 생략 가능 -->
 
+    <!-- 목록/카운트 공용 검색 조건 -->
+    <sql id="searchCondition">
+        <where>
+            <if test="cond.roleCode != null and cond.roleCode != ''">
+                AND role_code = #{cond.roleCode}
+            </if>
+            <if test="cond.statusCode != null and cond.statusCode != ''">
+                AND status_code = #{cond.statusCode}
+            </if>
+            <if test="cond.keyword != null and cond.keyword != ''">
+                AND (name     ILIKE '%' || #{cond.keyword} || '%'
+                  OR login_id ILIKE '%' || #{cond.keyword} || '%'
+                  OR email    ILIKE '%' || #{cond.keyword} || '%')
+            </if>
+        </where>
+    </sql>
+
+    <!-- USER-01 회원 목록 조회 (필터 + 페이징) -->
+    <select id="selectUsers" resultType="com.edu.domain.member.dto.UserDto">
+        SELECT user_id, login_id, name, email, phone,
+               role_code, status_code, last_login_at, created_at, updated_at
+          FROM users
+        <include refid="searchCondition"/>
+         ORDER BY user_id DESC
+         LIMIT #{cond.size} OFFSET #{cond.offset}
+    </select>
+
+    <!-- USER-01 전체 건수 (페이징용) -->
+    <select id="countUsers" resultType="long">
+        SELECT COUNT(*)
+          FROM users
+        <include refid="searchCondition"/>
+    </select>
+
     <select id="selectByLoginId" resultType="com.edu.domain.member.dto.UserDto">
         SELECT user_id, login_id, password, name, email, phone,
-               role_code, status_code, last_login_at, created_at, updated_at
+               role_code, status_code, must_change_password,
+               last_login_at, created_at, updated_at
           FROM users
          WHERE login_id = #{loginId}
     </select>
 
     <select id="selectByUserId" resultType="com.edu.domain.member.dto.UserDto">
         SELECT user_id, login_id, password, name, email, phone,
-               role_code, status_code, last_login_at, created_at, updated_at
+               role_code, status_code, must_change_password,
+               last_login_at, created_at, updated_at
           FROM users
          WHERE user_id = #{userId}
     </select>
@@ -25,11 +61,13 @@
         VALUES (#{loginId}, #{password}, #{name}, #{email}, #{phone}, #{roleCode}, #{statusCode})
     </insert>
 
+    <!-- USER-03 회원 수정 (이름/이메일/연락처/상태) -->
     <update id="updateUser">
         UPDATE users
            SET name        = #{name},
                email       = #{email},
                phone       = #{phone},
+               status_code = #{statusCode},
                updated_at  = CURRENT_TIMESTAMP
          WHERE user_id = #{userId}
     </update>
@@ -46,5 +84,30 @@
                updated_at  = CURRENT_TIMESTAMP
          WHERE user_id = #{userId}
     </update>
+
+    <!-- 본인 비밀번호 변경: 강제 변경 플래그 해제 -->
+    <update id="updatePassword">
+        UPDATE users
+           SET password             = #{password},
+               must_change_password = FALSE,
+               updated_at           = CURRENT_TIMESTAMP
+         WHERE user_id = #{userId}
+    </update>
+
+    <!-- 관리자 비밀번호 초기화(A안): 임시 비밀번호 + 강제 변경 플래그 설정 -->
+    <update id="resetPassword">
+        UPDATE users
+           SET password             = #{password},
+               must_change_password = TRUE,
+               updated_at           = CURRENT_TIMESTAMP
+         WHERE user_id = #{userId}
+    </update>
+
+    <!-- [추가 2026-07-20] MustChangePasswordFilter 전용 경량 조회 -->
+    <select id="selectMustChangePasswordByLoginId" resultType="boolean">
+        SELECT must_change_password
+          FROM users
+         WHERE login_id = #{loginId}
+    </select>
 
 </mapper>

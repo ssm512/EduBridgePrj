@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${@branding.name} + ' 마이페이지'">EduBridge 마이페이지</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    .content { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; }
+    .content .mypage-card { text-align: left; width: 100%; }
+    .mypage-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+                   padding: 24px; max-width: 480px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; margin-bottom: 4px; font-size: 13px; color: #6b7280; }
+    .field input { width: 100%; padding: 8px; box-sizing: border-box;
+                   border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+    .field input:disabled { background: #f3f4f6; color: #9ca3af; }
+    .actions { display: flex; gap: 8px; margin-top: 18px; align-items: center; }
+    .actions button { padding: 9px 16px; border-radius: 6px; border: none;
+                       cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #1e3a8a; color: #fff; }
+    .btn-primary:hover { background: #1e40af; }
+    .link { font-size: 13px; }
+    .msg { margin-top: 10px; font-size: 13px; }
+    .msg.error { color: #d33; }
+    .msg.success { color: #15803d; }
+  </style>
+</head>
+<body>
+<div th:replace="~{fragments/common :: topbar('마이페이지')}"></div>
+<div class="shell">
+  <main class="content">
+    <h1>마이페이지</h1>
+    <p class="sub">내 정보를 확인하고 이름/이메일/연락처를 수정할 수 있습니다.</p>
+
+    <div class="mypage-card">
+      <div class="field">
+        <label for="loginId">아이디</label>
+        <input id="loginId" type="text" disabled>
+      </div>
+      <div class="field">
+        <label for="roleCode">권한</label>
+        <input id="roleCode" type="text" disabled>
+      </div>
+      <div class="field">
+        <label for="name">이름</label>
+        <input id="name" type="text" placeholder="이름">
+      </div>
+      <div class="field">
+        <label for="email">이메일</label>
+        <input id="email" type="email" placeholder="이메일">
+      </div>
+      <div class="field">
+        <label for="phone">연락처</label>
+        <input id="phone" type="text" placeholder="연락처">
+      </div>
+
+      <div class="actions">
+        <button class="btn-primary" onclick="saveMyInfo()">저장</button>
+        <a class="link" href="/passwordChangeForm.html">비밀번호 변경</a>
+        <a class="link" href="/home" style="margin-left:auto;">홈으로 →</a>
+      </div>
+      <div class="msg" id="msg"></div>
+    </div>
+  </main>
+</div>
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script>
+function getCsrfCookie() {
+  const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+async function ensureCsrf() {
+  if (!getCsrfCookie()) {
+    await fetch('/api/auth/csrf');
+  }
+  return getCsrfCookie();
+}
+
+function showMsg(text, isError) {
+  const msg = document.getElementById('msg');
+  msg.textContent = text;
+  msg.className = 'msg ' + (isError ? 'error' : 'success');
+}
+
+async function loadMyInfo() {
+  const res = await fetch('/api/auth/me');
+  if (!res.ok) {
+    showMsg('내 정보를 불러오지 못했습니다.', true);
+    return;
+  }
+  const user = await res.json();
+  document.getElementById('loginId').value = user.loginId ?? '';
+  document.getElementById('roleCode').value = user.roleCode ?? '';
+  document.getElementById('name').value = user.name ?? '';
+  document.getElementById('email').value = user.email ?? '';
+  document.getElementById('phone').value = user.phone ?? '';
+}
+
+async function saveMyInfo() {
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+
+  if (!name) {
+    showMsg('이름은 필수입니다.', true);
+    return;
+  }
+
+  const res = await fetch('/api/auth/me', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-XSRF-TOKEN': await ensureCsrf()
+    },
+    body: JSON.stringify({ name, email, phone })
+  });
+  const data = await res.json().catch(() => ({}));
+
+  if (res.ok) {
+    showMsg('저장되었습니다.', false);
+    return;
+  }
+  showMsg(typeof data.message === 'string' ? data.message : JSON.stringify(data.message), true);
+}
+
+loadMyInfo();
+</script>
+</body>
+</html>

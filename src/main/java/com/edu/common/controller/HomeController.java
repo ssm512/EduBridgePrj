@@ -33,4 +33,10 @@ public class HomeController {
     public String signInForm() {
         return "signInForm";
     }
+
+    /** 비밀번호 변경 화면 (인증 필요 - SecurityConfig anyRequest().authenticated()) */
+    @GetMapping("/passwordChangeForm.html")
+    public String passwordChangeForm() {
+        return "passwordChangeForm";
+    }
 }

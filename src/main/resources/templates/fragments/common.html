@@ -11,12 +11,49 @@
 <body>
 
 <div th:fragment="topbar(title)" class="topbar">
-  <div class="brand">EduBridge · <span th:text="${title}">타이틀</span></div>
+  <div class="brand"><span th:text="${@branding.name}">EduBridge</span> · <span th:text="${title}">타이틀</span></div>
   <div class="user">
     <span><span sec:authentication="name">아이디</span>님</span>
+    <button type="button" onclick="location.href='/mypage.html'">마이페이지</button>
     <button type="button" onclick="logout()">로그아웃</button>
   </div>
 </div>
+
+<!--
+  역할별 좌측 사이드바.
+  active 파라미터로 현재 메뉴를 강조한다. (예: studentSidebar('attendance'))
+-->
+<nav th:fragment="studentSidebar(active)" class="sidebar">
+  <a href="/studentPage"        th:classappend="${active=='home'}?'active'">학생 홈</a>
+  <div class="group-label">학습</div>
+  <a href="/student/attendance" th:classappend="${active=='attendance'}?'active'">내 출석</a>
+  <a href="/studentPage/grades" th:classappend="${active=='grades'}?'active'">내 성적</a>
+  <a href="/studentPage/fees"   th:classappend="${active=='fees'}?'active'">내 회비</a>
+  <div class="group-label">소통</div>
+  <a href="/studentPage/notices" th:classappend="${active=='notices'}?'active'">공지사항</a>
+</nav>
+
+<nav th:fragment="teacherSidebar(active)" class="sidebar">
+  <a href="/teacherPage"          th:classappend="${active=='home'}?'active'">강사 홈</a>
+  <div class="group-label">수업</div>
+  <a href="/teacher/classes"      th:classappend="${active=='classes'}?'active'">내 반</a>
+  <a href="/teacher/attendance"   th:classappend="${active=='attendance'}?'active'">출석 체크</a>
+  <a href="/teacherPage/grades"   th:classappend="${active=='grades'}?'active'">성적 입력</a>
+  <div class="group-label">소통</div>
+  <a href="/teacherPage/counseling" th:classappend="${active=='counseling'}?'active'">상담 기록</a>
+  <a href="/teacherPage/notices"  th:classappend="${active=='notices'}?'active'">공지사항</a>
+</nav>
+
+<nav th:fragment="parentSidebar(active)" class="sidebar">
+  <a href="/parentPage"           th:classappend="${active=='home'}?'active'">학부모 홈</a>
+  <div class="group-label">자녀</div>
+  <a href="/parent/attendance"    th:classappend="${active=='attendance'}?'active'">자녀 출석</a>
+  <a href="/parentPage/grades"    th:classappend="${active=='grades'}?'active'">자녀 성적</a>
+  <a href="/parentPage/counseling" th:classappend="${active=='counseling'}?'active'">상담 확인</a>
+  <a href="/parentPage/fees"      th:classappend="${active=='fees'}?'active'">회비 조회</a>
+  <div class="group-label">소통</div>
+  <a href="/parentPage/notices"   th:classappend="${active=='notices'}?'active'">공지사항</a>
+</nav>
 
 <script th:fragment="logoutScript">
   function getCsrfCookie() {
@@ -32,6 +69,16 @@
     });
     window.location.href = '/';
   }
+
+  // 현재 페이지 경로와 일치하는 사이드바 메뉴를 자동으로 활성화(.active) 한다.
+  // 정확 일치만 사용해 홈(상위 경로)이 하위 페이지에서 계속 켜지는 문제를 방지.
+  document.addEventListener('DOMContentLoaded', function () {
+    var here = location.pathname.replace(/\/+$/, '');
+    document.querySelectorAll('.sidebar a').forEach(function (a) {
+      var p = new URL(a.href).pathname.replace(/\/+$/, '');
+      if (p === here) a.classList.add('active');
+    });
+  });
 </script>
 
 </body>

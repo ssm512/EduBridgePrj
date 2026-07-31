@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${@branding.name} + ' · 관리자 대시보드'">EduBridge · 관리자 대시보드</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root { color-scheme: light; }
+    input, select { background:#fff; color:#111827; font-family:inherit; }
+    .page-sub { color:#6b7280; font-size:13px; margin:-6px 0 16px; }
+    .grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+    .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px 18px;
+             box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .panel.full { grid-column:1 / -1; }
+    .panel > h2 { margin:0 0 12px; font-size:14px; color:#1e293b; display:flex; align-items:center; gap:7px; }
+    .panel > h2::before { content:""; width:3px; height:14px; background:#1e3a8a; border-radius:2px; }
+    .panel > h2 .go { margin-left:auto; font-size:12px; font-weight:500; color:#1e3a8a; text-decoration:none; }
+    .panel > h2 .go:hover { text-decoration:underline; }
+    .cards { display:flex; gap:8px; flex-wrap:wrap; }
+    .stat { flex:1; min-width:80px; background:#f8fafc; border:1px solid #eef2f7; border-radius:8px; padding:10px 8px; text-align:center; }
+    .stat .num { font-size:20px; font-weight:700; line-height:1.1; }
+    .stat .lbl { font-size:11.5px; color:#64748b; margin-top:3px; }
+    .att-wrap { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+    .att-wrap .chartbox { width:170px; height:200px; }
+    .att-wrap .chartbox canvas { max-height:200px; }
+    .att-wrap .cards { flex:1; min-width:200px; }
+    canvas { max-height:240px; }
+    .muted { color:#9ca3af; font-size:13px; }
+    .list { font-size:13px; }
+    .list .li { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid #f1f5f9; }
+    .list .li:last-child { border-bottom:0; }
+    .list .li .t { color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .list .li .d { color:#94a3b8; font-size:11.5px; white-space:nowrap; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+    .row select { padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px; font-size:13px; }
+    .fail { color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:8px 10px; border-radius:8px; font-size:12.5px; }
+  </style>
+</head>
+<body>
+<div th:replace="~{fragments/common :: topbar('관리자')}"></div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <a href="/admin/dashboard">대시보드</a>
+    <a href="/admin/members">회원관리</a>
+    <div class="group-label">반 / 수강</div>
+    <a href="/admin/classes">반관리</a>
+    <a href="/admin/enrollments">수강관리</a>
+    <div class="group-label">학생</div>
+    <a href="/admin/attendance">출석관리</a>
+    <a href="/admin/fees">회비관리</a>
+    <a href="/admin/grades">성적관리</a>
+    <div class="group-label">소통</div>
+    <a href="/admin/notices">공지관리</a>
+    <a href="/admin/counseling">상담관리</a>
+    <div class="group-label">운영</div>
+    <a href="/admin/ai">AI 리포트</a>
+    <a href="/admin/notifications">알림이력</a>
+    <a href="/admin/logs">활동로그</a>
+    <a href="/admin/settings">시스템설정</a>
+  </nav>
+
+  <main class="content">
+    <h1>관리자 대시보드</h1>
+    <p class="page-sub">운영 현황 요약입니다. 각 영역은 해당 도메인 데이터를 실시간 집계합니다.</p>
+
+    <div class="grid">
+      <div class="panel">
+        <h2>출석 현황 (전체 기간)<a class="go" href="/admin/attendance">출석관리 →</a></h2>
+        <div class="att-wrap">
+          <div class="chartbox"><canvas id="attChart"></canvas></div>
+          <div class="cards" id="attCards"><span class="muted">불러오는 중…</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>회비 현황 (이번 달)<a class="go" href="/admin/fees">회비관리 →</a></h2>
+        <div class="cards" id="feeCards"><span class="muted">불러오는 중…</span></div>
+      </div>
+
+      <div class="panel full">
+        <h2>월별 회비 매출 (최근 6개월)<a class="go" href="/admin/fees">회비관리 →</a></h2>
+        <div id="salesWrap"><canvas id="salesChart"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>성적 현황 (반별 평균)<a class="go" href="/admin/grades">성적관리 →</a></h2>
+        <div id="gradeAvgWrap"><canvas id="gradeAvgChart"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>성적 변화 (반별 시험 추이)<a class="go" href="/admin/grades">성적관리 →</a></h2>
+        <div class="row">
+          <select id="trendClass" onchange="loadGradeTrend()"><option value="">반 선택</option></select>
+        </div>
+        <div id="trendWrap"><canvas id="trendChart"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>최근 공지<a class="go" href="/admin/notices">공지관리 →</a></h2>
+        <div class="list" id="noticeList"><span class="muted">불러오는 중…</span></div>
+      </div>
+
+      <div class="panel">
+        <h2>최근 상담<a class="go" href="/admin/counseling">상담관리 →</a></h2>
+        <div class="list" id="counselList"><span class="muted">불러오는 중…</span></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script th:inline="none">
+  function esc(s){ return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function pick(o, ...keys){ for(const k of keys){ if(o && o[k]!=null) return o[k]; } return null; }
+  function won(n){ return (Number(n)||0).toLocaleString() + '원'; }
+  function fmtDate(s){ return s ? s.toString().replace('T',' ').slice(0,16) : ''; }
+  function fail(elId, msg){ document.getElementById(elId).innerHTML = `<div class="fail">${msg}</div>`; }
+
+  // ── 출석 현황 ──
+  async function loadAttendance(){
+    try{
+      const r = await fetch('/api/attendance/statistics');
+      if(!r.ok) throw new Error(r.status);
+      const s = await r.json();
+      const present=s.present||0, late=s.late||0, absent=s.absent||0, leave=s.leave||0;
+      const came = present+late+leave, total = came+absent;
+      document.getElementById('attCards').innerHTML = `
+        <div class="stat"><div class="num" style="color:#166534">${came}</div><div class="lbl">출석</div></div>
+        <div class="stat"><div class="num" style="color:#854d0e">${late}</div><div class="lbl">지각</div></div>
+        <div class="stat"><div class="num" style="color:#991b1b">${absent}</div><div class="lbl">결석</div></div>
+        <div class="stat"><div class="num" style="color:#1e3a8a">${s.attendanceRate ?? 0}%</div><div class="lbl">출석률</div></div>`;
+      if(typeof Chart!=='undefined' && total>0){
+        new Chart(document.getElementById('attChart'),{ type:'doughnut',
+          data:{labels:['정상출석','지각','조퇴','결석'],datasets:[{data:[present,late,leave,absent],backgroundColor:['#16a34a','#d97706','#4f46e5','#dc2626']}]},
+          options:{responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12,padding:8},onClick:()=>{}}}}});
+      }
+    }catch(e){ fail('attCards', `출석 데이터를 불러올 수 없습니다 (${e.message||e}).`); }
+  }
+
+  // ── 회비 현황 + 월별 매출 ──
+  async function loadFee(){
+    try{
+      const r = await fetch('/api/fees/statistics');
+      if(!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      const sm = d.summary || {};
+      document.getElementById('feeCards').innerHTML = `
+        <div class="stat"><div class="num" style="color:#166534">${sm.paidCount ?? 0}</div><div class="lbl">납부완료</div></div>
+        <div class="stat"><div class="num" style="color:#991b1b">${sm.unpaidCount ?? 0}</div><div class="lbl">미납</div></div>
+        <div class="stat"><div class="num" style="color:#854d0e">${sm.scheduledCount ?? 0}</div><div class="lbl">예정</div></div>
+        <div class="stat"><div class="num" style="color:#1e3a8a;font-size:15px">${won(sm.paidAmount)}</div><div class="lbl">납부액</div></div>`;
+      // 월별 매출 ──
+      const ms = d.monthlyStats || [];
+      if(typeof Chart!=='undefined' && ms.length){
+        new Chart(document.getElementById('salesChart'),{ type:'bar',
+          data:{labels:ms.map(m=>m.billingMonth), datasets:[{label:'납부액(원)', data:ms.map(m=>Number(pick(m,'paidAmount','totalAmount'))||0), backgroundColor:'#1e3a8a'}]},
+          options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>Number(v).toLocaleString()}}}}});
+      } else { document.getElementById('salesWrap').innerHTML = '<span class="muted">월별 데이터 없음</span>'; }
+    }catch(e){
+      fail('feeCards', `회비 데이터를 불러올 수 없습니다 (${e.message||e}).`);
+      fail('salesWrap', '월별 매출을 불러올 수 없습니다.');
+    }
+  }
+
+  // ── 성적 현황: 반별 평균  ──
+  async function loadGradeAverages(){
+    try{
+      const r = await fetch('/api/grades/class-averages');
+      if(!r.ok) throw new Error(r.status);
+      const rows = await r.json();
+      if(!Array.isArray(rows) || !rows.length){ document.getElementById('gradeAvgWrap').innerHTML='<span class="muted">성적 데이터 없음</span>'; return; }
+      const labels = rows.map(x => esc(pick(x,'className','class_name','CLASS_NAME') ?? '반'));
+      const data = rows.map(x => Number(pick(x,'averageScore','average_score','AVERAGE_SCORE')) || 0);
+      if(typeof Chart!=='undefined'){
+        new Chart(document.getElementById('gradeAvgChart'),{ type:'bar',
+          data:{labels, datasets:[{label:'평균 점수', data, backgroundColor:'#4f46e5'}]},
+          options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, max:100}}}});
+      }
+    }catch(e){ fail('gradeAvgWrap', `성적 데이터를 불러올 수 없습니다 (${e.message||e}).`); }
+  }
+
+  // ── 성적 변화: 반 선택 → 시험 추이  ──
+  let trendChart = null;
+  async function loadTrendClasses(){
+    try{
+      const r = await fetch('/api/classes?size=200');
+      if(!r.ok) return;
+      const d = await r.json();
+      document.getElementById('trendClass').innerHTML = '<option value="">반 선택</option>' +
+        (d.items||[]).map(c=>`<option value="${c.classId}">${esc(c.className ?? ('반 '+c.classId))}</option>`).join('');
+    }catch(e){ /* 무시 */ }
+  }
+  async function loadGradeTrend(){
+    const classId = document.getElementById('trendClass').value;
+    const wrap = document.getElementById('trendWrap');
+    if(!classId){ wrap.innerHTML='<canvas id="trendChart"></canvas>'; return; }
+    wrap.innerHTML='<canvas id="trendChart"></canvas>';
+    try{
+      const r = await fetch('/api/grades/class-trends?classId='+encodeURIComponent(classId));
+      if(!r.ok) throw new Error(r.status);
+      const rows = await r.json();
+      if(!Array.isArray(rows) || !rows.length){ wrap.innerHTML='<span class="muted">이 반의 성적 추이 데이터가 없습니다.</span>'; return; }
+      const labels = rows.map((x,i) => esc(pick(x,'examName','exam_name','examTitle','title','examDate','exam_date') ?? ('시험'+(i+1))));
+      const data = rows.map(x => Number(pick(x,'score','averageScore','average_score','avgScore','average')) || 0);
+      if(typeof Chart!=='undefined'){
+        new Chart(document.getElementById('trendChart'),{ type:'line',
+          data:{labels, datasets:[{label:'반 평균', data, borderColor:'#1e3a8a', backgroundColor:'#1e3a8a', tension:.25}]},
+          options:{plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, max:100}}}});
+      }
+    }catch(e){ wrap.innerHTML=`<div class="fail">성적 추이를 불러올 수 없습니다 (${e.message||e}).</div>`; }
+  }
+
+  // ── 최근 공지  ──
+  async function loadNotices(){
+    try{
+      const r = await fetch('/api/notices?page=1&size=5');
+      if(!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      const items = d.items || [];
+      document.getElementById('noticeList').innerHTML = items.length
+        ? items.map(n=>`<div class="li"><span class="t">${esc(n.title)}</span><span class="d">${esc(fmtDate(n.createdAt))}</span></div>`).join('')
+        : '<span class="muted">공지 없음</span>';
+    }catch(e){ fail('noticeList', `공지를 불러올 수 없습니다 (${e.message||e}).`); }
+  }
+
+  // ── 최근 상담  ──
+  async function loadCounseling(){
+    try{
+      const r = await fetch('/api/counseling');
+      if(!r.ok) throw new Error(r.status);
+      const rows = await r.json();
+      const items = (Array.isArray(rows)?rows:[]).slice(0,5);
+      document.getElementById('counselList').innerHTML = items.length
+        ? items.map(c=>{
+            const stu = esc(pick(c,'studentName','student_name') ?? '-');
+            const tea = esc(pick(c,'teacherName','teacher_name') ?? '');
+            const when = esc(fmtDate(pick(c,'createdAt','created_at')));
+            return `<div class="li"><span class="t">${stu}${tea?(' · '+tea):''}</span><span class="d">${when}</span></div>`;
+          }).join('')
+        : '<span class="muted">상담 기록 없음</span>';
+    }catch(e){ fail('counselList', `상담 기록을 불러올 수 없습니다 (${e.message||e}).`); }
+  }
+
+  loadAttendance();
+  loadFee();
+  loadGradeAverages();
+  loadTrendClasses();
+  loadNotices();
+  loadCounseling();
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 회비할인적용 매퍼 (FEE-15~16). map-underscore-to-camel-case=true -->
+<mapper namespace="com.edu.domain.fee.mapper.FeeDiscountMapper">
+
+    <insert id="insert" parameterType="FeeDiscountVo"
+            useGeneratedKeys="true" keyProperty="feeDiscountId" keyColumn="fee_discount_id">
+        INSERT INTO fee_discounts
+            (fee_id, discount_policy_id, discount_amount, reason, applied_by)
+        VALUES
+            (#{feeId}, #{discountPolicyId}, #{discountAmount}, #{reason}, #{appliedBy})
+    </insert>
+
+    <select id="findByFeeId" resultType="FeeDiscountVo">
+        SELECT * FROM fee_discounts
+        WHERE fee_id = #{feeId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findLatestByFeeId" resultType="FeeDiscountVo">
+        SELECT * FROM fee_discounts
+        WHERE fee_id = #{feeId}
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+    <!-- 회비 삭제(FeeService.deleteFee) 전 선삭제용. FK(ON DELETE CASCADE 없음) 위반 방지 -->
+    <delete id="deleteByFeeId">
+        DELETE FROM fee_discounts
+        WHERE fee_id = #{feeId}
+    </delete>
+
+</mapper>

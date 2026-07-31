@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${@branding.name} + ' · 시스템설정'">EduBridge · 시스템설정</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    :root { color-scheme: light; }
+    input, select, textarea { background:#fff; color:#111827; font-family:inherit; }
+    .page-sub { color:#6b7280; font-size:13px; margin:-6px 0 14px; }
+    .tabs { display:flex; gap:4px; border-bottom:2px solid #e5e7eb; margin-bottom:16px; }
+    .tab { padding:9px 18px; border:0; background:none; cursor:pointer; font-size:14px; font-weight:600;
+           color:#94a3b8; border-bottom:2px solid transparent; margin-bottom:-2px; }
+    .tab:hover { color:#475569; } .tab.active { color:#1e3a8a; border-bottom-color:#1e3a8a; }
+    .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:16px 18px;
+             margin-bottom:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .panel > h2 { margin:0 0 4px; font-size:14px; color:#1e293b; display:flex; align-items:center; gap:7px; }
+    .panel > h2::before { content:""; width:3px; height:14px; background:#1e3a8a; border-radius:2px; }
+    .panel .hint { color:#6b7280; font-size:12px; margin:0 0 12px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { padding:9px 12px; text-align:left; vertical-align:middle; }
+    thead th { background:#f8fafc; color:#64748b; font-size:11.5px; font-weight:600; border-bottom:1px solid #e5e7eb; }
+    tbody tr { border-bottom:1px solid #f1f5f9; } tbody tr:last-child { border-bottom:0; }
+    .lbl { font-weight:600; color:#1e293b; }
+    .key { font-family:monospace; font-size:11px; color:#94a3b8; }
+    .num { padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px; font-size:13px; width:110px; }
+    .desc { color:#475569; font-size:12.5px; }
+    .btn { padding:6px 12px; border:0; border-radius:7px; background:#1e3a8a; color:#fff; cursor:pointer; font-size:12.5px; font-weight:600; }
+    .btn:hover { filter:brightness(1.12); }
+    .btn.sub { background:#64748b; color:#fff; }
+    .muted { color:#9ca3af; }
+
+    .hblock { border:1px solid #eef2f7; border-radius:10px; padding:13px 14px; margin-bottom:12px; background:#fcfcfd; }
+    .hblock .hb-title { font-weight:600; font-size:13px; color:#1e293b; }
+    .hblock .hb-sub { color:#94a3b8; font-size:11.5px; margin:2px 0 10px; }
+    .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; min-height:26px; }
+    .chip { display:inline-flex; align-items:center; gap:6px; background:#e0e7ff; color:#3730a3;
+            border-radius:999px; padding:4px 6px 4px 11px; font-size:12.5px; font-weight:600; }
+    .chip button { border:0; background:#c7d2fe; color:#3730a3; width:17px; height:17px; border-radius:50%;
+                   cursor:pointer; font-size:12px; line-height:1; display:flex; align-items:center; justify-content:center; }
+    .chip button:hover { background:#a5b4fc; }
+    .add-row { display:flex; gap:6px; align-items:center; }
+    .add-row input { padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px; font-size:13px; }
+    #msg { font-size:13px; margin-top:10px; font-weight:500; }
+  </style>
+</head>
+<body>
+<div th:replace="~{fragments/common :: topbar('시스템설정')}"></div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <a href="/admin/dashboard">대시보드</a>
+    <a href="/admin/members">회원관리</a>
+    <div class="group-label">반 / 수강</div>
+    <a href="/admin/classes">반관리</a>
+    <a href="/admin/enrollments">수강관리</a>
+    <div class="group-label">학생</div>
+    <a href="/admin/attendance">출석관리</a>
+    <a href="/admin/fees">회비관리</a>
+    <a href="/admin/grades">성적관리</a>
+    <div class="group-label">소통</div>
+    <a href="/admin/notices">공지관리</a>
+    <a href="/admin/counseling">상담관리</a>
+    <div class="group-label">운영</div>
+    <a href="/admin/ai">AI 리포트</a>
+    <a href="/admin/notifications">알림이력</a>
+    <a href="/admin/logs">활동로그</a>
+    <a href="/admin/settings">시스템설정</a>
+  </nav>
+
+  <main class="content">
+    <h1>시스템설정</h1>
+    <p class="page-sub">출석 검증값과 자동출석·휴일 규칙을 여기서 관리합니다. (저장 즉시 반영, 재배포 불필요)</p>
+
+    <div class="panel">
+      <h2>학원 정보</h2>
+      <p class="hint">여기서 지정한 학원 이름이 웹 브라우저 제목과 앱 상단에 표시됩니다.</p>
+      <div style="display:flex; gap:10px; align-items:flex-end;">
+        <div style="flex:1; max-width:320px;">
+          <label style="display:block; font-size:12px; color:#475569; margin-bottom:4px;">학원 이름</label>
+          <input type="text" id="txt_ACADEMY_NAME" maxlength="60"
+                 style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:7px; font-size:14px;">
+        </div>
+        <button class="btn" onclick="saveAcademyName()">저장</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="auto"   onclick="showTab('auto')">자동출석 · 휴일</button>
+      <button class="tab" data-tab="verify" onclick="showTab('verify')">출석 검증 (비콘·GPS)</button>
+    </div>
+
+    <!-- 탭: 자동출석 · 휴일 -->
+    <section class="tab-panel" id="tab-auto" >
+      <div class="panel">
+        <h2>결석 자동처리</h2>
+        <p class="hint">수업 종료 후 아래 시간이 지나면 미출석자를 자동 결석 처리합니다. (5분 주기 폴링)</p>
+        <table>
+          <thead><tr><th style="width:280px">항목</th><th style="width:150px">값</th><th>설명</th><th style="width:70px">저장</th></tr></thead>
+          <tbody id="autoBody"><tr><td colspan="4" class="muted">불러오는 중…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>휴일 관리</h2>
+        <p class="hint">휴일에는 결석 자동처리가 실행되지 않습니다. 날짜를 골라 추가하고, 칩의 ×로 삭제합니다. (변경 즉시 저장)</p>
+        <div id="holidayWarn" style="display:none; font-size:12.5px; color:#b45309; background:#fffbeb;
+             border:1px solid #fde68a; padding:9px 11px; border-radius:8px; margin-bottom:12px; font-weight:600;"></div>
+        <div id="holidayEditors"></div>
+      </div>
+    </section>
+
+    <!-- 탭: 출석 검증 -->
+    <section class="tab-panel" id="tab-verify" hidden>
+      <div class="panel">
+        <h2>출석 검증 값</h2>
+        <p class="hint">자동 출석 요청의 지각 판정·GPS 반경·RSSI 기준입니다. 비콘 개별 RSSI 값이 있으면 그게 우선합니다.</p>
+        <table>
+          <thead><tr><th style="width:280px">항목</th><th style="width:150px">값</th><th>설명</th><th style="width:70px">저장</th></tr></thead>
+          <tbody id="verifyBody"><tr><td colspan="4" class="muted">불러오는 중…</td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- 결석 자동 채우기(백필) -->
+      <div class="panel">
+        <h2>결석 자동 채우기 기간</h2>
+        <p class="hint">
+          서버가 꺼져 있던 동안 빠진 <b>결석</b>을, 다시 켤 때 자동으로 소급해서 채워 주는 기능입니다.
+          아래 일수 <b>이내</b>로 꺼져 있었다면, 켤 때 그 기간의 결석이 자동으로 기록됩니다.
+          평소엔 <b>7일</b>이면 충분하고 손댈 일이 거의 없습니다. <b>0</b>으로 두면 이 기능을 끕니다.
+        </p>
+        <div style="font-size:12.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a;
+             padding:9px 11px; border-radius:8px; margin-bottom:12px;">
+          ⚠ 이 값을 크게 늘리면, 서버가 오래 꺼졌다 켜질 때 <b>지난 여러 날의 결석이 한꺼번에 기록</b>되고
+          <b>학부모 결석 알림이 몰려서 발송</b>될 수 있습니다. 꼭 필요할 때만 신중히 변경하세요.
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-end;">
+          <div>
+            <label style="display:block; font-size:12px; color:#475569; margin-bottom:4px;">기간 (일)</label>
+            <input class="num" type="number" min="0" step="1" id="num_ABSENT_BACKFILL_DAYS">
+          </div>
+          <button class="btn" onclick="saveBackfill()">저장</button>
+          <span id="when_ABSENT_BACKFILL_DAYS" class="muted" style="font-size:11.5px;"></span>
+        </div>
+      </div>
+    </section>
+
+    <div id="msg"></div>
+  </main>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script th:inline="none">
+  function csrf(){ const m=document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/); return m?decodeURIComponent(m[1]):null; }
+  async function ensureCsrf(){ if(!csrf()) await fetch('/api/auth/csrf'); return csrf(); }
+  function esc(s){ return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function ymd(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
+  function msg(t, ok){ const e=document.getElementById('msg'); e.textContent=t; e.style.color=ok?'#166534':'#b91c1c'; }
+
+  function showTab(name){
+    ['verify','auto'].forEach(t=>document.getElementById('tab-'+t).hidden=(t!==name));
+    document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  }
+
+  // 항목별 친화적 라벨
+  const LABELS = {
+    ATTENDANCE_ALLOW_MINUTES: '출석 허용시간 (분)',
+    GPS_RADIUS_METERS:        'GPS 인정 반경 (m)',
+    RSSI_DEFAULT_THRESHOLD:   'RSSI 기본 기준값',
+    ABSENT_DELAY_MINUTES:     '결석 처리 지연 (분)'
+  };
+  const VERIFY_KEYS = ['ATTENDANCE_ALLOW_MINUTES','GPS_RADIUS_METERS','RSSI_DEFAULT_THRESHOLD'];
+  const AUTO_NUM_KEYS = ['ABSENT_DELAY_MINUTES'];
+  // 휴일: [키, 타입(date|mmdd), 제목, 부제]
+  const HOLIDAY_EDITORS = [
+    ['HOLIDAYS_RECURRING','mmdd','매년 반복 공휴일 (양력 고정)','신정·삼일절 등. 날짜를 고르면 월·일만 사용해 매년 자동 적용'],
+    ['HOLIDAYS','date','개별 공휴일 · 임시휴강','설날/추석 등 음력 공휴일, 대체공휴일, 임시휴강. 지난 날짜는 자동 정리'],
+    ['HOLIDAYS_EXCLUDE','date','정상수업 예외','반복 공휴일이지만 이날은 수업하는 경우. 지난 날짜는 자동 정리']
+  ];
+  const HOLIDAY_TYPE = { HOLIDAYS_RECURRING:'mmdd', HOLIDAYS:'date', HOLIDAYS_EXCLUDE:'date' };
+
+  let map = {};   // key → setting
+
+  async function loadSettings(){
+    const res=await fetch('/api/settings');
+    if(!res.ok){ msg(`설정 조회 실패 (${res.status})`, false); return; }
+    map={}; (await res.json()).forEach(s=>map[s.settingKey]=s);
+    renderNumericRows('verifyBody', VERIFY_KEYS);
+    renderNumericRows('autoBody', AUTO_NUM_KEYS);
+    renderHolidayEditors();
+    checkHolidayWarn();
+    renderBackfill();
+    renderAcademy();
+  }
+
+  // ── 학원 이름 ──
+  function renderAcademy(){
+    const s = map['ACADEMY_NAME'];
+    document.getElementById('txt_ACADEMY_NAME').value = (s && s.settingValue) ? s.settingValue : 'EduBridge';
+  }
+  async function saveAcademyName(){
+    const v = document.getElementById('txt_ACADEMY_NAME').value.trim();
+    if (v === '') { msg('학원 이름을 입력하세요', false); return; }
+    await putSetting('ACADEMY_NAME', v, '학원 이름 저장됨');
+  }
+
+  // ── 결석 백필 기간 (경고 + 확인 후 저장) ──
+  function renderBackfill(){
+    const s = map['ABSENT_BACKFILL_DAYS'];
+    const inp = document.getElementById('num_ABSENT_BACKFILL_DAYS');
+    const when = document.getElementById('when_ABSENT_BACKFILL_DAYS');
+    inp.value = s ? s.settingValue : '7';   // 미시드 대비 기본 7
+    if (when) when.textContent = (s && s.updatedAt) ? ('최근 수정 ' + s.updatedAt.replace('T',' ').slice(0,16)) : '';
+  }
+  async function saveBackfill(){
+    const v = document.getElementById('num_ABSENT_BACKFILL_DAYS').value.trim();
+    if (v === '' || isNaN(v) || Number(v) < 0 || !Number.isInteger(Number(v))) {
+      msg('0 이상의 정수를 입력하세요', false); return;
+    }
+    const ok = confirm(
+      '결석 자동 채우기 기간을 ' + v + '일로 변경합니다.\n\n' +
+      '이렇게 하면 다음에 서버가 오래 꺼졌다 켜질 때 지난 ' + v + '일의 결석이 소급 기록되고,\n' +
+      '학부모 결석 알림이 몰려서 발송될 수 있습니다.\n\n정말 변경하시겠습니까?'
+    );
+    if (!ok) return;
+    await putSetting('ABSENT_BACKFILL_DAYS', v, '결석 자동 채우기 기간 저장됨');
+    renderBackfill();
+  }
+
+  // 올해 개별공휴일(HOLIDAYS)이 없으면 경고 배너 (서버 리마인더와 동일 취지)
+  function checkHolidayWarn(){
+    const year = new Date().getFullYear();
+    const csv = map['HOLIDAYS']?.settingValue || '';
+    const has = csv.split(',').map(s=>s.trim()).some(s=>s.startsWith(year+'-'));
+    const el = document.getElementById('holidayWarn');
+    if (has) { el.style.display='none'; return; }
+    el.style.display='block';
+    el.textContent = `⚠ ${year}년 개별 공휴일이 등록되지 않았습니다. 설날·추석 등 음력 공휴일과 임시휴강을 등록해 주세요. (미등록 시 해당일 결석이 잘못 자동처리될 수 있습니다.)`;
+  }
+
+  function numRow(key){
+    const s=map[key]; if(!s) return '';
+    return `<tr>
+      <td><div class="lbl">${LABELS[key] || key}</div><span class="key">${key}</span></td>
+      <td><input class="num" type="number" step="any" id="num_${key}" value="${esc(s.settingValue)}"></td>
+      <td class="desc">${esc(s.description) || '-'}</td>
+      <td><button class="btn" onclick="saveNumeric('${key}')">저장</button></td>
+    </tr>`;
+  }
+  function renderNumericRows(bodyId, keys){
+    const rows=keys.map(numRow).filter(Boolean).join('');
+    document.getElementById(bodyId).innerHTML = rows || '<tr><td colspan="4" class="muted">항목 없음</td></tr>';
+  }
+
+  async function saveNumeric(key){
+    const v=document.getElementById('num_'+key).value.trim();
+    if(v===''){ msg('값을 입력하세요', false); return; }
+    await putSetting(key, v, `${LABELS[key]||key} 저장됨`);
+  }
+
+  // ── 휴일 편집기 ──
+  function parseList(key){
+    const csv=map[key]?.settingValue || '';
+    return csv.split(',').map(x=>x.trim()).filter(Boolean);
+  }
+  function normalize(arr, type){
+    let out=[...new Set(arr)];
+    if(type==='date'){ const today=ymd(new Date()); out=out.filter(d=>d>=today); }
+    out.sort();
+    return out;
+  }
+
+  function renderHolidayEditors(){
+    document.getElementById('holidayEditors').innerHTML = HOLIDAY_EDITORS.map(([key,type,title,sub])=>`
+      <div class="hblock">
+        <div class="hb-title">${title} <span class="key">${key}</span></div>
+        <div class="hb-sub">${sub}</div>
+        <div class="chips" id="chips_${key}"></div>
+        <div class="add-row">
+          <input type="date" id="add_${key}">
+          <button class="btn sub" onclick="addHoliday('${key}')">추가</button>
+        </div>
+      </div>`).join('');
+    HOLIDAY_EDITORS.forEach(([key,type])=>renderChips(key, type));
+  }
+
+  function renderChips(key, type){
+    const arr=normalize(parseList(key), type);
+    const box=document.getElementById('chips_'+key);
+    box.innerHTML = arr.length
+      ? arr.map(v=>`<span class="chip">${v}<button onclick="removeHoliday('${key}','${v}')" aria-label="삭제">×</button></span>`).join('')
+      : '<span class="muted" style="font-size:12px">등록된 날짜 없음</span>';
+  }
+
+  async function addHoliday(key){
+    const type=HOLIDAY_TYPE[key];
+    const inp=document.getElementById('add_'+key);
+    let v=inp.value;
+    if(!v){ msg('날짜를 선택하세요', false); return; }
+    if(type==='mmdd') v=v.slice(5);           // YYYY-MM-DD → MM-DD (월·일만)
+    const arr=normalize([...parseList(key), v], type);
+    await putSetting(key, arr.join(','), '휴일 추가됨');
+    inp.value='';
+  }
+
+  async function removeHoliday(key, val){
+    const type=HOLIDAY_TYPE[key];
+    const arr=normalize(parseList(key).filter(x=>x!==val), type);
+    await putSetting(key, arr.join(','), '휴일 삭제됨');
+  }
+
+  // 공통 저장: PUT → map 갱신 → 관련 화면 재렌더
+  async function putSetting(key, value, okMsg){
+    const token=await ensureCsrf();
+    const res=await fetch('/api/settings/'+encodeURIComponent(key),{
+      method:'PUT',
+      headers:{'Content-Type':'application/json','X-XSRF-TOKEN':token},
+      body:JSON.stringify({settingValue:value, description:null})
+    });
+    if(res.ok){
+      map[key]=await res.json();
+      if(HOLIDAY_TYPE[key]) renderChips(key, HOLIDAY_TYPE[key]);
+      if(key==='HOLIDAYS') checkHolidayWarn();
+      msg(okMsg || `${key} 저장됨`, true);
+    }else{
+      const d=await res.json().catch(()=>({}));
+      msg(`저장 실패 (${res.status}): ${d.message||''}`, false);
+    }
+  }
+
+  loadSettings();
+</script>
+</body>
+</html>

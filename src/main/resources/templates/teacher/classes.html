@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${@branding.name} + ' · 내 반 관리'">EduBridge · 내 반 관리</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    :root { color-scheme: light; }
+    input, select { background:#fff; color:#111827; font-family:inherit; }
+    .page-sub { color:#6b7280; font-size:13px; margin:-6px 0 14px; }
+    .back { font-size:13px; color:#1e3a8a; text-decoration:none; }
+
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+    .toolbar select, .toolbar input {
+      height:36px; padding:0 10px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; background:#fff;
+    }
+    .toolbar input[type="text"] { width:220px; }
+    .btn { height:36px; padding:0 16px; border:none; border-radius:6px; font-size:14px; cursor:pointer; background:#1e3a8a; color:#fff; }
+    .btn:hover { background:#1d4ed8; }
+    .btn.secondary { background:#fff; color:#374151; border:1px solid #d1d5db; }
+    .btn.secondary:hover { background:#f3f4f6; }
+
+    .table-wrap { background:#fff; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    thead th { text-align:left; background:#f9fafb; color:#6b7280; font-weight:600; padding:10px 14px; border-bottom:1px solid #e5e7eb; font-size:13px; }
+    tbody td { padding:10px 14px; border-bottom:1px solid #f3f4f6; }
+    tbody tr:hover { background:#f8faff; cursor:pointer; }
+    tbody tr:last-child td { border-bottom:none; }
+    .empty { text-align:center; color:#9ca3af; padding:32px !important; cursor:default; }
+
+    .chip { display:inline-block; font-size:12px; padding:2px 10px; border-radius:999px; }
+    .st-ACTIVE { background:#dcfce7; color:#166534; }
+    .st-CLOSED { background:#f3f4f6; color:#6b7280; }
+    .st-ENDED  { background:#f3f4f6; color:#6b7280; }
+
+    .pager { display:flex; gap:6px; justify-content:center; align-items:center; margin-top:16px; }
+    .pager button { min-width:34px; height:34px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer; font-size:13px; }
+    .pager button.on { background:#1e3a8a; color:#fff; border-color:#1e3a8a; }
+    .pager button:disabled { color:#d1d5db; cursor:default; }
+    .pager .total { font-size:13px; color:#6b7280; margin-left:10px; }
+
+    .modal-back { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); align-items:center; justify-content:center; z-index:50; }
+    .modal-back.show { display:flex; }
+    .modal { background:#fff; border-radius:12px; width:520px; max-width:calc(100vw - 40px); padding:24px; max-height:calc(100vh - 60px); overflow-y:auto; }
+    .modal h2 { margin:0 0 18px; font-size:17px; }
+    .modal .row2 { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:14px; }
+    .modal .field { flex:1; min-width:140px; }
+    .modal .field label { display:block; font-size:12px; color:#9ca3af; margin-bottom:3px; }
+    .modal .field .val { font-size:14px; color:#111827; }
+    .modal .section-label { font-size:12px; color:#9ca3af; letter-spacing:.04em; margin:16px 0 8px; padding-top:12px; border-top:1px solid #f3f4f6; }
+    .student-list { font-size:13px; line-height:1.9; }
+    .modal .actions { display:flex; justify-content:flex-end; margin-top:18px; }
+  </style>
+</head>
+<body>
+<div th:replace="~{fragments/common :: topbar('강사')}"></div>
+
+<div class="shell">
+  <div th:replace="~{fragments/common :: teacherSidebar('classes')}"></div>
+  <main class="content">
+    <a class="home-btn" href="/teacherPage">홈으로</a>
+    <h1>내 반 관리</h1>
+    <p class="page-sub">담당하고 있는 반 정보와 수강 학생을 확인할 수 있어요. 반 등록·수정은 관리자만 가능합니다.</p>
+
+    <div class="toolbar">
+      <select id="fStatus">
+        <option value="">상태 전체</option>
+        <option value="ACTIVE">운영중</option>
+        <option value="CLOSED">종료</option>
+      </select>
+      <input type="text" id="fKeyword" placeholder="반이름 / 과목 검색">
+      <button class="btn" id="btnSearch">검색</button>
+      <button class="btn secondary" id="btnReset">초기화</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+        <tr>
+          <th>반 이름</th><th>과목</th><th>강의실</th><th>수업시간</th><th>수강인원</th><th>상태</th>
+        </tr>
+        </thead>
+        <tbody id="tbody">
+        <tr><td class="empty" colspan="6">불러오는 중…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager" id="pager"></div>
+  </main>
+</div>
+
+<!-- 반 상세 (읽기전용) : GET /api/classes/{id} (본인 담당반만, 서버에서 소유권 검증) -->
+<div class="modal-back" id="detailModalBack">
+  <div class="modal">
+    <h2 id="dTitle">반 상세</h2>
+    <div class="row2">
+      <div class="field"><label>과목</label><div class="val" id="dSubject">-</div></div>
+      <div class="field"><label>강의실</label><div class="val" id="dClassroom">-</div></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>수업시간</label><div class="val" id="dTime">-</div></div>
+      <div class="field"><label>상태</label><div class="val" id="dStatus">-</div></div>
+    </div>
+
+    <div class="section-label">수강 학생</div>
+    <div id="dStudents" class="student-list"></div>
+
+    <div class="actions">
+      <button class="btn secondary" onclick="closeModal('detailModalBack')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script>
+  /* ===== 내 반 관리 화면 로직 =====
+     - 목록: GET /api/classes/my?statusCode=&keyword=&page=&size=  (서버가 classes.teacher_id를 로그인 강사로 한정)
+     - 상세: 행 클릭 시 GET /api/classes/{classId}                  (서버가 본인 담당반인지 검증, 아니면 403) */
+
+  const STATUS_LABEL = { ACTIVE: '운영중', CLOSED: '종료' };
+  const ENROLL_LABEL = { ACTIVE: '수강중', ENDED: '종료' };
+  const PAGE_SIZE = 10;
+  let currentPage = 1;
+
+  function esc(s) {
+    return s == null ? '' : String(s).replace(/[&<>"']/g,
+      c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+  function openModalById(id) { document.getElementById(id).classList.add('show'); }
+
+  /* ---------- 목록 조회 ---------- */
+  async function loadClasses(page = 1) {
+    currentPage = page;
+    const params = new URLSearchParams({ page, size: PAGE_SIZE });
+    const status = document.getElementById('fStatus').value;
+    const keyword = document.getElementById('fKeyword').value.trim();
+    if (status) params.set('statusCode', status);
+    if (keyword) params.set('keyword', keyword);
+
+    const res = await fetch('/api/classes/my?' + params);
+    if (!res.ok) {
+      document.getElementById('tbody').innerHTML =
+        '<tr><td class="empty" colspan="6">목록 조회 실패 (' + res.status + ')</td></tr>';
+      document.getElementById('pager').innerHTML = '';
+      return;
+    }
+    const data = await res.json();
+    renderTable(data.items);
+    renderPager(data);
+  }
+
+  function renderTable(items) {
+    const tbody = document.getElementById('tbody');
+    if (!items || items.length === 0) {
+      tbody.innerHTML = '<tr><td class="empty" colspan="6">담당 중인 반이 없습니다.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(c => `
+      <tr onclick="openDetailModal(${c.classId})">
+        <td>${esc(c.className)}</td>
+        <td>${esc(c.subject) || '-'}</td>
+        <td>${esc(c.classroom) || '-'}</td>
+        <td>${c.startTime || '-'} ~ ${c.endTime || '-'}</td>
+        <td>${c.activeStudentCount}명</td>
+        <td><span class="chip st-${c.statusCode}">${STATUS_LABEL[c.statusCode] || c.statusCode}</span></td>
+      </tr>`).join('');
+  }
+
+  function renderPager({ page, totalPages, totalCount }) {
+    const pager = document.getElementById('pager');
+    if (totalPages <= 0) { pager.innerHTML = ''; return; }
+    let html = `<button ${page <= 1 ? 'disabled' : ''} onclick="loadClasses(${page - 1})">‹</button>`;
+    const start = Math.max(1, page - 2), end = Math.min(totalPages, start + 4);
+    for (let p = start; p <= end; p++) {
+      html += `<button class="${p === page ? 'on' : ''}" onclick="loadClasses(${p})">${p}</button>`;
+    }
+    html += `<button ${page >= totalPages ? 'disabled' : ''} onclick="loadClasses(${page + 1})">›</button>`;
+    html += `<span class="total">총 ${totalCount}개 반</span>`;
+    pager.innerHTML = html;
+  }
+
+  /* ---------- 반 상세 (읽기전용) ---------- */
+  async function openDetailModal(classId) {
+    const res = await fetch('/api/classes/' + classId);
+    if (!res.ok) {
+      alert(res.status === 403 ? '본인 담당 반만 조회할 수 있습니다.' : '상세 조회 실패 (' + res.status + ')');
+      return;
+    }
+    const d = await res.json();
+    const c = d.classInfo;
+    document.getElementById('dTitle').textContent = c.className;
+    document.getElementById('dSubject').textContent = c.subject || '-';
+    document.getElementById('dClassroom').textContent = c.classroom || '-';
+    document.getElementById('dTime').textContent = (c.startTime || '-') + ' ~ ' + (c.endTime || '-');
+    document.getElementById('dStatus').textContent = STATUS_LABEL[c.statusCode] || c.statusCode;
+
+    document.getElementById('dStudents').innerHTML =
+      (d.students && d.students.length)
+        ? d.students.map(s =>
+            `· ${esc(s.name)} (${esc(s.studentNo) || '-'}, ${esc(s.gradeLevel) || '-'}) ` +
+            `${s.enrollDate} ~ ${s.endDate || ''} ` +
+            `<span class="chip ${s.statusCode === 'ACTIVE' ? 'st-ACTIVE' : 'st-ENDED'}">` +
+            `${ENROLL_LABEL[s.statusCode] || s.statusCode}</span>`).join('<br>')
+        : '<span style="color:#9ca3af;">수강 중인 학생이 없습니다.</span>';
+
+    openModalById('detailModalBack');
+  }
+
+  /* ---------- 이벤트 바인딩 ---------- */
+  document.getElementById('btnSearch').onclick = () => loadClasses(1);
+  document.getElementById('btnReset').onclick = () => {
+    fStatus.value = ''; fKeyword.value = '';
+    loadClasses(1);
+  };
+  document.getElementById('fKeyword').addEventListener('keydown',
+    e => { if (e.key === 'Enter') loadClasses(1); });
+
+  document.getElementById('detailModalBack').addEventListener('click',
+    e => { if (e.target.id === 'detailModalBack') closeModal('detailModalBack'); });
+
+  loadClasses(1);
+</script>
+</body>
+</html>

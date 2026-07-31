@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    AI 시험지 자동채점(AIG-01~10) 통합 매퍼.
+    exam_documents/exam_questions/exam_submissions/submission_files/ai_grading_runs/answer_results
+    6개 테이블을 다루던 XML 6개를 하나로 합쳤다(2026-07-22). map-underscore-to-camel-case=true.
+-->
+<mapper namespace="com.edu.domain.grade.aigrading.mapper.AiGradingMapper">
+
+    <!-- ===================================================================
+         공통 존재 확인
+         =================================================================== -->
+
+    <select id="existsExam" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM exams WHERE exam_id = #{examId}
+        )
+    </select>
+
+    <select id="existsStudent" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM students WHERE student_id = #{studentId}
+        )
+    </select>
+
+    <!-- ===================================================================
+         exam_documents (AIG-01/02)
+         =================================================================== -->
+
+    <insert id="insertDocument" useGeneratedKeys="true" keyProperty="examDocumentId" keyColumn="exam_document_id">
+        INSERT INTO exam_documents
+            (exam_id, document_type, original_name, stored_name, file_path, mime_type, file_size, page_no, uploaded_by)
+        VALUES
+            (#{examId}, #{documentType}, #{originalName}, #{storedName}, #{filePath}, #{mimeType}, #{fileSize}, #{pageNo}, #{uploadedBy})
+    </insert>
+
+    <select id="selectByDocumentId" resultType="com.edu.domain.grade.aigrading.vo.ExamDocumentVo">
+        SELECT exam_document_id, exam_id, document_type, original_name, stored_name,
+               file_path, mime_type, file_size, page_no, uploaded_by, created_at
+          FROM exam_documents
+         WHERE exam_document_id = #{examDocumentId}
+    </select>
+
+    <!-- QUESTION을 항상 먼저 정렬(document_type 알파벳순이면 ANSWER_KEY가 먼저 와버려서 EXTRACTION_PROMPT의
+         "문제지가 먼저, 정답지가 있다면 뒤에 첨부됩니다"라는 전제와 어긋났던 버그) -->
+    <select id="selectDocumentsByExamId" resultType="com.edu.domain.grade.aigrading.vo.ExamDocumentVo">
+        SELECT exam_document_id, exam_id, document_type, original_name, stored_name,
+               file_path, mime_type, file_size, page_no, uploaded_by, created_at
+          FROM exam_documents
+         WHERE exam_id = #{examId}
+         ORDER BY CASE WHEN document_type = 'QUESTION' THEN 0 ELSE 1 END,
+                  page_no NULLS LAST, exam_document_id
+    </select>
+
+    <!-- 재업로드(교체) 시 같은 문서유형의 기존 파일 전체 삭제 -->
+    <delete id="deleteDocumentsByExamAndType">
+        DELETE FROM exam_documents WHERE exam_id = #{examId} AND document_type = #{documentType}
+    </delete>
+
+    <!-- ===================================================================
+         exam_questions (AIG-03/04)
+         =================================================================== -->
+
+    <select id="existsSubmissionForExam" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM exam_submissions WHERE exam_id = #{examId}
+        )
+    </select>
+
+    <select id="selectQuestionsByExamId" resultType="com.edu.domain.grade.aigrading.vo.ExamQuestionVo">
+        SELECT question_id, exam_id, question_no, question_type, question_text, correct_answer,
+               max_score, grading_criteria, review_required_yn, sort_order, created_at, updated_at
+          FROM exam_questions
+         WHERE exam_id = #{examId}
+         ORDER BY sort_order, question_no
+    </select>
+
+    <delete id="deleteByExamId">
+        DELETE FROM exam_questions WHERE exam_id = #{examId}
+    </delete>
+
+    <insert id="insertQuestion" useGeneratedKeys="true" keyProperty="questionId" keyColumn="question_id">
+        INSERT INTO exam_questions
+            (exam_id, question_no, question_type, question_text, correct_answer,
+             max_score, grading_criteria, review_required_yn, sort_order)
+        VALUES
+            (#{examId}, #{questionNo}, #{questionType}, #{questionText}, #{correctAnswer},
+             #{maxScore}, #{gradingCriteria}, #{reviewRequiredYn}, #{sortOrder})
+    </insert>
+
+    <!-- ===================================================================
+         exam_submissions (AIG-05~10)
+         =================================================================== -->
+
+    <select id="selectByExamAndStudent" resultType="com.edu.domain.grade.aigrading.vo.ExamSubmissionVo">
+        SELECT submission_id, exam_id, student_id, status_code, ai_total_score, confirmed_score,
+               ai_confidence, error_message, uploaded_by, reviewed_by, grade_id,
+               created_at, reviewed_at, confirmed_at
+          FROM exam_submissions
+         WHERE exam_id = #{examId} AND student_id = #{studentId}
+    </select>
+
+    <select id="selectBySubmissionId" resultType="com.edu.domain.grade.aigrading.vo.ExamSubmissionVo">
+        SELECT submission_id, exam_id, student_id, status_code, ai_total_score, confirmed_score,
+               ai_confidence, error_message, uploaded_by, reviewed_by, grade_id,
+               created_at, reviewed_at, confirmed_at
+          FROM exam_submissions
+         WHERE submission_id = #{submissionId}
+    </select>
+
+    <insert id="insertSubmission" useGeneratedKeys="true" keyProperty="submissionId" keyColumn="submission_id">
+        INSERT INTO exam_submissions
+            (exam_id, student_id, status_code, uploaded_by)
+        VALUES
+            (#{examId}, #{studentId}, #{statusCode}, #{uploadedBy})
+    </insert>
+
+    <update id="updateStatusCode">
+        UPDATE exam_submissions
+           SET status_code = #{statusCode}
+         WHERE submission_id = #{submissionId}
+    </update>
+
+    <update id="completeGrading">
+        UPDATE exam_submissions
+           SET status_code    = #{statusCode},
+               ai_total_score = #{aiTotalScore},
+               ai_confidence  = #{aiConfidence},
+               error_message  = #{errorMessage}
+         WHERE submission_id = #{submissionId}
+    </update>
+
+    <update id="markReviewed">
+        UPDATE exam_submissions
+           SET reviewed_by = COALESCE(reviewed_by, #{reviewedBy}),
+               reviewed_at = COALESCE(reviewed_at, CURRENT_TIMESTAMP)
+         WHERE submission_id = #{submissionId}
+    </update>
+
+    <update id="confirmSubmission">
+        UPDATE exam_submissions
+           SET status_code     = #{statusCode},
+               confirmed_score = #{confirmedScore},
+               grade_id        = #{gradeId},
+               reviewed_by     = COALESCE(reviewed_by, #{reviewedBy}),
+               confirmed_at    = CURRENT_TIMESTAMP
+         WHERE submission_id = #{submissionId}
+    </update>
+
+    <!-- 재업로드(교체) 시 제출을 UPLOADED로 되돌리고 이전 채점 결과 관련 필드를 비운다 -->
+    <update id="resetForReupload">
+        UPDATE exam_submissions
+           SET status_code    = 'UPLOADED',
+               ai_total_score = NULL,
+               ai_confidence  = NULL,
+               error_message  = NULL,
+               reviewed_by    = NULL,
+               reviewed_at    = NULL
+         WHERE submission_id = #{submissionId}
+    </update>
+
+    <!-- grades 삭제 전 참조 끊기 - 이 gradeId로 확정된 제출을 REVIEW_REQUIRED로 되돌린다 -->
+    <update id="revertConfirmationByGradeId">
+        UPDATE exam_submissions
+           SET status_code     = 'REVIEW_REQUIRED',
+               confirmed_score = NULL,
+               grade_id        = NULL,
+               confirmed_at    = NULL
+         WHERE grade_id = #{gradeId}
+    </update>
+
+    <!-- ===================================================================
+         submission_files (AIG-05)
+         =================================================================== -->
+
+    <insert id="insertFile" useGeneratedKeys="true" keyProperty="submissionFileId" keyColumn="submission_file_id">
+        INSERT INTO submission_files
+            (submission_id, original_name, stored_name, file_path, mime_type, file_size, page_no)
+        VALUES
+            (#{submissionId}, #{originalName}, #{storedName}, #{filePath}, #{mimeType}, #{fileSize}, #{pageNo})
+    </insert>
+
+    <select id="selectFilesBySubmissionId" resultType="com.edu.domain.grade.aigrading.vo.SubmissionFileVo">
+        SELECT submission_file_id, submission_id, original_name, stored_name,
+               file_path, mime_type, file_size, page_no, created_at
+          FROM submission_files
+         WHERE submission_id = #{submissionId}
+         ORDER BY page_no
+    </select>
+
+    <select id="selectMaxPageNo" resultType="java.lang.Integer">
+        SELECT MAX(page_no) FROM submission_files WHERE submission_id = #{submissionId}
+    </select>
+
+    <!-- 채점 완료/실패 후 답안지 재업로드 시 기존 파일 전체 삭제(교체 방식) -->
+    <delete id="deleteFilesBySubmissionId">
+        DELETE FROM submission_files WHERE submission_id = #{submissionId}
+    </delete>
+
+    <!-- ===================================================================
+         ai_grading_runs (AIG-06/AIG-10)
+         =================================================================== -->
+
+    <select id="selectMaxRunNo" resultType="java.lang.Integer">
+        SELECT MAX(run_no) FROM ai_grading_runs WHERE submission_id = #{submissionId}
+    </select>
+
+    <insert id="insertRun" useGeneratedKeys="true" keyProperty="gradingRunId" keyColumn="grading_run_id">
+        INSERT INTO ai_grading_runs
+            (submission_id, model_name, run_no, status_code, request_summary, started_at)
+        VALUES
+            (#{submissionId}, #{modelName}, #{runNo}, #{statusCode}, #{requestSummary}, CURRENT_TIMESTAMP)
+    </insert>
+
+    <update id="updateRunResult">
+        UPDATE ai_grading_runs
+           SET status_code   = #{statusCode},
+               raw_response  = #{rawResponse},
+               error_message = #{errorMessage},
+               ai_log_id     = #{aiLogId},
+               completed_at  = CURRENT_TIMESTAMP
+         WHERE grading_run_id = #{gradingRunId}
+    </update>
+
+    <!-- ===================================================================
+         answer_results (AIG-06/07/08/09)
+         =================================================================== -->
+
+    <delete id="deleteAnswerResultsBySubmissionId">
+        DELETE FROM answer_results WHERE submission_id = #{submissionId}
+    </delete>
+
+    <insert id="insertResult" useGeneratedKeys="true" keyProperty="answerResultId" keyColumn="answer_result_id">
+        INSERT INTO answer_results
+            (submission_id, question_id, recognized_answer, ai_score, result_code,
+             ai_reason, confidence, review_required_yn)
+        VALUES
+            (#{submissionId}, #{questionId}, #{recognizedAnswer}, #{aiScore}, #{resultCode},
+             #{aiReason}, #{confidence}, #{reviewRequiredYn})
+    </insert>
+
+    <select id="selectAnswerResultsBySubmissionId" resultType="com.edu.domain.grade.aigrading.vo.AnswerResultVo">
+        SELECT ar.answer_result_id, ar.submission_id, ar.question_id, ar.recognized_answer,
+               ar.ai_score, ar.confirmed_score, ar.result_code, ar.ai_reason, ar.confidence,
+               ar.review_required_yn, ar.teacher_comment, ar.created_at, ar.updated_at
+          FROM answer_results ar
+          JOIN exam_questions q ON q.question_id = ar.question_id
+         WHERE ar.submission_id = #{submissionId}
+         ORDER BY q.sort_order, q.question_no
+    </select>
+
+    <update id="updateTeacherReview">
+        UPDATE answer_results
+           SET confirmed_score = #{confirmedScore},
+               teacher_comment = #{teacherComment},
+               updated_at      = CURRENT_TIMESTAMP
+         WHERE answer_result_id = #{answerResultId}
+           AND submission_id    = #{submissionId}
+    </update>
+
+    <update id="confirmAiScoreIfAbsent">
+        UPDATE answer_results
+           SET confirmed_score = ai_score,
+               updated_at      = CURRENT_TIMESTAMP
+         WHERE answer_result_id = #{answerResultId}
+           AND confirmed_score IS NULL
+    </update>
+
+</mapper>

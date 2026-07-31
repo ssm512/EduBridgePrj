@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${@branding.name} + ' · 회비 조회'">EduBridge · 회비 조회</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    /* ===== 회비 조회 화면 (학생 본인, FEE-14 확장) =====
+       - parent/fees.html 과 동일한 방식으로 GET /api/fees, GET /api/fees/{feeId}/payments 를
+         JS 로 fetch 해서 채운다. 학생은 본인 회비만 보이므로 "자녀" 열은 없다.
+       - 조회 전용 화면이라 등록/수정/삭제/납부 처리 버튼은 없다. */
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+    .toolbar input[type="month"] {
+      height: 36px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; background: #fff;
+    }
+    .toolbar select {
+      height: 36px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; background: #fff;
+    }
+    .toolbar label.overdue { font-size: 13px; color: #374151; display: flex; align-items: center; gap: 4px; }
+    .btn {
+      height: 36px; padding: 0 16px; border: none; border-radius: 6px;
+      font-size: 14px; cursor: pointer; background: #1e3a8a; color: #fff;
+    }
+    .btn.secondary { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+    .back-link { font-size: 13px; color: #6b7280; text-decoration: none; }
+    .back-link:hover { color: #1e3a8a; }
+
+    .fee-table-wrap {
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: 10px 12px; text-align: left; vertical-align: middle; }
+    th { background: #f8fafc; color: #0f2a5f; font-weight: 600; }
+    tbody tr:last-child td { border-bottom: none; }
+    .empty { text-align: center; color: #9ca3af; padding: 40px; }
+    .amount-remaining { font-weight: 700; color: #1d4ed8; }
+    .amount-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
+
+    .status-badge { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+    .status-badge.PAID      { background: #dcfce7; color: #166534; }
+    .status-badge.UNPAID    { background: #fee2e2; color: #991b1b; }
+    .status-badge.SCHEDULED { background: #fef9c3; color: #854d0e; }
+
+    .pager { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 16px; }
+    .pager button {
+      min-width: 34px; height: 34px; border: 1px solid #d1d5db; background: #fff;
+      border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    .pager button.on { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+    .pager button:disabled { color: #d1d5db; cursor: default; }
+    .pager .total { font-size: 13px; color: #6b7280; margin-left: 10px; }
+
+    .modal-back {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4);
+      align-items: center; justify-content: center; z-index: 50;
+    }
+    .modal-back.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 12px; width: 480px; max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 60px); overflow-y: auto; padding: 24px;
+    }
+    .modal h2 { margin: 0 0 4px; font-size: 17px; }
+    .modal .target { font-size: 13px; color: #6b7280; margin-bottom: 14px; }
+    .modal table th, .modal table td { padding: 8px 6px; font-size: 13px; }
+    .canceled-row td { color: #9ca3af; text-decoration: line-through; }
+    .modal .actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+  </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/common :: topbar('회비 조회')}"></div>
+
+<div class="shell">
+  <div th:replace="~{fragments/common :: studentSidebar('fees')}"></div>
+  <main class="content">
+    <a class="home-btn" href="/studentPage">홈으로</a>
+    <h1>내 회비</h1>
+    <p class="sub">
+      내 회비 청구/납부 내역을 확인합니다. 실제 납부(결제)는 학원에 직접 문의해 주세요.
+    </p>
+
+    <!-- 필터: 관리자/학부모 화면과 동일한 조건(청구월/상태/미납만) -->
+    <div class="toolbar">
+      <input type="month" id="fBillingMonth">
+      <select id="fStatusCode">
+        <option value="">전체 상태</option>
+        <option value="PAID">납부완료</option>
+        <option value="UNPAID">미납</option>
+        <option value="SCHEDULED">예정</option>
+      </select>
+      <label class="overdue">
+        <input type="checkbox" id="fOverdueOnly"> 기한 지난 미납만
+      </label>
+      <button class="btn" id="btnSearch">조회</button>
+      <button class="btn secondary" id="btnReset">초기화</button>
+    </div>
+
+    <div class="fee-table-wrap">
+      <table>
+        <thead>
+        <tr>
+          <th>청구월</th>
+          <th>반</th>
+          <th>할인</th>
+          <th>남은 금액</th>
+          <th>납부기한</th>
+          <th>상태</th>
+          <th>납부내역</th>
+        </tr>
+        </thead>
+        <tbody id="feeRows">
+        <tr><td class="empty" colspan="7">불러오는 중…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pager" id="pager"></div>
+  </main>
+</div>
+
+<!-- 납부 내역 모달 (취소분 포함) : GET /api/fees/{feeId}/payments -->
+<div class="modal-back" id="historyModalBack">
+  <div class="modal">
+    <h2>납부 내역</h2>
+    <div class="target" id="hTarget"></div>
+    <table>
+      <thead>
+      <tr><th>납부일시</th><th>금액</th><th>수단</th><th>상태</th><th>영수증</th></tr>
+      </thead>
+      <tbody id="hRows"></tbody>
+    </table>
+    <div class="actions">
+      <button class="btn secondary" onclick="closeHistoryModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script>
+  /* ===== 학생 본인 회비 조회 화면 로직 (FEE-14 확장) =====
+     - 목록: GET /api/fees?billingMonth=&statusCode=&overdueOnly=&page=&size=
+             서버(FeeApiController)가 JWT userId 로 "본인 회비"만 강제 필터링해서 내려준다.
+     - 이력: GET /api/fees/{feeId}/payments (취소분 포함) */
+
+  const STATUS_LABEL = { PAID: '납부완료', UNPAID: '미납', SCHEDULED: '예정' };
+  const METHOD_LABEL = { CASH: '현금', TRANSFER: '계좌이체', CARD: '카드' };
+  const PAGE_SIZE = 10;
+  let currentPage = 1;
+
+  function esc(s) {
+    return s == null ? '' : String(s).replace(/[&<>"']/g,
+      c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+  function fmtMoney(n) { return Number(n || 0).toLocaleString('ko-KR') + '원'; }
+  function fmtDateTime(dt) { return dt ? String(dt).replace('T', ' ').substring(0, 16) : '-'; }
+
+  /* ---------- 목록 ---------- */
+  async function loadFees(page = 1) {
+    currentPage = page;
+    const params = new URLSearchParams({ page, size: PAGE_SIZE });
+
+    const billingMonth = document.getElementById('fBillingMonth').value;
+    const statusCode = document.getElementById('fStatusCode').value;
+    const overdueOnly = document.getElementById('fOverdueOnly').checked;
+    if (billingMonth) params.set('billingMonth', billingMonth);
+    if (statusCode) params.set('statusCode', statusCode);
+    if (overdueOnly) params.set('overdueOnly', 'true');
+
+    const res = await fetch('/api/fees?' + params);
+    if (!res.ok) {
+      document.getElementById('feeRows').innerHTML =
+        '<tr><td class="empty" colspan="7">목록 조회 실패 (' + res.status + ')</td></tr>';
+      document.getElementById('pager').innerHTML = '';
+      return;
+    }
+    const data = await res.json();
+    renderRows(data.items);
+    renderPager(data);
+  }
+
+  function renderRows(items) {
+    const tbody = document.getElementById('feeRows');
+    if (!items || items.length === 0) {
+      tbody.innerHTML = '<tr><td class="empty" colspan="7">조회된 회비 내역이 없습니다.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(fee => `
+      <tr>
+        <td>${esc(fee.billingMonth)}</td>
+        <td>${esc(fee.className) || '-'}</td>
+        <td>
+          ${fee.discountAmount > 0
+            ? `${fmtMoney(fee.discountAmount)}<div class="amount-sub">(${esc(fee.discountPolicyName) || '직접입력'})</div>`
+            : '-'}
+        </td>
+        <td>
+          <span class="amount-remaining">${fmtMoney(fee.remainingAmount)}</span>
+          ${fee.paidSum > 0 ? `<div class="amount-sub">청구 ${fmtMoney(fee.billableAmount)} / 납부 ${fmtMoney(fee.paidSum)}</div>` : ''}
+        </td>
+        <td>${esc(fee.dueDate)}</td>
+        <td><span class="status-badge ${esc(fee.statusCode)}">${STATUS_LABEL[fee.statusCode] || esc(fee.statusCode)}</span></td>
+        <td>
+          <button class="btn secondary" ${fee.paymentCount > 0 ? '' : 'disabled'}
+                  data-fee-id="${fee.feeId}" data-billing-month="${esc(fee.billingMonth)}"
+                  onclick="openHistoryModal(this)">
+            ${fee.paymentCount > 0 ? '보기' : '내역없음'}
+          </button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderPager({ page, totalPages, totalCount }) {
+    const pager = document.getElementById('pager');
+    if (totalPages <= 0) { pager.innerHTML = ''; return; }
+    let html = `<button ${page <= 1 ? 'disabled' : ''} onclick="loadFees(${page - 1})">‹</button>`;
+    const start = Math.max(1, page - 2), end = Math.min(totalPages, start + 4);
+    for (let p = start; p <= end; p++) {
+      html += `<button class="${p === page ? 'on' : ''}" onclick="loadFees(${p})">${p}</button>`;
+    }
+    html += `<button ${page >= totalPages ? 'disabled' : ''} onclick="loadFees(${page + 1})">›</button>`;
+    html += `<span class="total">총 ${totalCount}건</span>`;
+    pager.innerHTML = html;
+  }
+
+  /* ---------- 납부 내역 모달 ---------- */
+  async function openHistoryModal(btn) {
+    const feeId = btn.dataset.feeId;
+    const modal = document.getElementById('historyModalBack');
+    const rows = document.getElementById('hRows');
+    document.getElementById('hTarget').textContent = btn.dataset.billingMonth;
+    rows.innerHTML = '<tr><td colspan="5">불러오는 중…</td></tr>';
+    modal.classList.add('show');
+
+    const res = await fetch('/api/fees/' + feeId + '/payments');
+    if (!res.ok) {
+      rows.innerHTML = '<tr><td colspan="5">납부 내역 조회 실패 (' + res.status + ')</td></tr>';
+      return;
+    }
+    const list = await res.json();
+    if (!list || list.length === 0) {
+      rows.innerHTML = '<tr><td colspan="5">납부 내역이 없습니다.</td></tr>';
+      return;
+    }
+    // 영수증(RCT-01/02): receiptNo 가 있는 행만 PDF 링크 노출. paymentId 는 숫자라 그대로 써도 안전
+    rows.innerHTML = list.map(p => `
+      <tr class="${p.cancelYn === 'Y' ? 'canceled-row' : ''}">
+        <td>${fmtDateTime(p.paidAt)}</td>
+        <td>${fmtMoney(p.paidAmount)}</td>
+        <td>${METHOD_LABEL[p.paymentMethod] || esc(p.paymentMethod) || '-'}</td>
+        <td>${p.cancelYn === 'Y' ? '취소됨' : '정상'}</td>
+        <td>${p.receiptNo ? `<a href="/api/fee-payments/${p.paymentId}/receipt/pdf" target="_blank">영수증</a>` : '-'}</td>
+      </tr>`).join('');
+  }
+
+  function closeHistoryModal() {
+    document.getElementById('historyModalBack').classList.remove('show');
+  }
+
+  /* ---------- 이벤트 바인딩 ---------- */
+  document.getElementById('btnSearch').onclick = () => loadFees(1);
+  document.getElementById('btnReset').onclick = () => {
+    document.getElementById('fBillingMonth').value = '';
+    document.getElementById('fStatusCode').value = '';
+    document.getElementById('fOverdueOnly').checked = false;
+    loadFees(1);
+  };
+  document.getElementById('historyModalBack').addEventListener('click',
+    e => { if (e.target.id === 'historyModalBack') closeHistoryModal(); });
+
+  loadFees(1);
+</script>
+</body>
+</html>

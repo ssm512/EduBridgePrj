@@ -1,0 +1,3384 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>성적 관리</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .grade-layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+
+        .compact-filter-layout {
+            grid-template-columns: minmax(220px, 360px) minmax(220px, 420px);
+            justify-content: start;
+        }
+
+        .trend-filter-layout {
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            justify-content: start;
+        }
+
+        .exam-layout {
+            align-items: stretch;
+        }
+
+        .exam-layout > .grade-panel {
+            height: 100%;
+        }
+
+        .exam-form-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .exam-form-panel .form-row {
+            margin-bottom: 32px;
+        }
+
+        .exam-form-panel .button-row {
+            margin-top: 10px;
+            padding-top: 0;
+        }
+
+        .exam-action-row {
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .exam-main-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .exam-list-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .exam-list-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .exam-list-header h2 {
+            margin-bottom: 0;
+        }
+
+        .exam-search {
+            position: relative;
+            display: flex;
+            justify-content: flex-end;
+            gap: 6px;
+            max-width: 420px;
+        }
+
+        .exam-search-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .search-arrow {
+            font-size: 11px;
+            line-height: 1;
+            color: #374151;
+        }
+
+        .exam-search input {
+            width: 190px;
+            padding: 7px 9px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+
+        .exam-search-menu {
+            display: none;
+            position: absolute;
+            top: 38px;
+            left: 0;
+            z-index: 10;
+            min-width: 110px;
+            padding: 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .12);
+        }
+
+        .exam-search-menu.show {
+            display: block;
+        }
+
+        .exam-search-menu button {
+            display: block;
+            width: 100%;
+            border: 0;
+            border-radius: 4px;
+            padding: 7px 8px;
+            background: #fff;
+            color: #111827;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .exam-search-menu button:hover {
+            background: #eff6ff;
+        }
+
+        .exam-table-wrap {
+            min-height: 414px;
+        }
+
+        .exam-list-panel .pagination {
+            margin-top: auto;
+            padding-top: 12px;
+        }
+
+        .grade-panel {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 16px;
+        }
+
+        .grade-panel h2 {
+            margin: 0 0 14px;
+            font-size: 17px;
+        }
+
+        .form-row {
+            margin-bottom: 10px;
+        }
+
+        .form-row label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-row input,
+        .form-row select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+        }
+
+        .datetime-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .datetime-row input {
+            flex: 1;
+        }
+
+        .datetime-row .grade-btn {
+            flex: 0 0 auto;
+            padding: 8px 10px;
+        }
+
+        .date-picker-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 30;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, .28);
+        }
+
+        .date-picker-overlay.show {
+            display: flex;
+        }
+
+        .date-picker-modal {
+            width: min(360px, calc(100vw - 32px));
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, .22);
+            padding: 18px;
+        }
+
+        .date-picker-modal h3 {
+            margin: 0 0 14px;
+            font-size: 16px;
+        }
+
+        .date-picker-fields {
+            display: grid;
+            gap: 12px;
+        }
+
+        .date-picker-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .class-picker {
+            position: relative;
+        }
+
+        .class-picker input {
+            padding-right: 38px;
+        }
+
+        .class-picker input[readonly] {
+            cursor: pointer;
+        }
+
+        .class-picker-toggle {
+            position: absolute;
+            right: 1px;
+            top: 1px;
+            bottom: 1px;
+            width: 34px;
+            border: 0;
+            border-left: 1px solid #cbd5e1;
+            border-radius: 0 6px 6px 0;
+            background: #f8fafc;
+            color: #111827;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .class-picker-toggle:hover {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .class-picker-menu {
+            display: none;
+            position: absolute;
+            top: 40px;
+            left: 0;
+            z-index: 12;
+            min-width: 230px;
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .12);
+        }
+
+        .class-picker-menu.show {
+            display: block;
+        }
+
+        .class-picker-menu button {
+            display: block;
+            width: 100%;
+            border: 0;
+            border-radius: 5px;
+            padding: 8px 9px;
+            background: #fff;
+            color: #111827;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .class-picker-menu button:hover,
+        .class-picker-menu button.active {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .class-picker-menu .empty-row {
+            padding: 12px 8px;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .batch-save-row {
+            justify-content: flex-end;
+        }
+
+        .grade-input-tabs {
+            display: flex;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .grade-input-tab {
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .grade-input-tab.active {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .grade-input-pane {
+            display: none;
+        }
+
+        .grade-input-pane.active {
+            display: block;
+        }
+
+        .grade-status-summary {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .status-pill {
+            border-radius: 999px;
+            padding: 7px 11px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-weight: 800;
+        }
+
+        .status-pill.warning {
+            background: #fff7ed;
+            color: #c2410c;
+        }
+
+        .grade-btn {
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #2563eb;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .grade-btn.secondary {
+            background: #e5e7eb;
+            color: #111827;
+        }
+
+        .grade-btn.danger {
+            background: #dc2626;
+        }
+
+        .grade-btn:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        .class-average-table-wrap {
+            overflow: visible;
+        }
+
+        .class-average-chart {
+            height: 280px;
+            margin: 16px 0;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .grade-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .grade-table th,
+        .grade-table td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 9px 8px;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .grade-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-size: 12px;
+        }
+
+        .sort-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border: 0;
+            border-radius: 4px;
+            padding: 4px 6px;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .sort-btn:hover {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .sort-indicator {
+            min-width: 10px;
+            color: #94a3b8;
+            font-size: 10px;
+        }
+
+        .sort-btn:hover .sort-indicator,
+        .sort-indicator.active {
+            color: #2563eb;
+        }
+
+        .help-tooltip {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            margin-left: 4px;
+            border: 1px solid #94a3b8;
+            border-radius: 50%;
+            background: #fff;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+            cursor: help;
+        }
+
+        .help-tooltip:hover {
+            border-color: #2563eb;
+            color: #2563eb;
+        }
+
+        .help-tooltip::after {
+            content: attr(data-tooltip);
+            display: none;
+            position: absolute;
+            left: 50%;
+            top: calc(100% + 8px);
+            z-index: 20;
+            width: 250px;
+            transform: translateX(-50%);
+            padding: 9px 10px;
+            border-radius: 6px;
+            background: #111827;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.45;
+            white-space: normal;
+            box-shadow: 0 10px 20px rgba(15, 23, 42, .18);
+        }
+
+        .help-tooltip:hover::after {
+            display: block;
+        }
+
+        .grade-table tr.selected {
+            background: #eff6ff;
+        }
+
+        .exam-table tbody tr {
+            cursor: pointer;
+        }
+
+        .exam-table tbody tr:hover {
+            background: #f1f5f9;
+        }
+
+        .exam-table tbody tr.selected:hover {
+            background: #dbeafe;
+        }
+
+        .grade-table tr.missing-exam-row {
+            cursor: pointer;
+        }
+
+        .grade-table tr.missing-exam-row:hover {
+            background: #eff6ff;
+        }
+
+        .grade-table input {
+            width: 100%;
+            min-width: 70px;
+            padding: 6px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+
+        .selected-info {
+            margin: 0 0 12px;
+            color: #1e3a8a;
+            font-weight: 600;
+        }
+
+        .trend-info {
+            margin: 12px 0 0;
+            padding: 10px 12px;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #1e3a8a;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .trend-chart {
+            min-height: 260px;
+            margin: 14px 0 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .trend-chart canvas {
+            display: block;
+            width: 100%;
+            height: 260px;
+        }
+
+        .trend-chart .empty-row {
+            padding: 110px 8px;
+        }
+
+        .trend-mode-row {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .trend-mode-row label {
+            display: inline-flex;
+            gap: 5px;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        /* 탭 (admin/student/attendance.html과 동일한 최소 스타일) */
+        .tabs { display:flex; gap:4px; border-bottom:2px solid #e5e7eb; margin-bottom:16px; }
+        .tab { padding:9px 18px; border:0; background:none; cursor:pointer; font-size:14px;
+               font-weight:600; color:#94a3b8; border-bottom:2px solid transparent; margin-bottom:-2px; }
+        .tab:hover { color:#475569; }
+        .tab.active { color:#1e3a8a; border-bottom-color:#1e3a8a; }
+
+        /* AI채점 탭 전용 - 기존 .grade-panel/.grade-btn 등 공용 클래스는 그대로 재사용 */
+        .ai-step { margin-bottom: 18px; }
+        .ai-step h3 { font-size: 14px; margin: 0 0 10px; color:#1e293b; display:flex; align-items:center; gap:7px; }
+        .ai-step h3::before { content:""; width:3px; height:14px; background:#1e3a8a; border-radius:2px; }
+        .ai-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+        .ai-row select, .ai-row input[type=file], .ai-row input[type=number] {
+            padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; color:#111827; font-size:13px;
+        }
+        .ai-badge { padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:600; }
+        .ai-badge.UPLOADED, .ai-badge.RUNNING { background:#e0e7ff; color:#3730a3; }
+        .ai-badge.ANALYZING { background:#fef9c3; color:#854d0e; }
+        .ai-badge.REVIEW_REQUIRED { background:#ffedd5; color:#9a3412; }
+        .ai-badge.CONFIRMED, .ai-badge.SUCCESS { background:#dcfce7; color:#166534; }
+        .ai-badge.FAILED { background:#fee2e2; color:#991b1b; }
+        .ai-note { font-size:12.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a;
+                   padding:8px 10px; border-radius:8px; margin-bottom:10px; }
+        #aiResultsTable input[type=number] { width:70px; }
+        #aiResultsTable input[type=text] { width:160px; }
+
+        .status {
+            display: none;
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 20;
+            max-width: 420px;
+            padding: 14px 16px;
+            border: 1px solid #bfdbfe;
+            border-left: 5px solid #2563eb;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #1e3a8a;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .18);
+        }
+
+        .status.error {
+            border-color: #fecaca;
+            border-left-color: #dc2626;
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .empty-row {
+            text-align: center;
+            color: #6b7280;
+            padding: 22px 8px;
+        }
+
+        .pagination {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            justify-content: center;
+        }
+
+        .page-btn {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+            color: #374151;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+
+        .page-btn.active {
+            background: #2563eb;
+            color: #fff;
+            border-color: #2563eb;
+            font-weight: 700;
+        }
+
+        .page-btn:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/common :: topbar('관리자')}"></div>
+
+<div class="shell">
+    <nav class="sidebar">
+        <a href="/admin/dashboard">대시보드</a>
+        <a href="/admin/members">회원관리</a>
+        <div class="group-label">반 / 수강</div>
+        <a href="/admin/classes">반관리</a>
+        <a href="/admin/enrollments">수강관리</a>
+        <div class="group-label">학생</div>
+        <a href="/admin/attendance">출석관리</a>
+        <a href="/admin/fees">회비관리</a>
+        <a href="/admin/grades">성적관리</a>
+        <div class="group-label">소통</div>
+        <a href="/admin/notices">공지관리</a>
+        <a href="/admin/counseling">상담관리</a>
+        <div class="group-label">운영</div>
+        <a href="/admin/ai">AI 리포트</a>
+        <a href="/admin/notifications">알림이력</a>
+        <a href="/admin/logs">활동로그</a>
+        <a href="/admin/settings">시스템설정</a>
+    </nav>
+
+    <main class="content">
+        <h1>성적관리</h1>
+        <p class="sub">시험을 등록하고, 시험을 선택한 뒤 수강 학생별 점수를 입력합니다.</p>
+
+        <!-- 탭 (출석관리 admin/student/attendance.html 패턴 재사용, GradePageController 라우트 변경 없음) -->
+        <div class="tabs">
+            <button class="tab active" data-tab="manage" onclick="showGradeTab('manage')">성적관리</button>
+            <button class="tab" data-tab="ai" onclick="showGradeTab('ai')">AI채점</button>
+        </div>
+
+        <!-- 상태 알림 토스트는 tab-panel 밖에 둔다 - tab-manage 안에 있으면 AI채점 탭을 보는 동안
+             tab-manage가 hidden 처리돼서 setStatus() 호출이 화면에 전혀 안 보이는 문제가 있었다
+             (성적관리/AI채점 어느 탭에서도 공통으로 쓰는 알림이라 특정 탭에 속하면 안 됨). -->
+        <div id="status" class="status"></div>
+
+        <section class="tab-panel" id="tab-manage">
+        <div class="grade-layout exam-layout">
+            <section class="grade-panel exam-form-panel">
+                <h2>시험 등록 / 수정</h2>
+
+                <div class="form-row">
+                    <label for="classId">반</label>
+                    <div class="class-picker">
+                        <input id="classId" placeholder="반 이름 선택" autocomplete="off" readonly onclick="toggleClassMenu('classIdMenu')">
+                        <input id="classIdValue" type="hidden">
+                        <button type="button" class="class-picker-toggle" onclick="toggleClassMenu('classIdMenu')">▼</button>
+                        <div id="classIdMenu" class="class-picker-menu"></div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <label for="examName">시험명</label>
+                    <input id="examName" placeholder="7월 수학 단원평가">
+                </div>
+
+                <div class="form-row">
+                    <label for="subject">과목</label>
+                    <input id="subject" placeholder="수학">
+                </div>
+
+                <div class="form-row">
+                    <label for="examDate">시험일시</label>
+                    <div class="datetime-row">
+                        <input id="examDateDisplay" placeholder="시험일시를 선택하세요" readonly>
+                        <input id="examDate" type="hidden">
+                        <button type="button" class="grade-btn secondary" onclick="openExamDatePicker()">선택</button>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <label for="totalScore">만점</label>
+                    <input id="totalScore" type="number" min="0" max="100" value="100" oninput="clampScoreInput(this)">
+                </div>
+
+                <div class="button-row exam-action-row">
+                    <div class="exam-main-actions">
+                        <button id="saveExamButton" class="grade-btn" onclick="saveExam()">시험 등록</button>
+                        <button id="deleteExamButton" class="grade-btn danger" onclick="deleteExam()" disabled>시험 삭제</button>
+                    </div>
+                    <button class="grade-btn secondary" onclick="createExamFromForm()">새 시험 등록</button>
+                </div>
+            </section>
+
+            <section class="grade-panel exam-list-panel">
+                <div class="exam-list-header">
+                    <h2>시험 목록</h2>
+                    <div class="exam-search">
+                        <button id="examSearchTypeButton" type="button" class="grade-btn secondary exam-search-toggle"
+                                onclick="toggleExamSearchMenu()">
+                            <span id="examSearchTypeLabel">전체검색</span>
+                            <span class="search-arrow">▼</span>
+                        </button>
+                        <div id="examSearchMenu" class="exam-search-menu">
+                            <button type="button" onclick="setExamSearchType('all')">전체검색</button>
+                            <button type="button" onclick="setExamSearchType('className')">반</button>
+                            <button type="button" onclick="setExamSearchType('examName')">시험명</button>
+                            <button type="button" onclick="setExamSearchType('subject')">과목</button>
+                            <button type="button" onclick="setExamSearchType('examDate')">시험일시</button>
+                        </div>
+                        <input id="examSearchKeyword" placeholder="검색어 입력" oninput="applyExamListView()">
+                    </div>
+                </div>
+
+                <div class="table-wrap exam-table-wrap">
+                    <table class="grade-table exam-table">
+                        <thead>
+                        <tr>
+                            <th><button type="button" class="sort-btn" title="반 정렬" onclick="setExamSort('class_name')">반 <span id="sort_class_name" class="sort-indicator">↕</span></button></th>
+                            <th><button type="button" class="sort-btn" title="시험명 정렬" onclick="setExamSort('exam_name')">시험명 <span id="sort_exam_name" class="sort-indicator">↕</span></button></th>
+                            <th><button type="button" class="sort-btn" title="과목 정렬" onclick="setExamSort('subject')">과목 <span id="sort_subject" class="sort-indicator">↕</span></button></th>
+                            <th><button type="button" class="sort-btn" title="시험일시 정렬" onclick="setExamSort('exam_date')">시험일시 <span id="sort_exam_date" class="sort-indicator">↕</span></button></th>
+                            <th>만점</th>
+                        </tr>
+                        </thead>
+                        <tbody id="examList"></tbody>
+                    </table>
+                </div>
+                <div id="examPagination" class="pagination"></div>
+            </section>
+        </div>
+
+        <section class="grade-panel">
+            <h2>학생별 성적 입력</h2>
+            <p id="selectedExamInfo" class="selected-info">선택한 시험이 없습니다.</p>
+
+            <div class="grade-input-tabs">
+                <button type="button" class="grade-input-tab active" data-grade-input-tab="input" onclick="showGradeInputTab('input')">성적 입력</button>
+                <button type="button" class="grade-input-tab" data-grade-input-tab="status" onclick="showGradeInputTab('status')">입력 현황</button>
+            </div>
+
+            <div id="gradeInputPane" class="grade-input-pane active">
+                <div class="table-wrap">
+                    <table class="grade-table">
+                        <thead>
+                        <tr>
+                            <th>학생명</th>
+                            <th>학생번호</th>
+                            <th>점수</th>
+                            <th>
+                                선생님 한 줄
+                                <span class="help-tooltip"
+                                      data-tooltip="입력한 내용은 학생과 학부모의 성적 조회 화면에 함께 표시됩니다.">?</span>
+                            </th>
+                            <th>관리</th>
+                        </tr>
+                        </thead>
+                        <tbody id="studentGradeList"></tbody>
+                    </table>
+                </div>
+                <div class="button-row batch-save-row">
+                    <button class="grade-btn" onclick="saveAllStudentGrades()">일괄 저장</button>
+                </div>
+            </div>
+
+            <div id="gradeStatusPane" class="grade-input-pane">
+                <div id="gradeInputSummary" class="grade-status-summary"></div>
+                <div class="table-wrap">
+                    <table class="grade-table">
+                        <thead>
+                        <tr>
+                            <th>반</th>
+                            <th>시험명</th>
+                            <th>과목</th>
+                            <th>시험일시</th>
+                            <th>미입력</th>
+                        </tr>
+                        </thead>
+                        <tbody id="missingGradeList">
+                        <tr><td colspan="5" class="empty-row">미입력 시험 현황을 불러오는 중입니다.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="grade-panel">
+            <h2>성적 확인</h2>
+
+            <div class="table-wrap">
+                <table class="grade-table">
+                    <thead>
+                    <tr>
+                        <th><button type="button" class="sort-btn" title="학생명 정렬" onclick="setGradeCheckSort('student_name')">학생명 <span id="gradeSort_student_name" class="sort-indicator">↕</span></button></th>
+                        <th><button type="button" class="sort-btn" title="점수 정렬" onclick="setGradeCheckSort('score')">점수 <span id="gradeSort_score" class="sort-indicator">↕</span></button></th>
+                        <th><button type="button" class="sort-btn" title="석차 정렬" onclick="setGradeCheckSort('rank_no')">석차 <span id="gradeSort_rank_no" class="sort-indicator">↕</span></button></th>
+                        <th>
+                            선생님 한 줄
+                            <span class="help-tooltip"
+                                  data-tooltip="학생과 학부모에게 표시되는 선생님 코멘트입니다.">?</span>
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody id="gradeList"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="grade-panel">
+            <h2>과목별 성적 조회</h2>
+
+            <div class="grade-layout trend-filter-layout">
+                <div>
+                    <div class="form-row">
+                        <label for="subjectGradeSubject">과목</label>
+                        <div class="class-picker">
+                            <input id="subjectGradeSubject" placeholder="과목 선택" autocomplete="off" readonly onclick="toggleSubjectMenu('subjectGradeSubjectMenu')">
+                            <input id="subjectGradeSubjectValue" type="hidden">
+                            <button type="button" class="class-picker-toggle" onclick="toggleSubjectMenu('subjectGradeSubjectMenu')">▼</button>
+                            <div id="subjectGradeSubjectMenu" class="class-picker-menu"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="form-row">
+                        <label for="subjectGradeClassId">반</label>
+                        <div class="class-picker">
+                            <input id="subjectGradeClassId" placeholder="비워두면 전체 반" autocomplete="off" readonly onclick="toggleClassMenu('subjectGradeClassIdMenu')">
+                            <input id="subjectGradeClassIdValue" type="hidden">
+                            <button type="button" class="class-picker-toggle" onclick="toggleClassMenu('subjectGradeClassIdMenu')">▼</button>
+                            <div id="subjectGradeClassIdMenu" class="class-picker-menu"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="form-row">
+                        <label for="subjectGradeStudentSearch">학생</label>
+                        <div class="class-picker">
+                            <input id="subjectGradeStudentSearch"
+                                   placeholder="비워두면 전체 학생"
+                                   autocomplete="off"
+                                   oninput="handleSubjectGradeStudentSearchInput()"
+                                   onkeydown="handleSubjectGradeStudentMenuKeydown(event)"
+                                   onclick="toggleSubjectGradeStudentMenu()">
+                            <input id="subjectGradeStudentId" type="hidden">
+                            <button type="button" class="class-picker-toggle" onclick="toggleSubjectGradeStudentMenu()">▼</button>
+                            <div id="subjectGradeStudentMenu" class="class-picker-menu"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button class="grade-btn" onclick="loadGradesBySubject()">과목별 조회</button>
+            </div>
+
+            <div class="table-wrap">
+                <table class="grade-table">
+                    <thead>
+                    <tr>
+                        <th>과목</th>
+                        <th>시험명</th>
+                        <th>반</th>
+                        <th>학생명</th>
+                        <th>점수</th>
+                        <th>만점</th>
+                        <th>석차</th>
+                        <th>시험일시</th>
+                    </tr>
+                    </thead>
+                    <tbody id="subjectGradeList"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="grade-panel">
+            <h2>반 평균 조회</h2>
+
+            <div class="grade-layout compact-filter-layout">
+                <div>
+                    <div class="form-row">
+                        <label for="classAverageClassId">반</label>
+                        <div class="class-picker">
+                            <input id="classAverageClassId" placeholder="비워두면 전체 반" autocomplete="off" readonly onclick="toggleClassMenu('classAverageClassIdMenu')">
+                            <input id="classAverageClassIdValue" type="hidden">
+                            <button type="button" class="class-picker-toggle" onclick="toggleClassMenu('classAverageClassIdMenu')">▼</button>
+                            <div id="classAverageClassIdMenu" class="class-picker-menu"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="form-row">
+                        <label for="classAverageSubject">과목</label>
+                        <div class="class-picker">
+                            <input id="classAverageSubject" placeholder="전체 과목" autocomplete="off" readonly onclick="toggleSubjectMenu('classAverageSubjectMenu')">
+                            <input id="classAverageSubjectValue" type="hidden">
+                            <button type="button" class="class-picker-toggle" onclick="toggleSubjectMenu('classAverageSubjectMenu')">▼</button>
+                            <div id="classAverageSubjectMenu" class="class-picker-menu"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button class="grade-btn" onclick="loadClassAverageStats()">평균 조회</button>
+            </div>
+
+            <div id="classAverageChart" class="class-average-chart">
+                <div class="empty-row">반 평균을 조회하면 차트가 표시됩니다.</div>
+            </div>
+
+            <div class="table-wrap class-average-table-wrap">
+                <table class="grade-table">
+                    <thead>
+                    <tr>
+                        <th>반</th>
+                        <th>학생 수</th>
+                        <th>성적 수</th>
+                        <th>평균점수</th>
+                        <th>최고점</th>
+                        <th>최저점</th>
+                        <th>
+                            평균달성률
+                            <span class="help-tooltip"
+                                  data-tooltip="평균점수를 시험 만점으로 나눈 비율입니다. 예: 평균 80점 / 만점 100점이면 80%입니다.">?</span>
+                        </th>
+                    </tr>
+                    </thead>
+                    <tbody id="classAverageList"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="grade-panel">
+            <h2>성적 추이 조회</h2>
+
+            <div class="trend-mode-row">
+                <label>
+                    <input type="radio" name="trendMode" value="student" checked onchange="changeTrendMode()">
+                    학생별
+                </label>
+                <label>
+                    <input type="radio" name="trendMode" value="class" onchange="changeTrendMode()">
+                    반별
+                </label>
+            </div>
+
+            <div class="grade-layout trend-filter-layout">
+                <div id="trendStudentField">
+                    <div class="form-row">
+                        <label for="trendStudentSearch">학생명</label>
+                        <div class="class-picker">
+                            <input id="trendStudentSearch" placeholder="수강중인 학생명 검색" autocomplete="off"
+                                   oninput="handleTrendStudentSearchInput()"
+                                   onkeydown="handleTrendStudentMenuKeydown(event)">
+                            <input id="trendStudentId" type="hidden">
+                            <button type="button" class="class-picker-toggle" onclick="toggleTrendStudentMenu()">▼</button>
+                            <div id="trendStudentMenu" class="class-picker-menu"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="trendClassField" style="display:none;">
+                    <div class="form-row">
+                        <label for="trendClassId">반</label>
+                        <div class="class-picker">
+                            <input id="trendClassId" placeholder="반 이름 선택" autocomplete="off" readonly onclick="toggleClassMenu('trendClassIdMenu')">
+                            <input id="trendClassIdValue" type="hidden">
+                            <button type="button" class="class-picker-toggle" onclick="toggleClassMenu('trendClassIdMenu')">▼</button>
+                            <div id="trendClassIdMenu" class="class-picker-menu"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="form-row">
+                        <label for="trendSubject">과목</label>
+                        <div class="class-picker">
+                            <input id="trendSubject" value="전체 과목" autocomplete="off" readonly onclick="toggleTrendSubjectMenu()">
+                            <input id="trendSubjectValue" type="hidden">
+                            <button type="button" class="class-picker-toggle" onclick="toggleTrendSubjectMenu()">▼</button>
+                            <div id="trendSubjectMenu" class="class-picker-menu"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="form-row">
+                        <label for="trendChartType">차트 유형</label>
+                        <select id="trendChartType" onchange="refreshGradeTrendChartType()">
+                            <option value="line">선형 차트</option>
+                            <option value="bar">막대 차트</option>
+                            <option value="area">영역 차트</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-row">
+                <button class="grade-btn" onclick="loadGradeTrend()">추이 조회</button>
+            </div>
+
+            <div id="trendInfo" class="trend-info" style="display:none;"></div>
+
+            <div id="trendChart" class="trend-chart">
+                <div class="empty-row">성적 추이를 조회하면 차트가 표시됩니다.</div>
+            </div>
+
+            <div class="table-wrap">
+                <table class="grade-table">
+                    <thead>
+                    <tr>
+                        <th>시험명</th>
+                        <th>과목</th>
+                        <th>시험일시</th>
+                        <th>점수</th>
+                        <th>만점</th>
+                    </tr>
+                    </thead>
+                    <tbody id="trendList"></tbody>
+                </table>
+            </div>
+        </section>
+        </section><!-- /tab-manage -->
+
+        <!-- ===== 탭: AI채점 (AIG-01~10) ===== -->
+        <section class="tab-panel" id="tab-ai" hidden>
+            <div class="ai-note">
+                AI 채점 결과는 바로 저장되지 않습니다. 문항 추출/채점 결과는 초안이며, 교사가 검수하고
+                "최종 확정"을 눌러야 성적(grades)에 반영됩니다.
+            </div>
+
+            <div class="grade-panel ai-step">
+                <h3>0. 시험 선택</h3>
+                <div class="ai-row">
+                    <select id="aiExamSelect" onchange="onAiExamChange()">
+                        <option value="">시험을 선택하세요</option>
+                    </select>
+                    <button type="button" class="grade-btn secondary" onclick="loadAiExamOptions()">새로고침</button>
+                </div>
+            </div>
+
+            <div class="grade-panel ai-step">
+                <h3>1. 시험자료 업로드 (문제지 / 정답지)</h3>
+                <div class="ai-row">
+                    <select id="aiDocType">
+                        <option value="QUESTION">문제지</option>
+                        <option value="ANSWER_KEY">정답지</option>
+                    </select>
+                    <input type="file" id="aiDocFiles" multiple>
+                    <button type="button" class="grade-btn" onclick="uploadAiDocuments()">업로드</button>
+                </div>
+                <div id="aiDocList" class="muted" style="font-size:12.5px;">업로드된 자료가 없습니다.</div>
+            </div>
+
+            <div class="grade-panel ai-step">
+                <h3>2. 문항 추출 / 확정</h3>
+                <div class="ai-row">
+                    <textarea id="aiExtractPrompt" maxlength="1000" rows="2" style="flex:1 1 100%; min-width:240px;"
+                              placeholder="AI에게 추가로 요청할 사항이 있으면 입력하세요 (선택, 최대 1000자)"></textarea>
+                </div>
+                <div class="ai-row">
+                    <button type="button" id="aiExtractBtn" class="grade-btn" onclick="extractAiQuestions()">AI 자동 추출</button>
+                    <button type="button" class="grade-btn secondary" onclick="loadAiQuestions()">문항 조회</button>
+                    <button type="button" class="grade-btn secondary" onclick="aiAddBlankQuestionRow()">문항 직접 추가</button>
+                    <button type="button" class="grade-btn" onclick="saveAiQuestions()">문항 확정 저장</button>
+                    <span id="aiExtractingBadge" class="ai-badge ANALYZING" hidden>⏳ 추출중...</span>
+                </div>
+                <div class="tbl-wrap" style="overflow-x:auto;">
+                    <table id="aiQuestionsTable">
+                        <thead>
+                        <tr>
+                            <th>번호</th><th>유형</th><th>문제</th><th>정답</th><th>배점</th><th>채점기준</th><th>강사검수</th><th></th>
+                        </tr>
+                        </thead>
+                        <tbody id="aiQuestionsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grade-panel ai-step">
+                <h3>3. 학생 답안지 업로드 &amp; AI 채점 실행</h3>
+                <div class="ai-row">
+                    <select id="aiStudentSelect" onchange="onAiStudentChange()">
+                        <option value="">학생을 선택하세요</option>
+                    </select>
+                    <input type="file" id="aiSubmissionFiles" multiple>
+                    <button type="button" id="aiUploadSubmissionBtn" class="grade-btn" onclick="uploadAiSubmission()" disabled title="문항을 먼저 확정 저장해야 답안지를 올릴 수 있습니다">답안지 업로드</button>
+                </div>
+                <div class="ai-row">
+                    <span>submissionId:</span>
+                    <input type="number" id="aiSubmissionId" placeholder="학생 선택 시 기존 제출이 있으면 자동 입력, 없으면 업로드 후 입력" readonly>
+                    <button type="button" class="grade-btn" onclick="startAiGrading()">AI 채점 실행</button>
+                    <button type="button" class="grade-btn secondary" onclick="retryAiGrading()">재채점</button>
+                    <span id="aiSubmissionStatus"></span>
+                </div>
+                <div id="aiProcessingMsg" class="muted" style="font-size:12.5px; display:none;">
+                    ⏳ 처리중입니다. AI가 답안을 채점하고 있어요 (완료되면 상태가 자동으로 바뀝니다)...
+                </div>
+            </div>
+
+            <div class="grade-panel ai-step">
+                <h3>4. 검수 &amp; 최종 확정</h3>
+                <div class="ai-row">
+                    <button type="button" class="grade-btn secondary" onclick="loadAiResults()">채점 결과 조회</button>
+                    <button type="button" class="grade-btn" onclick="saveAiReview()">검수 결과 저장</button>
+                    <button type="button" class="grade-btn" onclick="confirmAiGrade()">최종 확정</button>
+                </div>
+                <div class="tbl-wrap" style="overflow-x:auto;">
+                    <table id="aiResultsTable">
+                        <thead>
+                        <tr>
+                            <th>문항</th><th>인식답안</th><th>AI점수</th><th>AI근거</th><th>신뢰도</th>
+                            <th>검수필요</th><th>확정점수</th><th>검수코멘트</th>
+                        </tr>
+                        </thead>
+                        <tbody id="aiResultsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section><!-- /tab-ai -->
+    </main>
+</div>
+
+<div id="examDatePickerOverlay" class="date-picker-overlay">
+    <div class="date-picker-modal">
+        <h3>시험일시 선택</h3>
+        <div class="date-picker-fields">
+            <div class="form-row">
+                <label for="examDatePickerDate">시험일</label>
+                <input id="examDatePickerDate" type="date">
+            </div>
+            <div class="form-row">
+                <label for="examDatePickerTime">시험시간</label>
+                <input id="examDatePickerTime" type="time">
+            </div>
+        </div>
+        <div class="date-picker-actions">
+            <button type="button" class="grade-btn secondary" onclick="closeExamDatePicker()">취소</button>
+            <button type="button" class="grade-btn" onclick="applyExamDateSelection()">확인</button>
+        </div>
+    </div>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script src="/js/chart.umd.min.js"></script>
+<script>
+    // 현재 선택된 시험 ID
+    // 시험 행을 클릭하면 이 값에 exam_id를 저장하고, 성적 입력/조회 시 내부적으로 사용한다.
+    let selectedExamId = null;
+
+    // 시험 수정 상태를 구분하기 위한 ID
+    // null이면 신규 등록, 값이 있으면 해당 시험 수정으로 처리한다.
+    let editingExamId = null;
+
+    // 현재 화면에 조회된 시험 목록을 저장한다.
+    // 시험 행 클릭 시 서버를 다시 조회하지 않고 이 목록에서 선택 시험을 찾는다.
+    let examRows = [];
+    let classOptionRows = [];
+    let subjectOptionRows = [];
+    let activeStudentOptions = [];
+    let trendSubjectOptions = [];
+    let trendStudentMenuIndex = -1;
+    let subjectGradeStudentMenuIndex = -1;
+    let gradeCheckRows = [];
+    let gradeCheckSortKey = null;
+    let gradeCheckSortDirection = 'asc';
+    let missingExamRows = [];
+
+    // 검색과 정렬이 적용된 시험 목록
+    // 실제 테이블과 페이징은 이 배열을 기준으로 그린다.
+    let filteredExamRows = [];
+
+    // 시험 목록 페이징 상태
+    // 한 페이지에 10개씩 보여주고, 페이지 번호는 최대 5개까지만 노출한다.
+    let currentExamPage = 1;
+    const examPageSize = 10;
+    const maxVisiblePages = 5;
+
+    // 시험 목록 검색/정렬 상태
+    let examSearchType = 'all';
+    let examSortKey = null;
+    let examSortDirection = 'asc';
+    let classAverageChart = null;
+    let gradeTrendChart = null;
+    let lastGradeTrendRows = [];
+    let lastGradeTrendMode = 'student';
+    const examSearchLabels = {
+        all: '전체검색',
+        className: '반',
+        examName: '시험명',
+        subject: '과목',
+        examDate: '시험일시'
+    };
+
+    // XSRF-TOKEN 쿠키 값을 읽는다.
+    // Spring Security CSRF 설정이 쿠키 방식이므로 POST/PUT/DELETE 요청에 이 값을 헤더로 보내야 한다.
+    function getCsrfCookie() {
+        const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+        return match ? decodeURIComponent(match[1]) : null;
+    }
+
+    // CSRF 쿠키가 없으면 서버에서 먼저 발급받는다.
+    // GET /api/auth/csrf 는 SecurityConfig에서 허용되어 있다.
+    async function ensureCsrf() {
+        if (!getCsrfCookie()) {
+            await fetch('/api/auth/csrf');
+        }
+        return getCsrfCookie();
+    }
+
+    // JSON 요청 공통 함수
+    // 성적관리의 등록/수정 요청에서 CSRF 헤더 누락을 방지하기 위해 사용한다.
+    async function sendJson(url, method, body) {
+        return fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-XSRF-TOKEN': await ensureCsrf()
+            },
+            body: JSON.stringify(body)
+        });
+    }
+
+    // DELETE 요청 공통 함수
+    // 삭제 요청도 CSRF 검증 대상이므로 X-XSRF-TOKEN 헤더가 필요하다.
+    async function sendDelete(url) {
+        return fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'X-XSRF-TOKEN': await ensureCsrf()
+            }
+        });
+    }
+
+    // 화면 상태 메시지를 출력한다.
+    // alert 대신 페이지 안에서 결과를 보여줘서 반복 테스트가 덜 번거롭다.
+    function setStatus(message, isError = false) {
+        const status = document.getElementById('status');
+        status.innerText = message;
+        status.className = isError ? 'status error show' : 'status show';
+
+        // 이전 알림이 남아 있더라도 새 알림 기준으로 다시 닫히게 한다.
+        clearTimeout(status.dataset.timerId);
+        status.dataset.timerId = setTimeout(() => {
+            status.className = 'status';
+            status.innerText = '';
+        }, 4500);
+    }
+
+    // HTML 문자열 출력 시 특수문자로 인한 깨짐을 막는다.
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[ch]);
+    }
+
+    // 점수 입력값은 최소 0점, 지정된 최대 점수까지로 제한한다.
+    // 시험 만점 입력은 100점, 학생 점수 입력은 선택한 시험 만점을 최대값으로 사용한다.
+    function clampScoreValue(value, maxScore = 100) {
+        if (value === '' || value == null) {
+            return '';
+        }
+
+        const numberValue = Number(value);
+        const maxValue = Number(maxScore) > 0 ? Number(maxScore) : 100;
+        if (Number.isNaN(numberValue)) {
+            return '';
+        }
+        if (numberValue < 0) {
+            return 0;
+        }
+        if (numberValue > maxValue) {
+            return maxValue;
+        }
+        return numberValue;
+    }
+
+    // number input에 직접 연결하는 점수 제한 함수
+    function clampScoreInput(input) {
+        const limitedValue = clampScoreValue(input.value, input.dataset.maxScore || input.max || 100);
+        input.value = limitedValue === '' ? '' : limitedValue;
+    }
+
+    // 저장 직전에도 한 번 더 보정해서 서버에 100점을 넘는 값이 전달되지 않게 한다.
+    function getLimitedScoreInputValue(inputId) {
+        const input = document.getElementById(inputId);
+        clampScoreInput(input);
+        return Number(input.value);
+    }
+
+    // 현재 선택된 시험의 만점을 찾는다. 선택 시험이 없으면 기본 100점을 사용한다.
+    function getSelectedExamMaxScore() {
+        const selectedExam = examRows.find(row => Number(row.exam_id) === Number(selectedExamId));
+        return clampScoreValue(selectedExam?.total_score ?? 100);
+    }
+
+    // 시험일시 선택 팝업을 연다.
+    // 기존 선택값이 있으면 팝업 입력값에 먼저 채워 넣는다.
+    function openExamDatePicker() {
+        const examDate = document.getElementById('examDate').value;
+        const [dateValue, timeValue] = examDate ? examDate.split('T') : ['', ''];
+
+        document.getElementById('examDatePickerDate').value = dateValue || '';
+        document.getElementById('examDatePickerTime').value = timeValue || '';
+        document.getElementById('examDatePickerOverlay').classList.add('show');
+    }
+
+    // 시험일시 선택 팝업을 닫는다.
+    function closeExamDatePicker() {
+        document.getElementById('examDatePickerOverlay').classList.remove('show');
+    }
+
+    // 팝업에서 고른 날짜와 시간을 시험일시 입력값에 반영한다.
+    function applyExamDateSelection() {
+        const dateValue = document.getElementById('examDatePickerDate').value;
+        const timeValue = document.getElementById('examDatePickerTime').value;
+
+        if (!dateValue || !timeValue) {
+            setStatus('시험일과 시험시간을 모두 선택하세요.', true);
+            return;
+        }
+
+        setExamDateValue(dateValue + 'T' + timeValue);
+        closeExamDatePicker();
+        setStatus('시험일시를 선택했습니다: ' + document.getElementById('examDateDisplay').value);
+    }
+
+    // 서버 전송용 시험일시 값과 화면 표시값을 함께 갱신한다.
+    function setExamDateValue(value) {
+        document.getElementById('examDate').value = value || '';
+        document.getElementById('examDateDisplay').value = value ? formatKoreanDateTime(value) : '';
+    }
+
+    // 서버에서 내려온 시험일시를 사람이 읽기 쉬운 한국어 형식으로 바꾼다.
+    function formatKoreanDateTime(value) {
+        if (!value) {
+            return '';
+        }
+
+        const normalizedValue = String(value).replace(' ', 'T');
+        const date = new Date(normalizedValue);
+        if (Number.isNaN(date.getTime())) {
+            return value;
+        }
+
+        return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${date.getHours()}시 ${String(date.getMinutes()).padStart(2, '0')}분`;
+    }
+
+    // 시험 목록에 포함된 반 정보를 중복 없이 뽑아 직접 만든 선택 메뉴에 채운다.
+    // 입력값이 이미 있어도 토글을 누르면 전체 반 목록을 다시 선택할 수 있다.
+    function renderClassOptions() {
+        const classMap = new Map();
+        const sourceRows = classOptionRows.length > 0 ? classOptionRows : examRows;
+
+        sourceRows.forEach(row => {
+            if (row.class_id) {
+                classMap.set(String(row.class_id), row.class_name || '반 이름 없음');
+            }
+        });
+
+        const classOptions = Array.from(classMap.entries())
+            .sort((a, b) => a[1].localeCompare(b[1], 'ko'));
+
+        renderClassMenu('classIdMenu', 'classId', classOptions, false);
+        renderClassMenu('subjectGradeClassIdMenu', 'subjectGradeClassId', classOptions, true);
+        renderClassMenu('classAverageClassIdMenu', 'classAverageClassId', classOptions, true);
+        renderClassMenu('trendClassIdMenu', 'trendClassId', classOptions, false);
+    }
+
+    // 등록된 시험 과목을 선택 메뉴에 채운다.
+    // 과목명 직접 입력을 줄여 오타로 조회가 누락되는 일을 방지한다.
+    function renderSubjectOptions() {
+        const subjects = subjectOptionRows
+            .map(row => row.subject)
+            .filter(subject => subject);
+
+        renderSubjectMenu('subjectGradeSubjectMenu', 'subjectGradeSubject', subjects, false);
+        renderSubjectMenu('classAverageSubjectMenu', 'classAverageSubject', subjects, true);
+    }
+
+    // 과목 선택 메뉴를 그린다.
+    // includeEmpty가 true면 전체 과목 조건으로 조회할 수 있게 한다.
+    function renderSubjectMenu(menuId, inputId, subjects, includeEmpty) {
+        const menu = document.getElementById(menuId);
+        menu.innerHTML = '';
+
+        if (includeEmpty) {
+            menu.innerHTML += `<button type="button" onclick="selectSubjectOption('${inputId}', '')">전체 과목</button>`;
+        }
+
+        if (subjects.length === 0) {
+            menu.innerHTML += '<div class="empty-row">등록된 과목이 없습니다.</div>';
+            return;
+        }
+
+        subjects.forEach(subject => {
+            menu.innerHTML += `
+                <button type="button" data-subject="${escapeHtml(subject)}"
+                        onclick="selectSubjectOption('${inputId}', this.dataset.subject)">
+                    ${escapeHtml(subject)}
+                </button>
+            `;
+        });
+    }
+
+    // 과목 선택 메뉴를 열고 닫는다.
+    function toggleSubjectMenu(menuId) {
+        document.querySelectorAll('.class-picker-menu').forEach(menu => {
+            if (menu.id !== menuId) {
+                menu.classList.remove('show');
+            }
+        });
+
+        document.getElementById(menuId).classList.toggle('show');
+    }
+
+    // 과목 선택 메뉴에서 고른 과목명은 화면과 hidden 값에 함께 저장한다.
+    function selectSubjectOption(inputId, subject) {
+        const displayText = subject || '전체 과목';
+        document.getElementById(inputId).value = displayText;
+        document.getElementById(inputId + 'Value').value = subject;
+        document.querySelectorAll('.class-picker-menu').forEach(menu => menu.classList.remove('show'));
+    }
+
+    // 반 선택 메뉴를 그린다.
+    // includeEmpty가 true면 조회 조건에서 전체 반을 선택할 수 있게 빈 값 버튼을 추가한다.
+    function renderClassMenu(menuId, inputId, classOptions, includeEmpty) {
+        const menu = document.getElementById(menuId);
+        menu.innerHTML = '';
+
+        if (includeEmpty) {
+            menu.innerHTML += `<button type="button" onclick="selectClassOption('${inputId}', '')">전체 반</button>`;
+        }
+
+        if (classOptions.length === 0) {
+            menu.innerHTML += '<div class="empty-row">시험 목록에 등록된 반이 없습니다.</div>';
+            return;
+        }
+
+        classOptions.forEach(([classId, className]) => {
+            menu.innerHTML += `
+                <button type="button" onclick="selectClassOption('${inputId}', '${classId}', '${escapeHtml(className)}')">
+                    ${escapeHtml(className)}
+                </button>
+            `;
+        });
+    }
+
+    // 반 선택 메뉴를 열고 닫는다.
+    function toggleClassMenu(menuId) {
+        document.querySelectorAll('.class-picker-menu').forEach(menu => {
+            if (menu.id !== menuId) {
+                menu.classList.remove('show');
+            }
+        });
+
+        document.getElementById(menuId).classList.toggle('show');
+    }
+
+    // 반 선택 메뉴에서 고른 반명은 화면에, class_id는 숨김 값에 저장한다.
+    function selectClassOption(inputId, classId, className = '') {
+        document.getElementById(inputId).value = className;
+        document.getElementById(inputId + 'Value').value = classId;
+        document.querySelectorAll('.class-picker-menu').forEach(menu => menu.classList.remove('show'));
+
+        if (inputId === 'trendClassId') {
+            loadTrendSubjectOptions();
+        }
+    }
+
+    // 과목별 성적 조회의 학생 검색어가 바뀌면 hidden student_id를 초기화한다.
+    function handleSubjectGradeStudentSearchInput() {
+        document.getElementById('subjectGradeStudentId').value = '';
+        renderSubjectGradeStudentMenu(false);
+    }
+
+    // 과목별 성적 조회 학생 선택 메뉴를 연다.
+    function toggleSubjectGradeStudentMenu() {
+        const menu = document.getElementById('subjectGradeStudentMenu');
+        document.querySelectorAll('.class-picker-menu').forEach(item => {
+            if (item.id !== 'subjectGradeStudentMenu') {
+                item.classList.remove('show');
+            }
+        });
+
+        if (menu.classList.contains('show')) {
+            menu.classList.remove('show');
+            return;
+        }
+
+        renderSubjectGradeStudentMenu(true);
+    }
+
+    // 과목별 성적 조회 학생 자동완성 목록을 렌더링한다.
+    function renderSubjectGradeStudentMenu(showAll) {
+        const menu = document.getElementById('subjectGradeStudentMenu');
+        const keyword = document.getElementById('subjectGradeStudentSearch').value.trim().toLowerCase();
+
+        if (!showAll && !keyword) {
+            menu.classList.remove('show');
+            menu.innerHTML = '';
+            subjectGradeStudentMenuIndex = -1;
+            return;
+        }
+
+        const matchedRows = activeStudentOptions.filter(row => {
+            const text = `${row.student_name || ''} ${row.student_no || ''} ${row.school_name || ''}`.toLowerCase();
+            return showAll || text.includes(keyword);
+        });
+
+        menu.innerHTML = `<button type="button" onclick="selectSubjectGradeStudent('', '')">전체 학생</button>`;
+        menu.classList.add('show');
+        subjectGradeStudentMenuIndex = -1;
+
+        if (matchedRows.length === 0) {
+            menu.innerHTML += '<div class="empty-row">검색된 수강 학생이 없습니다.</div>';
+            return;
+        }
+
+        matchedRows.forEach(row => {
+            const label = `${row.student_name || '-'}${row.student_no ? ' / ' + row.student_no : ''}`;
+            menu.innerHTML += `
+                <button type="button" data-subject-grade-student-option="true"
+                        onclick="selectSubjectGradeStudent('${row.student_id}', '${escapeHtml(label)}')">
+                    ${escapeHtml(label)}
+                </button>
+            `;
+        });
+    }
+
+    // 과목별 성적 조회 학생 목록을 방향키와 Enter로 선택할 수 있게 한다.
+    function handleSubjectGradeStudentMenuKeydown(event) {
+        const menu = document.getElementById('subjectGradeStudentMenu');
+        const options = Array.from(menu.querySelectorAll('button[data-subject-grade-student-option="true"]'));
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (!menu.classList.contains('show')) {
+                renderSubjectGradeStudentMenu(true);
+                return;
+            }
+            setSubjectGradeStudentActiveOption(Math.min(subjectGradeStudentMenuIndex + 1, options.length - 1));
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setSubjectGradeStudentActiveOption(Math.max(subjectGradeStudentMenuIndex - 1, 0));
+        } else if (event.key === 'Enter' && menu.classList.contains('show')) {
+            event.preventDefault();
+            if (options[subjectGradeStudentMenuIndex]) {
+                options[subjectGradeStudentMenuIndex].click();
+            }
+        } else if (event.key === 'Escape') {
+            menu.classList.remove('show');
+        }
+    }
+
+    // 키보드로 선택 중인 과목별 조회 학생 항목을 표시한다.
+    function setSubjectGradeStudentActiveOption(index) {
+        const menu = document.getElementById('subjectGradeStudentMenu');
+        const options = Array.from(menu.querySelectorAll('button[data-subject-grade-student-option="true"]'));
+        if (options.length === 0 || index < 0) {
+            return;
+        }
+
+        subjectGradeStudentMenuIndex = index;
+        options.forEach((option, optionIndex) => {
+            option.classList.toggle('active', optionIndex === subjectGradeStudentMenuIndex);
+        });
+
+        options[subjectGradeStudentMenuIndex].scrollIntoView({block: 'nearest'});
+    }
+
+    // 과목별 성적 조회 학생 필터 선택값 저장
+    function selectSubjectGradeStudent(studentId, label) {
+        document.getElementById('subjectGradeStudentId').value = studentId;
+        document.getElementById('subjectGradeStudentSearch').value = label;
+        document.getElementById('subjectGradeStudentMenu').classList.remove('show');
+    }
+
+    // 학생명 검색어에 맞춰 성적 추이 학생 선택 메뉴를 다시 그린다.
+    // 선택 전까지는 hidden student_id를 비워 잘못된 학생으로 조회되지 않게 한다.
+    function handleTrendStudentSearchInput() {
+        document.getElementById('trendStudentId').value = '';
+        renderTrendStudentMenu(false);
+    }
+
+    // 학생 선택 메뉴를 토글한다.
+    // 입력값이 없어도 버튼을 누르면 전체 수강 학생을 볼 수 있다.
+    function toggleTrendStudentMenu() {
+        const menu = document.getElementById('trendStudentMenu');
+        document.querySelectorAll('.class-picker-menu').forEach(item => {
+            if (item.id !== 'trendStudentMenu') {
+                item.classList.remove('show');
+            }
+        });
+
+        if (menu.classList.contains('show')) {
+            menu.classList.remove('show');
+            return;
+        }
+
+        renderTrendStudentMenu(true);
+    }
+
+    // 학생명 자동완성 목록을 렌더링한다.
+    // 화면에는 이름/학생번호만 보여주고 student_id는 선택 시 hidden 값으로만 저장한다.
+    function renderTrendStudentMenu(showAll) {
+        const menu = document.getElementById('trendStudentMenu');
+        const keyword = document.getElementById('trendStudentSearch').value.trim().toLowerCase();
+
+        if (!showAll && !keyword) {
+            menu.classList.remove('show');
+            menu.innerHTML = '';
+            trendStudentMenuIndex = -1;
+            return;
+        }
+
+        const matchedRows = activeStudentOptions.filter(row => {
+            const text = `${row.student_name || ''} ${row.student_no || ''} ${row.school_name || ''}`.toLowerCase();
+            return showAll || text.includes(keyword);
+        });
+
+        menu.innerHTML = '';
+        menu.classList.add('show');
+        trendStudentMenuIndex = -1;
+
+        if (matchedRows.length === 0) {
+            menu.innerHTML = '<div class="empty-row">검색된 수강 학생이 없습니다.</div>';
+            return;
+        }
+
+        matchedRows.forEach(row => {
+            const label = `${row.student_name || '-'}${row.student_no ? ' / ' + row.student_no : ''}`;
+            menu.innerHTML += `
+                <button type="button" data-trend-student-option="true"
+                        onclick="selectTrendStudent('${row.student_id}', '${escapeHtml(label)}')">
+                    ${escapeHtml(label)}
+                </button>
+            `;
+        });
+    }
+
+    // 자동완성 목록을 방향키와 Enter로 선택할 수 있게 한다.
+    function handleTrendStudentMenuKeydown(event) {
+        const menu = document.getElementById('trendStudentMenu');
+        const options = Array.from(menu.querySelectorAll('button[data-trend-student-option="true"]'));
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (!menu.classList.contains('show')) {
+                renderTrendStudentMenu(true);
+                return;
+            }
+            setTrendStudentActiveOption(Math.min(trendStudentMenuIndex + 1, options.length - 1));
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setTrendStudentActiveOption(Math.max(trendStudentMenuIndex - 1, 0));
+        } else if (event.key === 'Enter' && menu.classList.contains('show')) {
+            event.preventDefault();
+            if (options[trendStudentMenuIndex]) {
+                options[trendStudentMenuIndex].click();
+            }
+        } else if (event.key === 'Escape') {
+            menu.classList.remove('show');
+        }
+    }
+
+    // 키보드로 선택 중인 자동완성 항목을 표시한다.
+    function setTrendStudentActiveOption(index) {
+        const menu = document.getElementById('trendStudentMenu');
+        const options = Array.from(menu.querySelectorAll('button[data-trend-student-option="true"]'));
+        if (options.length === 0) {
+            return;
+        }
+
+        trendStudentMenuIndex = index;
+        options.forEach((option, optionIndex) => {
+            option.classList.toggle('active', optionIndex === trendStudentMenuIndex);
+        });
+
+        options[trendStudentMenuIndex].scrollIntoView({block: 'nearest'});
+    }
+
+    // 학생 자동완성에서 선택한 학생명은 화면에, student_id는 hidden 값에 저장한다.
+    function selectTrendStudent(studentId, label) {
+        document.getElementById('trendStudentId').value = studentId;
+        document.getElementById('trendStudentSearch').value = label;
+        document.getElementById('trendStudentMenu').classList.remove('show');
+        loadTrendSubjectOptions();
+    }
+
+    // 성적 추이 과목 선택값을 전체 과목 상태로 되돌린다.
+    function resetTrendSubject() {
+        document.getElementById('trendSubject').value = '전체 과목';
+        document.getElementById('trendSubjectValue').value = '';
+    }
+
+    // 선택된 학생 또는 반을 기준으로 실제 성적이 있는 과목 목록을 불러온다.
+    async function loadTrendSubjectOptions() {
+        resetTrendSubject();
+        trendSubjectOptions = [];
+
+        const mode = getTrendMode();
+        const studentId = document.getElementById('trendStudentId').value;
+        const classId = document.getElementById('trendClassIdValue').value;
+
+        if (mode === 'student' && !studentId) {
+            renderTrendSubjectMenu(false);
+            return;
+        }
+
+        if (mode === 'class' && !classId) {
+            renderTrendSubjectMenu(false);
+            return;
+        }
+
+        const params = new URLSearchParams();
+        if (mode === 'student') {
+            params.append('studentId', studentId);
+        } else {
+            params.append('classId', classId);
+        }
+
+        const res = await fetch('/api/grades/trend-subjects?' + params.toString());
+        if (!res.ok) {
+            setStatus('성적 추이 과목 목록을 불러오지 못했습니다.', true);
+            return;
+        }
+
+        const rows = await res.json();
+        trendSubjectOptions = rows
+            .map(row => row.subject)
+            .filter(subject => subject);
+        renderTrendSubjectMenu(false);
+    }
+
+    // 성적 추이 과목 토글 메뉴를 열고 닫는다.
+    function toggleTrendSubjectMenu() {
+        const menu = document.getElementById('trendSubjectMenu');
+        document.querySelectorAll('.class-picker-menu').forEach(item => {
+            if (item.id !== 'trendSubjectMenu') {
+                item.classList.remove('show');
+            }
+        });
+
+        if (menu.classList.contains('show')) {
+            menu.classList.remove('show');
+            return;
+        }
+
+        renderTrendSubjectMenu(true);
+    }
+
+    // 성적 추이 과목 메뉴를 렌더링한다.
+    // 전체 과목은 항상 첫 항목으로 두고, 이후 실제 시험 과목을 보여준다.
+    function renderTrendSubjectMenu(showMenu) {
+        const menu = document.getElementById('trendSubjectMenu');
+        menu.innerHTML = `<button type="button" onclick="selectTrendSubject('')">전체 과목</button>`;
+
+        if (trendSubjectOptions.length === 0) {
+            menu.innerHTML += '<div class="empty-row">선택 가능한 과목이 없습니다.</div>';
+        } else {
+            trendSubjectOptions.forEach(subject => {
+                menu.innerHTML += `
+                    <button type="button" data-subject="${escapeHtml(subject)}"
+                            onclick="selectTrendSubject(this.dataset.subject)">
+                        ${escapeHtml(subject)}
+                    </button>
+                `;
+            });
+        }
+
+        menu.classList.toggle('show', showMenu);
+    }
+
+    // 성적 추이 과목 토글에서 고른 과목을 저장한다.
+    function selectTrendSubject(subject) {
+        document.getElementById('trendSubjectValue').value = subject;
+        document.getElementById('trendSubject').value = subject || '전체 과목';
+        document.getElementById('trendSubjectMenu').classList.remove('show');
+    }
+
+    // 시험 등록 또는 수정 요청
+    async function saveExam() {
+        const classId = document.getElementById('classIdValue').value;
+        if (!classId) {
+            setStatus('시험을 등록할 반을 선택하세요.', true);
+            return;
+        }
+
+        const body = {
+            classId: Number(classId),
+            examName: document.getElementById('examName').value,
+            subject: document.getElementById('subject').value,
+            examDate: document.getElementById('examDate').value,
+            totalScore: getLimitedScoreInputValue('totalScore')
+        };
+
+        const url = editingExamId ? '/api/exams/' + editingExamId : '/api/exams';
+        const method = editingExamId ? 'PUT' : 'POST';
+
+        const res = await sendJson(url, method, body);
+        const text = await res.text();
+
+        if (!res.ok) {
+            setStatus('시험 저장에 실패했습니다. 반, 시험명, 시험일시를 확인해주세요.', true);
+            return;
+        }
+
+        setStatus(editingExamId ? '시험 정보를 수정했습니다.' : '시험을 등록했습니다.');
+        resetExamForm();
+        await loadSubjectOptions();
+        loadExams();
+    }
+
+    // 현재 입력값으로 새 시험을 등록한다.
+    // 기존 시험을 선택한 상태라도 editingExamId를 사용하지 않고 POST로 신규 등록한다.
+    async function createExamFromForm() {
+        const classId = document.getElementById('classIdValue').value;
+        if (!classId) {
+            setStatus('새 시험을 등록할 반을 선택하세요.', true);
+            return;
+        }
+
+        const body = {
+            classId: Number(classId),
+            examName: document.getElementById('examName').value,
+            subject: document.getElementById('subject').value,
+            examDate: document.getElementById('examDate').value,
+            totalScore: getLimitedScoreInputValue('totalScore')
+        };
+
+        const res = await sendJson('/api/exams', 'POST', body);
+        await res.text();
+
+        if (!res.ok) {
+            setStatus('새 시험 등록에 실패했습니다. 입력값을 확인해주세요.', true);
+            return;
+        }
+
+        setStatus('새 시험을 등록했습니다.');
+        resetExamForm();
+        await loadSubjectOptions();
+        loadExams();
+    }
+
+    // 시험 입력 폼을 신규 등록 상태로 되돌린다.
+    function resetExamForm() {
+        editingExamId = null;
+        document.getElementById('classId').value = '';
+        document.getElementById('classIdValue').value = '';
+        document.getElementById('examName').value = '';
+        document.getElementById('subject').value = '';
+        setExamDateValue('');
+        document.getElementById('totalScore').value = '100';
+        document.getElementById('saveExamButton').innerText = '시험 등록';
+        document.getElementById('deleteExamButton').disabled = true;
+    }
+
+    // 시험 삭제 실패 메시지를 사용자에게 보여줄 문장으로 바꾼다.
+    // DB 제약조건명이나 SQL 오류가 화면에 그대로 노출되지 않도록 처리한다.
+    function getExamDeleteErrorMessage(errorText) {
+        if (errorText.includes('grades_exam_id_fkey') || errorText.includes('still referenced from table "grades"')) {
+            return '남아있는 성적이 존재해 삭제할 수 없습니다. 성적을 삭제 후 다시 시도해주세요.';
+        }
+
+        return '시험 삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+    }
+
+    // 선택된 시험을 삭제한다.
+    // 연결된 성적이 있으면 사용자용 안내 문구를 표시한다.
+    async function deleteExam() {
+        if (!editingExamId) {
+            setStatus('삭제할 시험을 먼저 선택하세요.', true);
+            return;
+        }
+
+        if (!confirm('선택한 시험을 삭제할까요? 연결된 성적이 있으면 삭제가 실패할 수 있습니다.')) {
+            return;
+        }
+
+        const res = await sendDelete('/api/exams/' + editingExamId);
+        const text = await res.text();
+
+        if (!res.ok) {
+            setStatus(getExamDeleteErrorMessage(text), true);
+            return;
+        }
+
+        setStatus('시험을 삭제했습니다.');
+        selectedExamId = null;
+        resetExamForm();
+        clearSelectedExamArea();
+        await loadSubjectOptions();
+        loadExams();
+    }
+
+    // 선택 시험 영역을 초기화한다.
+    function clearSelectedExamArea() {
+        document.getElementById('selectedExamInfo').innerText = '선택한 시험이 없습니다.';
+        document.getElementById('studentGradeList').innerHTML =
+            '<tr><td colspan="5" class="empty-row">시험을 선택하면 학생 목록이 표시됩니다.</td></tr>';
+        document.getElementById('gradeList').innerHTML =
+            '<tr><td colspan="4" class="empty-row">시험을 선택하면 입력된 성적이 표시됩니다.</td></tr>';
+    }
+
+    // 성적 입력 카드 내부 탭 전환
+    function showGradeInputTab(tabName) {
+        document.querySelectorAll('[data-grade-input-tab]').forEach(button => {
+            button.classList.toggle('active', button.dataset.gradeInputTab === tabName);
+        });
+        document.getElementById('gradeInputPane').classList.toggle('active', tabName === 'input');
+        document.getElementById('gradeStatusPane').classList.toggle('active', tabName === 'status');
+    }
+
+    // 반/학생/과목 선택 목록을 먼저 불러온다.
+    // 화면에는 이름을 보여주고, 저장·조회 요청에는 숨겨둔 PK만 사용한다.
+    async function loadGradeOptions() {
+        const [classRes, studentRes] = await Promise.all([
+            fetch('/api/grades/classes'),
+            fetch('/api/grades/students')
+        ]);
+
+        if (classRes.ok) {
+            classOptionRows = await classRes.json();
+            renderClassOptions();
+        } else {
+            setStatus('반 선택 목록을 불러오지 못했습니다.', true);
+        }
+
+        if (studentRes.ok) {
+            activeStudentOptions = await studentRes.json();
+        } else {
+            setStatus('학생 선택 목록을 불러오지 못했습니다.', true);
+        }
+
+        await loadSubjectOptions();
+    }
+
+    // 현재 등록된 시험 과목 목록을 불러온다.
+    async function loadSubjectOptions() {
+        const subjectRes = await fetch('/api/grades/subject-options');
+        if (subjectRes.ok) {
+            subjectOptionRows = await subjectRes.json();
+            renderSubjectOptions();
+        } else {
+            setStatus('과목 선택 목록을 불러오지 못했습니다.', true);
+        }
+    }
+
+    // 시험 목록 조회 요청
+    async function loadExams() {
+        const res = await fetch('/api/exams');
+
+        if (!res.ok) {
+            setStatus('시험 목록 조회에 실패했습니다.', true);
+            return;
+        }
+
+        examRows = await res.json();
+        renderClassOptions();
+        applyExamListView();
+        await refreshMissingExamStatus();
+    }
+
+    // 시험 목록 검색과 정렬을 적용한 뒤 테이블을 다시 그린다.
+    function applyExamListView() {
+        filteredExamRows = examRows
+            .filter(row => isExamSearchMatched(row))
+            .sort(compareExamRows);
+
+        currentExamPage = 1;
+        renderExamRows();
+        renderExamSortIndicators();
+    }
+
+    // 선택한 검색 카테고리에 맞는 항목만 남긴다.
+    function isExamSearchMatched(row) {
+        const keyword = document.getElementById('examSearchKeyword').value.trim().toLowerCase();
+        if (!keyword) {
+            return true;
+        }
+
+        const searchValues = {
+            all: [row.class_name, row.exam_name, row.subject, row.exam_date, row.total_score],
+            className: [row.class_name],
+            examName: [row.exam_name],
+            subject: [row.subject],
+            examDate: [row.exam_date]
+        };
+
+        return (searchValues[examSearchType] || searchValues.all)
+            .some(value => String(value ?? '').toLowerCase().includes(keyword));
+    }
+
+    // 시험 목록 정렬 기준을 바꾼다.
+    // 같은 제목을 다시 누르면 오름차순/내림차순이 번갈아 적용된다.
+    function setExamSort(sortKey) {
+        if (examSortKey === sortKey) {
+            examSortDirection = examSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            examSortKey = sortKey;
+            examSortDirection = sortKey === 'exam_date' ? 'desc' : 'asc';
+        }
+
+        applyExamListView();
+    }
+
+    // 현재 정렬 상태에 따라 두 시험 행의 순서를 비교한다.
+    function compareExamRows(a, b) {
+        if (!examSortKey) {
+            return 0;
+        }
+
+        let result = 0;
+        if (examSortKey === 'exam_id') {
+            result = Number(a.exam_id) - Number(b.exam_id);
+        } else if (examSortKey === 'exam_date') {
+            result = new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime();
+        } else {
+            result = String(a[examSortKey] ?? '').localeCompare(String(b[examSortKey] ?? ''), 'ko');
+        }
+
+        return examSortDirection === 'asc' ? result : -result;
+    }
+
+    // 정렬 중인 제목 옆에 방향 표시를 보여준다.
+    function renderExamSortIndicators() {
+        ['class_name', 'exam_name', 'subject', 'exam_date'].forEach(key => {
+            const indicator = document.getElementById('sort_' + key);
+            if (!indicator) {
+                return;
+            }
+
+            indicator.innerText = examSortKey === key ? (examSortDirection === 'asc' ? '▲' : '▼') : '↕';
+            indicator.classList.toggle('active', examSortKey === key);
+        });
+    }
+
+    // 시험 목록 검색 카테고리 메뉴를 열고 닫는다.
+    function toggleExamSearchMenu() {
+        document.getElementById('examSearchMenu').classList.toggle('show');
+    }
+
+    // 검색 카테고리를 변경하고 현재 검색어로 다시 조회한다.
+    function setExamSearchType(type) {
+        examSearchType = type;
+        document.getElementById('examSearchTypeLabel').innerText = examSearchLabels[type];
+        document.getElementById('examSearchMenu').classList.remove('show');
+        applyExamListView();
+    }
+
+    // 조회된 시험 목록을 화면 테이블에 출력한다.
+    function renderExamRows() {
+        const tbody = document.getElementById('examList');
+        tbody.innerHTML = '';
+
+        if (filteredExamRows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-row">조회된 시험이 없습니다.</td></tr>';
+            renderExamPagination();
+            return;
+        }
+
+        const startIndex = (currentExamPage - 1) * examPageSize;
+        const pageRows = filteredExamRows.slice(startIndex, startIndex + examPageSize);
+
+        pageRows.forEach(row => {
+            const selectedClass = Number(row.exam_id) === Number(selectedExamId) ? ' class="selected"' : '';
+            tbody.innerHTML += `
+                <tr${selectedClass} onclick="selectExam(${row.exam_id})">
+                    <td>${escapeHtml(row.class_name)}</td>
+                    <td>${escapeHtml(row.exam_name)}</td>
+                    <td>${escapeHtml(row.subject || '')}</td>
+                    <td>${formatKoreanDateTime(row.exam_date)}</td>
+                    <td>${row.total_score}</td>
+                </tr>
+            `;
+        });
+
+        renderExamPagination();
+    }
+
+    // 시험 목록 페이지 번호를 출력한다.
+    function renderExamPagination() {
+        const pagination = document.getElementById('examPagination');
+        pagination.innerHTML = '';
+
+        const totalPages = Math.ceil(filteredExamRows.length / examPageSize);
+        if (totalPages <= 1) {
+            return;
+        }
+
+        const pageGroupStart = Math.floor((currentExamPage - 1) / maxVisiblePages) * maxVisiblePages + 1;
+        const pageGroupEnd = Math.min(totalPages, pageGroupStart + maxVisiblePages - 1);
+
+        pagination.innerHTML += `
+            <button class="page-btn" onclick="goExamPage(${currentExamPage - 1})" ${currentExamPage === 1 ? 'disabled' : ''}>이전</button>
+        `;
+
+        for (let page = pageGroupStart; page <= pageGroupEnd; page++) {
+            const activeClass = page === currentExamPage ? ' active' : '';
+            pagination.innerHTML += `
+                <button class="page-btn${activeClass}" onclick="goExamPage(${page})">${page}</button>
+            `;
+        }
+
+        pagination.innerHTML += `
+            <button class="page-btn" onclick="goExamPage(${currentExamPage + 1})" ${currentExamPage === totalPages ? 'disabled' : ''}>다음</button>
+        `;
+    }
+
+    // 선택한 페이지로 이동한다.
+    function goExamPage(page) {
+        const totalPages = Math.ceil(filteredExamRows.length / examPageSize);
+        if (page < 1 || page > totalPages) {
+            return;
+        }
+
+        currentExamPage = page;
+        renderExamRows();
+    }
+
+    // 시험 목록에서 시험을 클릭했을 때 실행한다.
+    async function selectExam(examId) {
+        selectedExamId = examId;
+        editingExamId = examId;
+
+        const selectedExam = examRows.find(row => Number(row.exam_id) === Number(examId));
+
+        if (selectedExam) {
+            document.getElementById('classId').value = selectedExam.class_name || '';
+            document.getElementById('classIdValue').value = selectedExam.class_id || '';
+            document.getElementById('examName').value = selectedExam.exam_name;
+            document.getElementById('subject').value = selectedExam.subject || '';
+            setExamDateValue(formatExamDateForInput(selectedExam.exam_date));
+            document.getElementById('totalScore').value = clampScoreValue(selectedExam.total_score);
+            document.getElementById('saveExamButton').innerText = '시험 수정';
+            document.getElementById('deleteExamButton').disabled = false;
+            document.getElementById('selectedExamInfo').innerText =
+                '선택한 시험: ' + selectedExam.class_name + ' / ' +
+                selectedExam.exam_name + ' / ' + formatKoreanDateTime(selectedExam.exam_date);
+        }
+
+        renderExamRows();
+        await loadStudentGradeRows();
+        await loadGradesByExam();
+    }
+
+    // DB에서 내려온 시험일시 값을 datetime-local 입력값 형식으로 맞춘다.
+    // 브라우저 input은 yyyy-MM-ddTHH:mm 형태를 기대한다.
+    function formatExamDateForInput(value) {
+        if (!value) {
+            return '';
+        }
+
+        const normalizedValue = String(value).replace(' ', 'T');
+        const date = new Date(normalizedValue);
+        if (Number.isNaN(date.getTime())) {
+            return String(value).substring(0, 16);
+        }
+
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+
+    // 선택한 시험의 수강 학생 목록 + 기존 성적 조회
+    async function loadStudentGradeRows() {
+        if (!selectedExamId) {
+            clearSelectedExamArea();
+            return;
+        }
+
+        const res = await fetch('/api/exams/' + selectedExamId + '/students');
+
+        if (!res.ok) {
+            setStatus('학생별 성적 입력 목록 조회에 실패했습니다.', true);
+            return;
+        }
+
+        const data = await res.json();
+        const tbody = document.getElementById('studentGradeList');
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-row">이 시험의 반에 등록된 수강 학생이 없습니다.</td></tr>';
+            return;
+        }
+
+        // grade_id 유무로 신규 등록과 수정 요청을 나눠서 처리한다.
+        data.forEach(row => {
+            tbody.innerHTML += `
+                <tr data-student-grade-row="true"
+                    data-student-id="${row.student_id}"
+                    data-grade-id="${row.grade_id || ''}">
+                    <td>${escapeHtml(row.student_name || '')}</td>
+                    <td>${escapeHtml(row.student_no || '')}</td>
+                    <td><input id="studentScore_${row.student_id}" type="number" min="0" max="${getSelectedExamMaxScore()}" data-max-score="${getSelectedExamMaxScore()}" value="${row.score || ''}" oninput="clampScoreInput(this)"></td>
+                    <td><input id="studentComment_${row.student_id}" value="${escapeHtml(row.comment || '')}"></td>
+                    <td>
+                        <button class="grade-btn" onclick="saveStudentGrade(${row.student_id}, ${row.grade_id || 'null'})">저장</button>
+                        <button class="grade-btn danger" onclick="deleteStudentGrade(${row.grade_id || 'null'})" ${row.grade_id ? '' : 'disabled'}>삭제</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // 전체 시험 중 아직 입력이 끝나지 않은 시험만 모아 입력현황 탭에 표시한다.
+    async function refreshMissingExamStatus() {
+        const summary = document.getElementById('gradeInputSummary');
+        const tbody = document.getElementById('missingGradeList');
+
+        if (!examRows.length) {
+            missingExamRows = [];
+            summary.innerHTML = '';
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-row">등록된 시험이 없습니다.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-row">미입력 시험 현황을 불러오는 중입니다.</td></tr>';
+
+        const statusRows = await Promise.all(examRows.map(async exam => {
+            try {
+                const res = await fetch('/api/exams/' + exam.exam_id + '/students');
+                if (!res.ok) {
+                    return null;
+                }
+                const students = await res.json();
+                const totalCount = students.length;
+                const missingCount = students.filter(student => !student.grade_id).length;
+                return { ...exam, totalCount, missingCount };
+            } catch (e) {
+                return null;
+            }
+        }));
+
+        missingExamRows = statusRows
+            .filter(row => row && row.totalCount > 0 && row.missingCount > 0)
+            .sort((a, b) => new Date(b.exam_date) - new Date(a.exam_date));
+
+        summary.innerHTML = `
+            <span class="status-pill">전체 시험 ${examRows.length}개</span>
+            <span class="status-pill warning">미입력 시험 ${missingExamRows.length}개</span>
+        `;
+
+        if (!missingExamRows.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-row">성적 입력이 필요한 시험이 없습니다.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = missingExamRows.map(row => `
+            <tr class="missing-exam-row" onclick="openMissingExam(${row.exam_id})">
+                <td>${escapeHtml(row.class_name || '')}</td>
+                <td>${escapeHtml(row.exam_name || '')}</td>
+                <td>${escapeHtml(row.subject || '')}</td>
+                <td>${formatKoreanDateTime(row.exam_date)}</td>
+                <td><span class="status-pill warning">${row.missingCount}명 / 총 ${row.totalCount}명</span></td>
+            </tr>
+        `).join('');
+    }
+
+    // 미입력 시험을 클릭하면 해당 시험을 선택하고 바로 성적 입력 탭으로 이동한다.
+    async function openMissingExam(examId) {
+        await selectExam(examId);
+        showGradeInputTab('input');
+        document.getElementById('selectedExamInfo').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // 학생별 성적 저장
+    // gradeId가 있으면 PUT으로 수정하고, 없으면 POST로 신규 등록한다.
+    async function saveStudentGrade(studentId, gradeId) {
+        if (!selectedExamId) {
+            setStatus('먼저 시험 목록에서 시험을 선택하세요.', true);
+            return;
+        }
+
+        const body = {
+            examId: selectedExamId,
+            studentId: studentId,
+            score: getLimitedScoreInputValue('studentScore_' + studentId),
+            comment: document.getElementById('studentComment_' + studentId).value
+        };
+
+        const url = gradeId ? '/api/grades/' + gradeId : '/api/grades';
+        const method = gradeId ? 'PUT' : 'POST';
+        const res = await sendJson(url, method, body);
+        const text = await res.text();
+
+        if (!res.ok) {
+            setStatus('성적 저장에 실패했습니다. 점수 입력값을 확인해주세요.', true);
+            return;
+        }
+
+        setStatus('성적을 저장했습니다.');
+        await loadStudentGradeRows();
+        await refreshMissingExamStatus();
+        loadGradesByExam();
+    }
+
+    // 현재 입력된 학생 점수와 비고를 한 번에 저장한다.
+    // 점수가 비어 있는 행은 0점으로 잘못 저장되지 않도록 제외한다.
+    async function saveAllStudentGrades() {
+        if (!selectedExamId) {
+            setStatus('먼저 시험 목록에서 시험을 선택하세요.', true);
+            return;
+        }
+
+        const rows = Array.from(document.querySelectorAll('tr[data-student-grade-row="true"]'));
+        const gradeRows = rows
+            .map(row => {
+                const studentId = row.dataset.studentId;
+                const scoreInput = document.getElementById('studentScore_' + studentId);
+                const commentInput = document.getElementById('studentComment_' + studentId);
+
+                if (!scoreInput || scoreInput.value === '') {
+                    return null;
+                }
+
+                return {
+                    gradeId: row.dataset.gradeId ? Number(row.dataset.gradeId) : null,
+                    examId: selectedExamId,
+                    studentId: Number(studentId),
+                    score: getLimitedScoreInputValue('studentScore_' + studentId),
+                    comment: commentInput ? commentInput.value : ''
+                };
+            })
+            .filter(row => row !== null);
+
+        if (gradeRows.length === 0) {
+            setStatus('일괄 저장할 점수가 입력된 학생이 없습니다.', true);
+            return;
+        }
+
+        const res = await sendJson('/api/grades/batch', 'POST', gradeRows);
+        await res.text();
+
+        if (!res.ok) {
+            setStatus('성적 일괄 저장에 실패했습니다. 입력값을 확인해주세요.', true);
+            return;
+        }
+
+        setStatus(`${gradeRows.length}명의 성적을 일괄 저장했습니다.`);
+        await loadStudentGradeRows();
+        await refreshMissingExamStatus();
+        loadGradesByExam();
+    }
+
+    // 학생별 입력 영역에서 성적 삭제
+    async function deleteStudentGrade(gradeId) {
+        if (!gradeId) {
+            setStatus('아직 저장된 성적이 없습니다.', true);
+            return;
+        }
+
+        if (!confirm('이 성적을 삭제할까요?')) {
+            return;
+        }
+
+        const res = await sendDelete('/api/grades/' + gradeId);
+        const text = await res.text();
+
+        if (!res.ok) {
+            setStatus('성적 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.', true);
+            return;
+        }
+
+        setStatus('성적을 삭제했습니다.');
+        await loadStudentGradeRows();
+        await refreshMissingExamStatus();
+        loadGradesByExam();
+    }
+
+    // 선택한 시험 기준으로 성적 확인 목록을 조회한다.
+    async function loadGradesByExam() {
+        const tbody = document.getElementById('gradeList');
+
+        if (!selectedExamId) {
+            gradeCheckRows = [];
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-row">시험을 선택하면 입력된 성적이 표시됩니다.</td></tr>';
+            return;
+        }
+
+        const res = await fetch('/api/exams/' + selectedExamId + '/grades');
+
+        if (!res.ok) {
+            setStatus('성적 확인 목록 조회에 실패했습니다.', true);
+            return;
+        }
+
+        gradeCheckRows = await res.json();
+        renderGradeCheckRows();
+    }
+
+    // 성적 확인 표의 정렬 기준을 바꾼다.
+    // 같은 헤더를 다시 누르면 오름차순/내림차순이 번갈아 적용된다.
+    function setGradeCheckSort(sortKey) {
+        if (gradeCheckSortKey === sortKey) {
+            gradeCheckSortDirection = gradeCheckSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            gradeCheckSortKey = sortKey;
+            gradeCheckSortDirection = sortKey === 'rank_no' ? 'asc' : 'desc';
+        }
+
+        renderGradeCheckRows();
+    }
+
+    // 성적 확인 표를 현재 정렬 상태에 맞춰 다시 그린다.
+    function renderGradeCheckRows() {
+        const tbody = document.getElementById('gradeList');
+        tbody.innerHTML = '';
+
+        if (gradeCheckRows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-row">아직 입력된 성적이 없습니다.</td></tr>';
+            renderGradeCheckSortIndicators();
+            return;
+        }
+
+        const rows = [...gradeCheckRows].sort(compareGradeCheckRows);
+        rows.forEach(row => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${escapeHtml(row.student_name || '')}</td>
+                    <td>${row.score}</td>
+                    <td>${row.rank_no || ''}</td>
+                    <td>${escapeHtml(row.comment || '')}</td>
+                </tr>
+            `;
+        });
+
+        renderGradeCheckSortIndicators();
+    }
+
+    // 성적 확인 표의 행 비교 함수
+    function compareGradeCheckRows(a, b) {
+        if (!gradeCheckSortKey) {
+            return 0;
+        }
+
+        let result = 0;
+        if (gradeCheckSortKey === 'score' || gradeCheckSortKey === 'rank_no') {
+            result = Number(a[gradeCheckSortKey] ?? 0) - Number(b[gradeCheckSortKey] ?? 0);
+        } else {
+            result = String(a[gradeCheckSortKey] ?? '').localeCompare(String(b[gradeCheckSortKey] ?? ''), 'ko');
+        }
+
+        return gradeCheckSortDirection === 'asc' ? result : -result;
+    }
+
+    // 성적 확인 표 헤더에 현재 정렬 방향을 표시한다.
+    function renderGradeCheckSortIndicators() {
+        ['student_name', 'score', 'rank_no'].forEach(key => {
+            const indicator = document.getElementById('gradeSort_' + key);
+            if (!indicator) {
+                return;
+            }
+
+            indicator.innerText = gradeCheckSortKey === key ? (gradeCheckSortDirection === 'asc' ? '▲' : '▼') : '↕';
+            indicator.classList.toggle('active', gradeCheckSortKey === key);
+        });
+    }
+
+    // 과목별 성적 조회
+    // 과목명은 필수이고, 반/학생을 선택한 경우에만 추가 필터로 사용한다.
+    async function loadGradesBySubject() {
+        const subject = document.getElementById('subjectGradeSubjectValue').value;
+        const classId = document.getElementById('subjectGradeClassIdValue').value;
+        const studentId = document.getElementById('subjectGradeStudentId').value;
+        const tbody = document.getElementById('subjectGradeList');
+
+        if (!subject) {
+            setStatus('과목별 성적을 조회할 과목을 선택하세요.', true);
+            return;
+        }
+
+        const params = new URLSearchParams();
+        params.append('subject', subject);
+        if (classId) {
+            params.append('classId', classId);
+        }
+        if (studentId) {
+            params.append('studentId', studentId);
+        }
+
+        const res = await fetch('/api/grades/subjects?' + params.toString());
+
+        if (!res.ok) {
+            setStatus('과목별 성적 조회에 실패했습니다. 과목과 반 입력값을 확인해주세요.', true);
+            return;
+        }
+
+        const data = await res.json();
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-row">조회된 과목별 성적이 없습니다.</td></tr>';
+            return;
+        }
+
+        data.forEach(row => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${escapeHtml(row.subject || '')}</td>
+                    <td>${escapeHtml(row.exam_name || '')}</td>
+                    <td>${escapeHtml(row.class_name || '')}</td>
+                    <td>${escapeHtml(row.student_name || '')}</td>
+                    <td>${row.score}</td>
+                    <td>${row.total_score}</td>
+                    <td>${row.rank_no || ''}</td>
+                    <td>${formatKoreanDateTime(row.exam_date)}</td>
+                </tr>
+            `;
+        });
+    }
+
+    // 반 평균 조회
+    // 반을 선택하지 않으면 전체 반을 조회하고, 과목을 입력하면 해당 과목 시험만 평균 계산에 사용한다.
+    async function loadClassAverageStats() {
+        const classId = document.getElementById('classAverageClassIdValue').value;
+        const subject = document.getElementById('classAverageSubjectValue').value;
+        const tbody = document.getElementById('classAverageList');
+
+        const params = new URLSearchParams();
+        if (classId) {
+            params.append('classId', classId);
+        }
+        if (subject) {
+            params.append('subject', subject);
+        }
+
+        const queryString = params.toString();
+        const url = '/api/grades/class-averages' + (queryString ? '?' + queryString : '');
+        const res = await fetch(url);
+
+        if (!res.ok) {
+            setStatus('반 평균 조회에 실패했습니다. 반과 과목 입력값을 확인해주세요.', true);
+            return;
+        }
+
+        const data = await res.json();
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty-row">조회된 반 평균이 없습니다.</td></tr>';
+            showClassAverageChartMessage('조회된 반 평균이 없습니다.');
+            return;
+        }
+
+        renderClassAverageChart(data);
+
+        data.forEach(row => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${escapeHtml(row.class_name)}</td>
+                    <td>${row.student_count ?? '-'}</td>
+                    <td>${row.grade_count}</td>
+                    <td>${row.average_score ?? '-'}</td>
+                    <td>${row.highest_score ?? '-'}</td>
+                    <td>${row.lowest_score ?? '-'}</td>
+                    <td>${row.average_rate == null ? '-' : row.average_rate + '%'}</td>
+                </tr>
+            `;
+        });
+    }
+
+    // 기존 반 평균 차트를 정리한다.
+    function destroyClassAverageChart() {
+        if (classAverageChart) {
+            classAverageChart.destroy();
+            classAverageChart = null;
+        }
+    }
+
+    // 반 평균 차트 영역에 안내 문구를 표시한다.
+    function showClassAverageChartMessage(message) {
+        destroyClassAverageChart();
+        document.getElementById('classAverageChart').innerHTML = `<div class="empty-row">${message}</div>`;
+    }
+
+    // 반별 평균점수를 막대 차트로 표시한다.
+    function renderClassAverageChart(data) {
+        const chart = document.getElementById('classAverageChart');
+        destroyClassAverageChart();
+        chart.innerHTML = '<canvas id="classAverageChartCanvas"></canvas>';
+
+        const labels = data.map(row => row.class_name || '-');
+        const averages = data.map(row => Number(row.average_score || 0));
+        const ctx = document.getElementById('classAverageChartCanvas');
+
+        classAverageChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: '평균점수',
+                    data: averages,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, .72)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        align: 'start',
+                        labels: {
+                            boxWidth: 12,
+                            color: '#1e3a8a',
+                            font: { weight: '700' }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const row = data[context.dataIndex];
+                                return `평균점수: ${row.average_score ?? '-'}점`;
+                            },
+                            afterLabel(context) {
+                                const row = data[context.dataIndex];
+                                return `성적 수: ${row.grade_count ?? 0}개`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: 100,
+                        grid: { color: '#e5e7eb' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // 성적 추이 조회 모드를 학생별/반별로 전환한다.
+    function changeTrendMode() {
+        const mode = getTrendMode();
+        document.getElementById('trendStudentField').style.display = mode === 'student' ? 'block' : 'none';
+        document.getElementById('trendClassField').style.display = mode === 'class' ? 'block' : 'none';
+        document.getElementById('trendInfo').style.display = 'none';
+        document.getElementById('trendInfo').innerText = '';
+        lastGradeTrendRows = [];
+        lastGradeTrendMode = mode;
+        showTrendChartMessage('성적 추이를 조회하면 차트가 표시됩니다.');
+        document.getElementById('trendList').innerHTML = '';
+        resetTrendSubject();
+        loadTrendSubjectOptions();
+    }
+
+    // 현재 선택된 성적 추이 조회 기준을 반환한다.
+    function getTrendMode() {
+        return document.querySelector('input[name="trendMode"]:checked').value;
+    }
+
+    // 학생별 또는 반별 성적 추이 조회
+    async function loadGradeTrend() {
+        const mode = getTrendMode();
+        const studentId = document.getElementById('trendStudentId').value;
+        const classId = document.getElementById('trendClassIdValue').value;
+        const subject = document.getElementById('trendSubjectValue').value;
+        const chart = document.getElementById('trendChart');
+
+        if (mode === 'student' && !studentId) {
+            setStatus('성적 추이를 조회할 학생명을 검색해서 선택하세요.', true);
+            return;
+        }
+
+        if (mode === 'class' && !classId) {
+            setStatus('성적 추이를 조회할 반을 선택하세요.', true);
+            return;
+        }
+
+        let url = mode === 'student'
+            ? '/api/grades/trends?studentId=' + encodeURIComponent(studentId)
+            : '/api/grades/class-trends?classId=' + encodeURIComponent(classId);
+
+        // 과목을 입력한 경우에만 subject 검색 조건 추가
+        if (subject) {
+            url += '&subject=' + encodeURIComponent(subject);
+        }
+
+        const res = await fetch(url);
+
+        if (!res.ok) {
+            setStatus('성적 추이 조회에 실패했습니다.', true);
+            return;
+        }
+
+        const data = await res.json();
+        const trendRows = sortTrendRowsByDate(data);
+        const tbody = document.getElementById('trendList');
+        tbody.innerHTML = '';
+
+        if (trendRows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="empty-row">조회된 성적 추이가 없습니다.</td></tr>';
+            document.getElementById('trendInfo').style.display = 'none';
+            document.getElementById('trendInfo').innerText = '';
+            lastGradeTrendRows = [];
+            lastGradeTrendMode = mode;
+            showTrendChartMessage('조회된 성적 추이가 없습니다.');
+            return;
+        }
+
+        renderTrendInfo(trendRows[0], mode);
+        lastGradeTrendRows = trendRows;
+        lastGradeTrendMode = mode;
+        renderGradeTrendChart(trendRows, mode);
+
+        trendRows.forEach(row => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${escapeHtml(row.exam_name)}</td>
+                    <td>${escapeHtml(row.subject || '')}</td>
+                    <td>${formatKoreanDateTime(row.exam_date)}</td>
+                    <td>${mode === 'class' ? '평균 ' : ''}${row.score}</td>
+                    <td>${row.total_score}</td>
+                </tr>
+            `;
+        });
+    }
+
+    // 성적 추이 표와 차트는 시험일시가 빠른 순서대로 고정한다.
+    // 같은 날짜의 시험은 exam_id를 보조 기준으로 사용해 표시 순서가 흔들리지 않게 한다.
+    function sortTrendRowsByDate(rows) {
+        return [...rows].sort((a, b) => {
+            const dateResult = new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime();
+            if (dateResult !== 0) {
+                return dateResult;
+            }
+            return Number(a.exam_id ?? 0) - Number(b.exam_id ?? 0);
+        });
+    }
+
+    // 성적 추이 조회 대상의 기본 정보를 출력한다.
+    function renderTrendInfo(row, mode) {
+        const trendInfo = document.getElementById('trendInfo');
+
+        if (mode === 'student') {
+            trendInfo.innerText =
+                `학생: ${row.student_name || '-'} / 학생번호 ${row.student_no || '-'}`;
+        } else {
+            trendInfo.innerText =
+                `반: ${row.class_name || '-'} / 기준: 시험별 평균`;
+        }
+
+        trendInfo.style.display = 'block';
+    }
+
+    // 기존 Chart.js 인스턴스를 정리한다.
+    // 새 조회 결과를 그리거나 안내 문구를 보여줄 때 이전 차트가 남지 않도록 한다.
+    function destroyGradeTrendChart() {
+        if (gradeTrendChart) {
+            gradeTrendChart.destroy();
+            gradeTrendChart = null;
+        }
+    }
+
+    // 차트 영역에 안내 문구를 표시한다.
+    function showTrendChartMessage(message) {
+        destroyGradeTrendChart();
+        document.getElementById('trendChart').innerHTML = `<div class="empty-row">${message}</div>`;
+    }
+
+    // 차트 유형 선택값이 바뀌면 마지막 조회 결과를 같은 조건으로 다시 그린다.
+    function refreshGradeTrendChartType() {
+        if (lastGradeTrendRows.length === 0) {
+            return;
+        }
+
+        renderGradeTrendChart(lastGradeTrendRows, lastGradeTrendMode);
+    }
+
+    // 성적 추이 데이터를 선택한 Chart.js 유형으로 표시한다.
+    // 시험 만점이 다를 수 있으므로 y축은 만점 대비 비율로 그리고, 점 라벨에는 실제 점수를 보여준다.
+    function renderGradeTrendChart(data, mode) {
+        const chart = document.getElementById('trendChart');
+        destroyGradeTrendChart();
+        chart.innerHTML = '<canvas id="trendChartCanvas"></canvas>';
+
+        const labels = data.map(row => formatTrendChartLabel(row));
+        const rates = data.map(row => Number(row.score) / Number(row.total_score || 100) * 100);
+        const scoreLabels = data.map(row => `${mode === 'class' ? '평균 ' : ''}${Number(row.score).toFixed(1)}`);
+        const titleText = mode === 'class' ? '반별 시험 평균 추이' : '학생별 성적 추이';
+        const chartType = document.getElementById('trendChartType').value;
+        const isBarChart = chartType === 'bar';
+        const isAreaChart = chartType === 'area';
+        const ctx = document.getElementById('trendChartCanvas');
+
+        const pointLabelPlugin = {
+            id: 'gradePointLabel',
+            afterDatasetsDraw(chartInstance) {
+                const {ctx} = chartInstance;
+                const meta = chartInstance.getDatasetMeta(0);
+
+                ctx.save();
+                ctx.font = '11px sans-serif';
+                ctx.fillStyle = '#1e3a8a';
+                ctx.textAlign = 'center';
+                meta.data.forEach((point, index) => {
+                    ctx.fillText(scoreLabels[index], point.x, point.y - 10);
+                });
+                ctx.restore();
+            }
+        };
+
+        gradeTrendChart = new Chart(ctx, {
+            type: isBarChart ? 'bar' : 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: titleText,
+                    data: rates,
+                    borderColor: '#2563eb',
+                    backgroundColor: isBarChart ? 'rgba(37, 99, 235, .72)' : 'rgba(37, 99, 235, .12)',
+                    pointBackgroundColor: '#2563eb',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 6,
+                    borderWidth: 3,
+                    tension: .25,
+                    fill: isAreaChart
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 24,
+                        right: 18,
+                        bottom: 4,
+                        left: 8
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        align: 'start',
+                        labels: {
+                            boxWidth: 12,
+                            color: '#1e3a8a',
+                            font: {
+                                weight: '700'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const row = data[context.dataIndex];
+                                const prefix = mode === 'class' ? '평균 점수' : '점수';
+                                return `${prefix}: ${row.score} / ${row.total_score} (${Number(context.raw).toFixed(1)}%)`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            callback(value) {
+                                return value + '%';
+                            }
+                        },
+                        grid: {
+                            color: '#e5e7eb'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            },
+            plugins: [pointLabelPlugin]
+        });
+    }
+
+    // 차트 하단 라벨은 시험일 기준으로 짧게 표시한다.
+    function formatTrendChartLabel(row) {
+        const dateText = String(row.exam_date || '').substring(5, 10);
+        return dateText || row.exam_name || '';
+    }
+
+    // 페이지 진입 시 기본 목록을 조회한다.
+    document.addEventListener('DOMContentLoaded', async () => {
+        clearSelectedExamArea();
+        await loadGradeOptions();
+        loadExams();
+    });
+
+    // 검색 카테고리 메뉴가 열린 상태에서 다른 영역을 누르면 메뉴를 닫는다.
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.exam-search')) {
+            document.getElementById('examSearchMenu').classList.remove('show');
+        }
+
+        if (!event.target.closest('.class-picker')) {
+            document.querySelectorAll('.class-picker-menu').forEach(menu => menu.classList.remove('show'));
+        }
+
+        if (event.target.id === 'examDatePickerOverlay') {
+            closeExamDatePicker();
+        }
+    });
+
+    // =====================================================================
+    // AI채점 탭 (AIG-01~10). 성적관리 탭의 selectedExamId/examRows 등과는
+    // 별도로 독립 상태(aiXxx)를 쓴다 - 함수명이 기존 것과 겹치지 않게 전부 ai 접두어를 붙였다.
+    // =====================================================================
+
+    let aiTabLoaded = false;
+    let aiSelectedExamId = null;
+    let aiPollTimer = null;
+    /** /api/exams 응답을 그대로 캐싱 - total_score(시험 만점)를 문항 배점 합계 검증(saveAiQuestions)에 재사용하기 위함 */
+    let aiExamRows = [];
+
+    // 출석관리(admin/student/attendance.html)의 showTab 패턴 - 여기서는 성적관리 파일 안에 이미
+    // showTab이라는 이름이 쓰일 수도 있어 겹치지 않도록 showGradeTab으로 이름을 붙였다.
+    function showGradeTab(name) {
+        ['manage', 'ai'].forEach(t => {
+            document.getElementById('tab-' + t).hidden = (t !== name);
+        });
+        document.querySelectorAll('.tabs .tab').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === name);
+        });
+        if (name === 'ai' && !aiTabLoaded) {
+            aiTabLoaded = true;
+            loadAiExamOptions();
+        }
+    }
+
+    // 서버 에러 응답(GlobalExceptionHandler의 {message: ...} 형태)을 읽어 상태창에 띄운다.
+    async function aiShowError(res, fallback) {
+        let message = fallback;
+        try {
+            const body = await res.json();
+            if (body && body.message) message = body.message;
+        } catch (e) { /* 본문이 JSON이 아니면 기본 메시지 사용 */ }
+        setStatus(message, true);
+    }
+
+    async function aiUploadMultipart(url, formData) {
+        const token = await ensureCsrf();
+        return fetch(url, { method: 'POST', headers: { 'X-XSRF-TOKEN': token }, body: formData });
+    }
+
+    // ---- 0. 시험 선택 ----
+    async function loadAiExamOptions() {
+        const res = await fetch('/api/exams');
+        if (!res.ok) { await aiShowError(res, '시험 목록 조회 실패'); return; }
+        const rows = await res.json();
+        aiExamRows = rows;
+        const select = document.getElementById('aiExamSelect');
+        select.innerHTML = '<option value="">시험을 선택하세요</option>' + rows.map(row =>
+            `<option value="${row.exam_id}">${escapeHtml(row.exam_name)} · ${escapeHtml(row.subject ?? '')} (${escapeHtml(String(row.exam_date ?? '').slice(0, 10))})</option>`
+        ).join('');
+    }
+
+    /** 선택된 시험의 만점(exams.total_score) - saveAiQuestions에서 배점 합계 검증용 */
+    function aiSelectedExamTotalScore() {
+        const row = aiExamRows.find(r => String(r.exam_id) === String(aiSelectedExamId));
+        return row && row.total_score != null ? Number(row.total_score) : null;
+    }
+
+    /**
+     * "3. 답안지 업로드" 버튼 활성화 제어. 문항이 실제로 확정 저장된 상태일 때만 열어준다 -
+     * 화면에 초안(추출 직후/수동 편집 중)만 떠 있는데 답안지부터 올리면 나중에 문항을 바꿀 때
+     * (AIG-04가 이미 제출 있는 시험은 문항 수정을 막아버려서) 꼬이는 걸 막기 위함.
+     */
+    function aiSetSubmissionUploadEnabled(enabled) {
+        const btn = document.getElementById('aiUploadSubmissionBtn');
+        if (btn) btn.disabled = !enabled;
+    }
+
+    function onAiExamChange() {
+        aiSelectedExamId = document.getElementById('aiExamSelect').value || null;
+        document.getElementById('aiDocList').textContent = '업로드된 자료가 없습니다.';
+        document.getElementById('aiQuestionsBody').innerHTML = '';
+        document.getElementById('aiResultsBody').innerHTML = '';
+        document.getElementById('aiSubmissionId').value = '';
+        document.getElementById('aiSubmissionStatus').innerHTML = '';
+        aiSetSubmissionUploadEnabled(false);
+        if (!aiSelectedExamId) return;
+        loadAiDocuments();
+        loadAiStudentOptions();
+        loadAiQuestions();
+    }
+
+    // ---- 1. 시험자료 업로드 (AIG-01) ----
+    // 시험을 다시 선택하거나 재업로드 후에도 "지금 이 시험에 실제로 올라와 있는 파일"을 다시 조회해서 보여준다 -
+    // 예전엔 방금 올린 업로드 응답만 잠깐 보여주고 끝이라, 재업로드로 교체된 뒤 화면을 벗어나면 확인할 방법이 없었다.
+    async function loadAiDocuments() {
+        if (!aiSelectedExamId) return;
+        const res = await fetch(`/api/exams/${aiSelectedExamId}/documents`);
+        if (!res.ok) { await aiShowError(res, '시험자료 목록 조회 실패'); return; }
+        const docs = await res.json();
+        renderAiDocList(docs);
+    }
+
+    function renderAiDocList(docs) {
+        document.getElementById('aiDocList').innerHTML = docs.length
+            ? docs.map(d => `${d.documentType === 'QUESTION' ? '문제지' : '정답지'} - ${escapeHtml(d.originalName)} (${d.pageNo}페이지)`).join('<br>')
+            : '업로드된 자료가 없습니다.';
+    }
+
+    async function uploadAiDocuments() {
+        if (!aiSelectedExamId) { setStatus('시험을 먼저 선택하세요', true); return; }
+        const fileInput = document.getElementById('aiDocFiles');
+        if (!fileInput.files.length) { setStatus('업로드할 파일을 선택하세요', true); return; }
+
+        const formData = new FormData();
+        formData.append('documentType', document.getElementById('aiDocType').value);
+        Array.from(fileInput.files).forEach(f => formData.append('files', f));
+
+        const res = await aiUploadMultipart(`/api/exams/${aiSelectedExamId}/documents`, formData);
+        if (!res.ok) { await aiShowError(res, '시험자료 업로드 실패'); return; }
+        // 재업로드 시 서버가 같은 documentType의 기존 파일을 지우고 교체하므로, 응답(새로 올라간 파일만)이 아니라
+        // 목록을 다시 조회해서 "지금 실제로 남아있는 전체 목록"을 보여준다.
+        await loadAiDocuments();
+        fileInput.value = '';
+        setStatus('시험자료 업로드 완료 (같은 유형의 기존 파일은 교체됨)');
+    }
+
+    // ---- 2. 문항 추출 / 확정 (AIG-02/03/04) ----
+    // AI 추출은 Gemini 응답을 기다려야 해서 시간이 걸린다 - 하단 토스트(setStatus)만으로는 잠깐 떴다 사라져서
+    // 사용자가 "동작이 멈췄나?" 오해할 수 있어, "문항 확정 저장" 버튼 옆에 계속 보이는 뱃지로 진행 상태를 표시한다.
+    async function extractAiQuestions() {
+        if (!aiSelectedExamId) { setStatus('시험을 먼저 선택하세요', true); return; }
+        const extractBtn = document.getElementById('aiExtractBtn');
+        const badge = document.getElementById('aiExtractingBadge');
+        extractBtn.disabled = true;
+        badge.hidden = false;
+        setStatus('AI가 문항을 추출하는 중입니다...');
+        try {
+            // 저장하지 않는 일회성 값이라 매번 화면 입력값을 그대로 실어 보낸다(빈 값이면 서버에서 기존과 동일하게 동작).
+            const additionalInstruction = document.getElementById('aiExtractPrompt').value.trim();
+            const res = await sendJson(`/api/exams/${aiSelectedExamId}/questions/extract`, 'POST', { additionalInstruction });
+            if (!res.ok) { await aiShowError(res, 'AI 문항 추출 실패'); return; }
+            const result = await res.json();
+            if (result.extractionStatus !== 'SUCCESS' || !result.questions.length) {
+                setStatus('AI가 문항을 구조화하지 못했습니다. 직접 입력해주세요.', true);
+                return;
+            }
+            document.getElementById('aiQuestionsBody').innerHTML = '';
+            result.questions.forEach(q => addAiQuestionRow(q));
+            // 방금 추출한 건 아직 저장 전 초안이다 - 확정 저장 전까지는 답안지 업로드를 막는다.
+            aiSetSubmissionUploadEnabled(false);
+            setStatus(`AI가 문항 ${result.questions.length}건을 추출했습니다. 확인 후 "문항 확정 저장"을 눌러주세요.`);
+        } finally {
+            extractBtn.disabled = false;
+            badge.hidden = true;
+        }
+    }
+
+    async function loadAiQuestions() {
+        if (!aiSelectedExamId) return;
+        const res = await fetch(`/api/exams/${aiSelectedExamId}/questions`);
+        if (!res.ok) { await aiShowError(res, '문항 조회 실패'); return; }
+        const rows = await res.json();
+        document.getElementById('aiQuestionsBody').innerHTML = '';
+        rows.forEach(q => addAiQuestionRow(q));
+        // 이 API는 이미 확정 저장된 문항만 반환한다 - 1건이라도 있으면 답안지 업로드를 열어준다.
+        aiSetSubmissionUploadEnabled(rows.length > 0);
+    }
+
+    // q가 없으면(직접 추가) 빈 행을 만든다. AI 추출 결과/저장된 문항 둘 다 이 함수로 렌더링한다.
+    function addAiQuestionRow(q) {
+        const tbody = document.getElementById('aiQuestionsBody');
+        const tr = document.createElement('tr');
+        // q가 없으면(문항 직접 추가 버튼) 빈 행이라 편의상 기본값을 채워준다.
+        // q가 있는데 개별 필드가 비어있으면(AI가 못 뽑아낸 값) 절대 기본값으로 채우지 않고 진짜 빈 칸으로 남긴다 -
+        // 예전엔 배점이 비어도 5로 채워버려서 누락된 걸 화면에서 못 알아채는 문제가 있었다.
+        const isNewBlankRow = !q;
+        const rowNo = tbody.children.length + 1;
+        const questionNo = q?.questionNo ?? (isNewBlankRow ? rowNo : '');
+        const questionType = q?.questionType ?? '';
+        const maxScoreValue = q?.maxScore ?? (isNewBlankRow ? 5 : '');
+        const reviewChecked = q?.reviewRequiredYn === 'Y' ? 'checked' : '';
+        tr.innerHTML = `
+            <td><input type="number" class="q-no" value="${questionNo}" style="width:52px;"></td>
+            <td>
+                <select class="q-type">
+                    <option value="" ${questionType === '' ? 'selected' : ''}>선택</option>
+                    <option value="MULTIPLE_CHOICE" ${questionType === 'MULTIPLE_CHOICE' ? 'selected' : ''}>객관식</option>
+                    <option value="SHORT_ANSWER" ${questionType === 'SHORT_ANSWER' ? 'selected' : ''}>단답형</option>
+                    <option value="ESSAY" ${questionType === 'ESSAY' ? 'selected' : ''}>서술형</option>
+                </select>
+            </td>
+            <td><input type="text" class="q-text" value="${escapeHtml(q?.questionText ?? '')}" style="width:220px;"></td>
+            <td><input type="text" class="q-answer" value="${escapeHtml(q?.correctAnswer ?? '')}" style="width:120px;"></td>
+            <td><input type="number" class="q-score" value="${maxScoreValue}" style="width:60px;"></td>
+            <td><input type="text" class="q-criteria" value="${escapeHtml(q?.gradingCriteria ?? '')}" style="width:160px;"></td>
+            <td style="text-align:center;"><input type="checkbox" class="q-review" ${reviewChecked}></td>
+            <td><button type="button" class="grade-btn secondary" onclick="this.closest('tr').remove(); aiSetSubmissionUploadEnabled(false);">삭제</button></td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    /** "문항 직접 추가" 버튼 전용 - 표를 손으로 건드리는 순간이므로 확정 저장 전까지 답안지 업로드를 다시 잠근다 */
+    function aiAddBlankQuestionRow() {
+        addAiQuestionRow();
+        aiSetSubmissionUploadEnabled(false);
+    }
+
+    // 번호/유형/문제/정답/배점 중 하나라도 비어있으면 어느 행의 무엇이 비었는지 콕 집어 알려준다.
+    // AI 자동추출이 일부만 못 읽어온 문항을 그대로 저장해버리는 걸 막기 위한 저장 전 검사.
+    function findAiQuestionRowError(rows) {
+        for (let i = 0; i < rows.length; i++) {
+            const tr = rows[i];
+            const label = `${i + 1}번째 문항의`;
+            if (!tr.querySelector('.q-no').value) return `${label} 번호를 입력해주세요`;
+            if (!tr.querySelector('.q-type').value) return `${label} 유형을 선택해주세요`;
+            if (!tr.querySelector('.q-text').value.trim()) return `${label} 문제를 입력해주세요`;
+            if (!tr.querySelector('.q-answer').value.trim()) return `${label} 정답을 입력해주세요`;
+            if (tr.querySelector('.q-score').value === '') return `${label} 배점을 입력해주세요`;
+        }
+        return null;
+    }
+
+    async function saveAiQuestions() {
+        if (!aiSelectedExamId) { setStatus('시험을 먼저 선택하세요', true); return; }
+        const rows = Array.from(document.querySelectorAll('#aiQuestionsBody tr'));
+        if (!rows.length) { setStatus('저장할 문항이 없습니다', true); return; }
+
+        const rowError = findAiQuestionRowError(rows);
+        if (rowError) { setStatus(rowError, true); return; }
+
+        // 배점 합계가 시험 등록 시 입력한 만점과 일치하는지 확인 - 안 맞으면 저장 자체를 막고 알림창으로 안내.
+        // exams.total_score는 NUMERIC이라 부동소수점 비교 오차가 생길 수 있어 소수 둘째자리로 반올림해서 비교.
+        const totalScore = aiSelectedExamTotalScore();
+        const scoreSum = rows.reduce((sum, tr) => sum + Number(tr.querySelector('.q-score').value || 0), 0);
+        if (totalScore != null && Math.round(scoreSum * 100) !== Math.round(totalScore * 100)) {
+            alert(`배점 합계(${scoreSum}점)가 시험 만점(${totalScore}점)과 일치하지 않습니다. 배점을 확인해주세요.`);
+            return;
+        }
+
+        const items = rows.map((tr, idx) => ({
+            questionNo: Number(tr.querySelector('.q-no').value),
+            questionType: tr.querySelector('.q-type').value,
+            questionText: tr.querySelector('.q-text').value,
+            correctAnswer: tr.querySelector('.q-answer').value,
+            maxScore: Number(tr.querySelector('.q-score').value),
+            gradingCriteria: tr.querySelector('.q-criteria').value,
+            reviewRequiredYn: tr.querySelector('.q-review').checked ? 'Y' : 'N',
+            sortOrder: idx + 1
+        }));
+
+        const res = await sendJson(`/api/exams/${aiSelectedExamId}/questions`, 'PUT', items);
+        if (!res.ok) { await aiShowError(res, '문항 저장 실패 (이미 학생 답안이 제출된 시험은 문항을 바꿀 수 없어요)'); return; }
+        setStatus('문항 확정 저장 완료');
+        loadAiQuestions();
+    }
+
+    // ---- 3. 학생 답안지 업로드 & AI 채점 실행 (AIG-05/06/10) ----
+    async function loadAiStudentOptions() {
+        const res = await fetch(`/api/exams/${aiSelectedExamId}/students`);
+        if (!res.ok) { await aiShowError(res, '수강 학생 목록 조회 실패'); return; }
+        const rows = await res.json();
+        const select = document.getElementById('aiStudentSelect');
+        select.innerHTML = '<option value="">학생을 선택하세요</option>' + rows.map(row =>
+            `<option value="${row.student_id}">${escapeHtml(row.student_name)} (${escapeHtml(row.student_no ?? '')})</option>`
+        ).join('');
+    }
+
+    // 학생을 고르면 이미 업로드된 답안지(제출)가 있는지 확인해서 submissionId를 자동으로 채운다.
+    // 사용자는 DB를 직접 볼 수 없어 submissionId를 알아낼 방법이 없으므로 화면에서 대신 찾아준다.
+    async function onAiStudentChange() {
+        document.getElementById('aiSubmissionId').value = '';
+        aiRenderSubmissionStatus('');
+        document.getElementById('aiResultsBody').innerHTML = '';
+
+        const studentId = document.getElementById('aiStudentSelect').value;
+        if (!aiSelectedExamId || !studentId) return;
+
+        const res = await fetch(`/api/exams/${aiSelectedExamId}/submissions/by-student/${studentId}`);
+        if (res.status === 404) return;   // 아직 제출한 답안지가 없음 - 정상 상태, 에러 아님
+        if (!res.ok) { await aiShowError(res, '기존 제출 조회 실패'); return; }
+
+        const submission = await res.json();
+        document.getElementById('aiSubmissionId').value = submission.submissionId;
+        aiRenderSubmissionStatus(submission.statusCode);
+        setStatus(`이미 업로드된 답안지가 있습니다 (submissionId=${submission.submissionId}, 상태=${submission.statusCode})`);
+    }
+
+    async function uploadAiSubmission() {
+        if (!aiSelectedExamId) { setStatus('시험을 먼저 선택하세요', true); return; }
+        const studentId = document.getElementById('aiStudentSelect').value;
+        if (!studentId) { setStatus('학생을 먼저 선택하세요', true); return; }
+        const fileInput = document.getElementById('aiSubmissionFiles');
+        if (!fileInput.files.length) { setStatus('업로드할 답안지 파일을 선택하세요', true); return; }
+
+        const formData = new FormData();
+        formData.append('studentId', studentId);
+        Array.from(fileInput.files).forEach(f => formData.append('files', f));
+
+        const res = await aiUploadMultipart(`/api/exams/${aiSelectedExamId}/submissions`, formData);
+        if (!res.ok) { await aiShowError(res, '답안지 업로드 실패'); return; }
+        const submission = await res.json();
+        document.getElementById('aiSubmissionId').value = submission.submissionId;
+        aiRenderSubmissionStatus(submission.statusCode);
+        fileInput.value = '';
+        setStatus(`답안지 업로드 완료 (submissionId=${submission.submissionId})`);
+    }
+
+    function aiRenderSubmissionStatus(statusCode) {
+        document.getElementById('aiSubmissionStatus').innerHTML =
+            statusCode ? `<span class="ai-badge ${statusCode}">${statusCode}</span>` : '';
+    }
+
+    async function startAiGrading() { await aiTriggerGrading('grade'); }
+    async function retryAiGrading() { await aiTriggerGrading('retry'); }
+
+    async function aiTriggerGrading(action) {
+        const submissionId = document.getElementById('aiSubmissionId').value;
+        if (!submissionId) { setStatus('submissionId를 먼저 입력(또는 답안지 업로드)하세요', true); return; }
+
+        const res = await sendJson(`/api/exam-submissions/${submissionId}/${action}`, 'POST', {});
+        if (!res.ok) { await aiShowError(res, 'AI 채점 요청 실패'); return; }
+        const submission = await res.json();
+        aiRenderSubmissionStatus(submission.statusCode);
+        document.getElementById('aiProcessingMsg').style.display = 'block';
+        setStatus('AI 채점을 요청했습니다. 처리중입니다...');
+        aiStartPolling(submissionId);
+    }
+
+    // AIG-06은 비동기라 즉시 결과가 오지 않는다 - 3초마다 상태를 확인해서 화면에 반영한다.
+    function aiStartPolling(submissionId) {
+        if (aiPollTimer) clearInterval(aiPollTimer);
+        aiPollTimer = setInterval(async () => {
+            const res = await fetch(`/api/exam-submissions/${submissionId}`);
+            if (!res.ok) return;
+            const submission = await res.json();
+            aiRenderSubmissionStatus(submission.statusCode);
+            if (submission.statusCode !== 'ANALYZING') {
+                clearInterval(aiPollTimer);
+                aiPollTimer = null;
+                document.getElementById('aiProcessingMsg').style.display = 'none';
+                if (submission.statusCode === 'REVIEW_REQUIRED') {
+                    setStatus('AI 채점이 완료됐습니다. 검수를 진행해주세요.');
+                    loadAiResults();
+                } else if (submission.statusCode === 'FAILED') {
+                    setStatus('AI 채점에 실패했습니다: ' + (submission.errorMessage ?? ''), true);
+                }
+            }
+        }, 3000);
+    }
+
+    // ---- 4. 검수 & 최종 확정 (AIG-07/08/09) ----
+    async function loadAiResults() {
+        const submissionId = document.getElementById('aiSubmissionId').value;
+        if (!submissionId) { setStatus('submissionId를 먼저 입력하세요', true); return; }
+        const res = await fetch(`/api/exam-submissions/${submissionId}/results`);
+        if (!res.ok) { await aiShowError(res, '채점 결과 조회 실패'); return; }
+        const rows = await res.json();
+        const tbody = document.getElementById('aiResultsBody');
+        tbody.innerHTML = rows.map(r => `
+            <tr data-answer-result-id="${r.answerResultId}">
+                <td>${r.questionNo}번 (${escapeHtml(r.questionType)})</td>
+                <td>${escapeHtml(r.recognizedAnswer ?? '')}</td>
+                <td>${r.aiScore ?? ''} / ${r.maxScore}</td>
+                <td style="max-width:220px; font-size:12px; color:#64748b;">${escapeHtml(r.aiReason ?? '')}</td>
+                <td>${r.confidence ?? ''}</td>
+                <td style="text-align:center;">${r.reviewRequiredYn === 'Y' ? '⚠️ 필요' : '-'}</td>
+                <td><input type="number" class="r-score" value="${r.confirmedScore ?? r.aiScore ?? ''}" min="0" max="${r.maxScore}"></td>
+                <td><input type="text" class="r-comment" value="${escapeHtml(r.teacherComment ?? '')}"></td>
+            </tr>
+        `).join('');
+        if (!rows.length) setStatus('아직 채점 결과가 없습니다', true);
+    }
+
+    async function saveAiReview() {
+        const submissionId = document.getElementById('aiSubmissionId').value;
+        if (!submissionId) { setStatus('submissionId를 먼저 입력하세요', true); return; }
+        const rows = Array.from(document.querySelectorAll('#aiResultsBody tr'));
+        if (!rows.length) { setStatus('검수할 결과가 없습니다. 먼저 조회하세요.', true); return; }
+
+        const items = rows.map(tr => ({
+            answerResultId: Number(tr.dataset.answerResultId),
+            confirmedScore: Number(tr.querySelector('.r-score').value),
+            teacherComment: tr.querySelector('.r-comment').value
+        }));
+
+        const res = await sendJson(`/api/exam-submissions/${submissionId}/results`, 'PUT', items);
+        if (!res.ok) { await aiShowError(res, '검수 결과 저장 실패'); return; }
+        setStatus('검수 결과 저장 완료. 준비되면 "최종 확정"을 눌러주세요.');
+        loadAiResults();
+    }
+
+    async function confirmAiGrade() {
+        const submissionId = document.getElementById('aiSubmissionId').value;
+        if (!submissionId) { setStatus('submissionId를 먼저 입력하세요', true); return; }
+        if (!confirm('이 학생의 AI 채점 결과를 최종 확정하시겠습니까? 확정하면 성적(grades)에 반영됩니다.')) return;
+
+        const res = await sendJson(`/api/exam-submissions/${submissionId}/confirm`, 'POST', {});
+        if (!res.ok) { await aiShowError(res, '최종 확정 실패'); return; }
+        const result = await res.json();
+        aiRenderSubmissionStatus(result.statusCode);
+        setStatus(`최종 확정 완료 (점수: ${result.confirmedScore}, gradeId=${result.gradeId})`);
+    }
+</script>
+
+</body>
+</html>

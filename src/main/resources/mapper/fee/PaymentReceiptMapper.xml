@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.domain.fee.mapper.PaymentReceiptMapper">
+
+    <!-- 영수증 발급 (FEE-19) - status_code/issued_at 은 DB DEFAULT('ISSUED'/CURRENT_TIMESTAMP) 를 그대로 쓴다 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="receiptId" keyColumn="receipt_id">
+        INSERT INTO payment_receipts (payment_id, receipt_no, issued_by)
+        VALUES (#{paymentId}, #{receiptNo}, #{issuedBy})
+    </insert>
+
+    <select id="selectByPaymentId" resultType="com.edu.domain.fee.vo.PaymentReceiptVo">
+        SELECT receipt_id, payment_id, receipt_no, status_code, issued_at, issued_by, cancelled_at, cancel_reason
+          FROM payment_receipts
+         WHERE payment_id = #{paymentId}
+    </select>
+
+    <!-- FEE-20: 납부 취소 시 연결된 영수증을 자동으로 CANCELLED 처리.
+         status_code='ISSUED' 조건 덕분에 영수증이 없거나 이미 취소된 경우엔 0건 UPDATE 로 조용히 끝난다(에러 아님) -->
+    <update id="cancelByPaymentId">
+        UPDATE payment_receipts
+           SET status_code   = 'CANCELLED',
+               cancelled_at  = CURRENT_TIMESTAMP,
+               cancel_reason = #{cancelReason}
+         WHERE payment_id  = #{paymentId}
+           AND status_code = 'ISSUED'
+    </update>
+
+    <!-- 영수증 상세 (RCT-01/02) - 화면/PDF 출력에 필요한 정보를 한 번에 모은다 -->
+    <select id="selectDetailByPaymentId" resultType="com.edu.domain.fee.dto.response.PaymentReceiptResponse">
+        SELECT pr.receipt_id,
+               pr.receipt_no,
+               pr.status_code,
+               pr.issued_at,
+               iu.name              AS issued_by_name,
+               pr.cancelled_at,
+               pr.cancel_reason,
+               fp.payment_id,
+               fp.paid_amount,
+               fp.paid_at,
+               fp.payment_method,
+               f.fee_id,
+               f.billing_month,
+               su.name              AS student_name,
+               s.student_no,
+               c.class_name
+          FROM payment_receipts pr
+          JOIN fee_payments fp ON fp.payment_id = pr.payment_id
+          JOIN fees f          ON f.fee_id      = fp.fee_id
+          JOIN students s      ON s.student_id  = f.student_id
+          JOIN users su        ON su.user_id    = s.user_id
+          JOIN users iu        ON iu.user_id    = pr.issued_by
+          LEFT JOIN classes c  ON c.class_id    = f.class_id
+         WHERE pr.payment_id = #{paymentId}
+    </select>
+
+</mapper>

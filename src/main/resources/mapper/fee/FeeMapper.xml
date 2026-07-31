@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.edu.domain.fee.mapper.FeeMapper">
+
+    <!-- 목록/건수에서 공통으로 쓰는 검색 조건 -->
+    <sql id="feeSearchCondition">
+        <where>
+            <if test="studentId != null">
+                AND f.student_id = #{studentId}
+            </if>
+            <if test="billingMonth != null and billingMonth != ''">
+                AND f.billing_month = #{billingMonth}
+            </if>
+            <if test="statusCode != null and statusCode != ''">
+                AND f.status_code = #{statusCode}
+            </if>
+            <!-- FEE-14 학부모 회비 조회: 학부모(user_id)의 자녀 회비만.
+                 count/list 양쪽에서 쓰므로 조인 대신 서브쿼리로 자녀 student_id 를 제한한다.
+                 studentId 필터와 함께 걸리면, 자녀가 아닌 studentId 는 결과가 비게 되어 정보 노출이 없다. -->
+            <if test="parentUserId != null">
+                AND f.student_id IN (
+                    SELECT sp.student_id
+                      FROM student_parents sp
+                      JOIN parents p ON p.parent_id = sp.parent_id
+                     WHERE p.user_id = #{parentUserId}
+                )
+            </if>
+            <!-- 학생 본인 회비: user_id로 연결된 학생의 회비만 -->
+            <if test="studentUserId != null">
+                AND f.student_id IN (
+                    SELECT s.student_id FROM students s WHERE s.user_id = #{studentUserId}
+                )
+            </if>
+            <!-- 담당 강사 회비 조회 스코핑 (2026-07-22 결정): 로그인 강사(user_id)가 담당하는 반의 회비만.
+                 fees.class_id 는 NULL 허용 컬럼(반 미지정 청구)이라, class_id 가 없는 청구는 이 조건에 걸리면
+                 IN 절 결과가 비어 있으므로 자동으로 제외된다 - 소속 근거가 없는 건 어떤 강사에게도 노출하지 않는 게 맞다. -->
+            <if test="teacherUserId != null">
+                AND f.class_id IN (
+                    SELECT c.class_id
+                      FROM classes c
+                      JOIN teachers t ON t.teacher_id = c.teacher_id
+                     WHERE t.user_id = #{teacherUserId}
+                )
+            </if>
+            <!-- FEE-07 미납 조회: 저장된 status_code 는 기한이 지나도 SCHEDULED 로 남을 수 있어
+                 신뢰하지 않고, "기한 경과(due_date < 오늘) + 완납 아님(status <> PAID)" 으로 직접 판정 -->
+            <if test="overdueOnly">
+                AND f.due_date &lt; CURRENT_DATE
+                AND f.status_code &lt;&gt; 'PAID'
+            </if>
+        </where>
+    </sql>
+
+    <!-- 학생 이름은 students -> users JOIN 으로 가져온다 -->
+    <select id="selectFeeList" resultType="com.edu.domain.fee.dto.response.FeeListResponse">
+        SELECT f.fee_id,
+               f.student_id,
+               u.name                              AS student_name,
+               s.student_no,
+               s.birth_date,
+               f.class_id,
+               c.class_name,
+               f.billing_month,
+               f.fee_amount,
+               f.discount_amount,
+               f.discount_policy_id,
+               dp.policy_name                      AS discount_policy_name,
+               f.fee_amount - f.discount_amount    AS billable_amount,
+               f.due_date,
+               f.status_code,
+               f.description,
+               p.last_payment_id,
+               COALESCE(p.paid_sum, 0)             AS paid_sum,
+               COALESCE(p.payment_count, 0)        AS payment_count
+          FROM fees f
+          JOIN students s  ON s.student_id = f.student_id
+          JOIN users u     ON u.user_id    = s.user_id
+          LEFT JOIN classes c ON c.class_id = f.class_id
+          <!-- FEE-10: 적용된 할인정책명 표시용 (관리자가 목록에서 어떤 정책이 적용됐는지 바로 확인) -->
+          LEFT JOIN discount_policies dp ON dp.discount_policy_id = f.discount_policy_id
+          <!-- 납부 이력을 fee 단위로 집계
+               last_payment_id / paid_sum : 유효분(cancel_yn='N')만 - FILTER 로 걸러냄
+               payment_count              : 취소분 포함 전체 행 수 - 삭제 버튼 활성화 판단용 -->
+          LEFT JOIN (SELECT fee_id,
+                            MAX(payment_id)  FILTER (WHERE cancel_yn = 'N') AS last_payment_id,
+                            SUM(paid_amount) FILTER (WHERE cancel_yn = 'N') AS paid_sum,
+                            COUNT(*)                                        AS payment_count
+                       FROM fee_payments
+                      GROUP BY fee_id) p ON p.fee_id = f.fee_id
+        <include refid="feeSearchCondition"/>
+         ORDER BY f.billing_month DESC, f.due_date ASC, f.fee_id ASC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countFeeList" resultType="long">
+        SELECT COUNT(*)
+          FROM fees f
+        <include refid="feeSearchCondition"/>
+    </select>
+
+    <insert id="insertFee" useGeneratedKeys="true" keyProperty="feeId" keyColumn="fee_id">
+        INSERT INTO fees (student_id, class_id, billing_month, fee_amount,
+                          discount_amount, discount_policy_id, due_date, status_code, description)
+        VALUES (#{studentId}, #{classId}, #{billingMonth}, #{feeAmount},
+                #{discountAmount}, #{discountPolicyId}, #{dueDate}, #{statusCode}, #{description})
+    </insert>
+
+    <!-- IS NOT DISTINCT FROM : class_id 가 양쪽 다 NULL 이어도 같다고 판단 (PostgreSQL) -->
+    <select id="existsFee" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fees
+             WHERE student_id    = #{studentId}
+               AND billing_month = #{billingMonth}
+               AND class_id IS NOT DISTINCT FROM #{classId}
+        )
+    </select>
+
+    <select id="selectByFeeId" resultType="com.edu.domain.fee.vo.FeeVo">
+        SELECT fee_id, student_id, class_id, billing_month, fee_amount,
+               discount_amount, discount_policy_id, due_date, status_code, description, created_at
+          FROM fees
+         WHERE fee_id = #{feeId}
+    </select>
+
+    <update id="updateFee">
+        UPDATE fees
+           SET fee_amount          = #{feeAmount},
+               discount_amount     = #{discountAmount},
+               discount_policy_id  = #{discountPolicyId},
+               due_date            = #{dueDate},
+               description         = #{description},
+               status_code         = #{statusCode}
+         WHERE fee_id = #{feeId}
+    </update>
+
+    <update id="updateFeeStatus">
+        UPDATE fees
+           SET status_code = #{statusCode}
+         WHERE fee_id = #{feeId}
+    </update>
+
+    <insert id="insertPayment" useGeneratedKeys="true" keyProperty="paymentId" keyColumn="payment_id">
+        INSERT INTO fee_payments (fee_id, paid_amount, paid_at, payment_method, cancel_yn)
+        VALUES (#{feeId}, #{paidAmount}, #{paidAt}, #{paymentMethod}, 'N')
+    </insert>
+
+    <select id="selectPaymentByPaymentId" resultType="com.edu.domain.fee.vo.FeePaymentVo">
+        SELECT payment_id, fee_id, paid_amount, paid_at, payment_method,
+               cancel_yn, created_at
+          FROM fee_payments
+         WHERE payment_id = #{paymentId}
+    </select>
+
+    <!-- 회비 1건의 납부 이력 목록 (FEE-06) - 취소분 포함.
+         최신 납부가 위로 오도록 paid_at DESC, 동시각이면 payment_id DESC
+         payment_receipts LEFT JOIN: 영수증이 있는 행만 화면에서 영수증 버튼을 노출할 수 있도록 receipt_no 를 같이 내려준다 (RCT-01/02) -->
+    <select id="selectPaymentsByFeeId" resultType="com.edu.domain.fee.dto.response.FeePaymentHistoryResponse">
+        SELECT fp.payment_id,
+               fp.fee_id,
+               fp.paid_amount,
+               fp.paid_at,
+               fp.payment_method,
+               fp.cancel_yn,
+               pr.receipt_no
+          FROM fee_payments fp
+          LEFT JOIN payment_receipts pr ON pr.payment_id = fp.payment_id
+         WHERE fp.fee_id = #{feeId}
+         ORDER BY fp.paid_at DESC NULLS LAST, fp.payment_id DESC
+    </select>
+
+    <!-- 취소분 제외한 유효 납부 합계. 납부 이력이 없으면 0 -->
+    <select id="sumPaidAmountByFeeId" resultType="long">
+        SELECT COALESCE(SUM(paid_amount), 0)
+          FROM fee_payments
+         WHERE fee_id    = #{feeId}
+           AND cancel_yn = 'N'
+    </select>
+
+    <update id="cancelPayment">
+        UPDATE fee_payments
+           SET cancel_yn = 'Y'
+         WHERE payment_id = #{paymentId}
+    </update>
+
+    <!-- 납부 이력 행 수 (취소분 포함) - 삭제 가능 여부 판단용.
+         cancel_yn 을 안 거는 이유: 취소된 납부도 '돈이 오갔던 기록'이므로 있으면 삭제 불가 -->
+    <select id="countPaymentsByFeeId" resultType="long">
+        SELECT COUNT(*)
+          FROM fee_payments
+         WHERE fee_id = #{feeId}
+    </select>
+
+    <!-- 회비 삭제 (명세서 외 추가) - 납부 이력이 전혀 없는 잘못 등록 건 전용.
+         이력이 있으면 서비스에서 409 로 막고, 뚫려도 fee_payments FK 가 최종 방어 -->
+    <delete id="deleteFee">
+        DELETE FROM fees
+         WHERE fee_id = #{feeId}
+    </delete>
+
+    <!-- 월별 통계 (FEE-06)
+         - billing_month 가 CHAR(7) 'YYYY-MM' 이라 BETWEEN 문자열 비교로 월 범위 조회 가능
+         - COUNT(*) FILTER (...) : PostgreSQL 조건부 집계. CASE WHEN SUM 보다 의도가 명확
+         - 데이터 없는 달은 행 자체가 없음 -> Service 에서 0 으로 채움 -->
+    <select id="selectMonthlyStats" resultType="com.edu.domain.fee.dto.response.FeeMonthlyStatResponse">
+        SELECT f.billing_month,
+               COALESCE(SUM(f.fee_amount - f.discount_amount), 0)  AS total_amount,
+               COALESCE(SUM(COALESCE(p.paid_sum, 0)), 0)           AS paid_amount,
+               COUNT(*) FILTER (WHERE f.status_code = 'PAID')      AS paid_count,
+               COUNT(*) FILTER (WHERE f.status_code = 'UNPAID')    AS unpaid_count,
+               COUNT(*) FILTER (WHERE f.status_code = 'SCHEDULED') AS scheduled_count
+          FROM fees f
+          LEFT JOIN (SELECT fee_id, SUM(paid_amount) AS paid_sum
+                       FROM fee_payments
+                      WHERE cancel_yn = 'N'
+                      GROUP BY fee_id) p ON p.fee_id = f.fee_id
+         WHERE f.billing_month BETWEEN #{fromMonth} AND #{toMonth}
+        <if test="classId != null">
+           AND f.class_id = #{classId}
+        </if>
+         GROUP BY f.billing_month
+         ORDER BY f.billing_month ASC
+    </select>
+
+    <!-- FEE-08 납부 예정 알림 대상: 지정일에 기한이 도래하는 미완납 회비.
+         status_code 는 PAID 여부만 신뢰(완납 시 항상 PAID 로 갱신됨) -->
+    <select id="selectFeesDueOn" resultType="com.edu.domain.fee.dto.response.FeeNotificationTargetResponse">
+        SELECT f.fee_id,
+               f.student_id,
+               f.billing_month,
+               f.due_date,
+               f.fee_amount - f.discount_amount AS billable_amount,
+               u.name       AS student_name,
+               c.class_name AS class_name
+          FROM fees f
+          JOIN students s ON s.student_id = f.student_id
+          JOIN users u    ON u.user_id    = s.user_id
+          LEFT JOIN classes c ON c.class_id = f.class_id
+         WHERE f.due_date = #{dueDate}
+           AND f.status_code &lt;&gt; 'PAID'
+    </select>
+
+    <!-- FEE-09 미납 알림 대상: 기한이 지난 미완납 회비 (FEE-07 미납 조회와 동일 조건) -->
+    <select id="selectOverdueUnpaidFees" resultType="com.edu.domain.fee.dto.response.FeeNotificationTargetResponse">
+        SELECT f.fee_id,
+               f.student_id,
+               f.billing_month,
+               f.due_date,
+               f.fee_amount - f.discount_amount AS billable_amount,
+               u.name       AS student_name,
+               c.class_name AS class_name
+          FROM fees f
+          JOIN students s ON s.student_id = f.student_id
+          JOIN users u    ON u.user_id    = s.user_id
+          LEFT JOIN classes c ON c.class_id = f.class_id
+         WHERE f.due_date &lt; CURRENT_DATE
+           AND f.status_code &lt;&gt; 'PAID'
+    </select>
+
+    <!-- FEE-14 접근 제어: 해당 회비가 이 학부모(user_id)의 자녀 것인지.
+         학부모의 납부 이력 조회(FEE-06) 권한 확인용 -->
+    <select id="existsFeeForParent" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fees f
+              JOIN student_parents sp ON sp.student_id = f.student_id
+              JOIN parents p          ON p.parent_id   = sp.parent_id
+             WHERE f.fee_id    = #{feeId}
+               AND p.user_id   = #{parentUserId}
+        )
+    </select>
+
+    <select id="existsFeeForStudent" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fees f
+              JOIN students s ON s.student_id = f.student_id
+             WHERE f.fee_id  = #{feeId}
+               AND s.user_id = #{studentUserId}
+        )
+    </select>
+
+    <!-- 담당 강사 회비 조회 접근 제어 (2026-07-22 결정): 해당 회비의 반(class_id)이 로그인 강사의 담당반인지.
+         fees.class_id 가 NULL(반 미지정 청구)이면 조인 자체가 안 걸려 항상 false - 소속 근거 없는 건은 강사에게 403. -->
+    <select id="existsFeeForTeacher" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fees f
+              JOIN classes c  ON c.class_id   = f.class_id
+              JOIN teachers t ON t.teacher_id = c.teacher_id
+             WHERE f.fee_id    = #{feeId}
+               AND t.user_id   = #{teacherUserId}
+        )
+    </select>
+
+    <!-- 영수증 조회 접근 제어 (RCT-01/02): 납부 이력이 해당 학부모(user_id)의 자녀 것인지.
+         fee_payments -> fees -> student_parents -> parents 순으로 조인해 existsFeeForParent 와 동일한 판정을 payment 기준으로 옮긴다 -->
+    <select id="existsPaymentForParent" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fee_payments fp
+              JOIN fees f              ON f.fee_id      = fp.fee_id
+              JOIN student_parents sp  ON sp.student_id = f.student_id
+              JOIN parents p           ON p.parent_id   = sp.parent_id
+             WHERE fp.payment_id = #{paymentId}
+               AND p.user_id     = #{parentUserId}
+        )
+    </select>
+
+    <select id="existsPaymentForStudent" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1
+              FROM fee_payments fp
+              JOIN fees f     ON f.fee_id     = fp.fee_id
+              JOIN students s ON s.student_id = f.student_id
+             WHERE fp.payment_id = #{paymentId}
+               AND s.user_id     = #{studentUserId}
+        )
+    </select>
+
+
+</mapper>

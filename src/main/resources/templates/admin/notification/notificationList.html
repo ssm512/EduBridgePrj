@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${@branding.name} + ' · ' + ${title}">EduBridge</title>
+  <link rel="stylesheet" href="/css/common.css">
+
+  <!-- 알림 이력 페이지 전용 스타일 (팀 규칙: 개인 구간은 html 내 style 태그)
+       사용 중인 클래스:
+       .noti-toolbar      : 필터 폼 영역
+       .noti-filter       : 검색 필터 폼
+       .noti-table        : 알림 이력 테이블
+       .noti-type-badge   : 유형 뱃지 공통
+       .type-attendance / .type-fee / .type-notice : 유형별 색상
+       .send-badge        : 발송 상태 뱃지 공통
+       .send-sent / .send-pending / .send-failed : 발송 상태별 색상
+       .read-badge        : 읽음 뱃지 공통
+       .read-y / .read-n  : 읽음/안읽음 색상
+       .noti-paging       : 페이지네이션
+       .empty-row         : 데이터 없음 표시 행
+       .noti-title-cell   : 제목 칸 1줄 말줄임 처리 - 전체 내용은 title 툴팁으로 확인
+  -->
+  <style>
+    /* ===== 알림 발송 이력 화면 ===== */
+    .noti-toolbar { margin-bottom: 16px; }
+    .noti-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .noti-filter select {
+      height: 36px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; background: #fff;
+    }
+    .noti-filter input[type="text"] {
+      height: 36px; padding: 0 10px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 14px; width: 180px;
+    }
+    .noti-filter button {
+      height: 36px; padding: 0 16px; border: none; border-radius: 6px;
+      font-size: 14px; cursor: pointer; background: #1e3a8a; color: #fff;
+    }
+    .noti-filter button:hover { background: #1d4ed8; }
+
+    /* table-layout: fixed + colgroup 로 컬럼 폭을 고정.
+       auto 방식은 현재 페이지 행 내용 길이에 따라 폭이 매번 재계산돼서 페이지 넘길 때마다 흔들림 */
+    .noti-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; background: #fff; border: 1px solid #e5e7eb; }
+    .noti-table thead th {
+      text-align: left; background: #f8fafc; color: #0f2a5f; font-weight: 600;
+      padding: 10px 14px; border-bottom: 1px solid #e5e7eb; font-size: 13px;
+    }
+    .noti-table tbody td {
+      padding: 10px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle;
+      overflow-wrap: break-word; word-break: break-word;
+    }
+    .noti-table tbody tr:last-child td { border-bottom: none; }
+    .noti-table tbody tr:hover { background: #f8faff; }
+    /* 제목은 길이가 들쭉날쭉해서 그대로 두면 행 높이가 페이지마다 바뀜 -> 1줄로 잘라서 표시 */
+    .noti-title-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help; }
+
+    .empty-row td { text-align: center; color: #9ca3af; padding: 32px !important; }
+
+    .noti-type-badge { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+    .type-attendance { background: #dbeafe; color: #1e40af; }
+    .type-fee        { background: #ffedd5; color: #9a3412; }
+    .type-notice     { background: #ede9fe; color: #5b21b6; }
+    .type-grade      { background: #dcfce7; color: #166534; }
+
+    .send-badge { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+    .send-sent    { background: #dcfce7; color: #166534; }
+    .send-pending { background: #fef9c3; color: #854d0e; }
+    .send-failed  { background: #fee2e2; color: #991b1b; }
+
+    .read-badge { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+    .read-y { background: #dcfce7; color: #166534; }
+    .read-n { background: #f3f4f6; color: #6b7280; }
+
+    .noti-paging { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 16px; }
+    .noti-paging a {
+      min-width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid #d1d5db; background: #fff; border-radius: 6px; font-size: 13px; color: #374151;
+    }
+    .noti-paging a:hover { background: #f3f4f6; }
+    .noti-paging a.now-page { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/common :: topbar(${title})}"></div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <a href="/admin/dashboard">대시보드</a>
+    <a href="/admin/members">회원관리</a>
+    <div class="group-label">반 / 수강</div>
+    <a href="/admin/classes">반관리</a>
+    <a href="/admin/enrollments">수강관리</a>
+    <div class="group-label">학생</div>
+    <a href="/admin/attendance">출석관리</a>
+    <a href="/admin/fees">회비관리</a>
+    <a href="/admin/grades">성적관리</a>
+    <div class="group-label">소통</div>
+    <a href="/admin/notices">공지관리</a>
+    <a href="/admin/counseling">상담관리</a>
+    <div class="group-label">운영</div>
+    <a href="/admin/ai">AI 리포트</a>
+    <a href="/admin/notifications">알림이력</a>
+    <a href="/admin/logs">활동로그</a>
+    <a href="/admin/settings">시스템설정</a>
+  </nav>
+
+  <main class="content">
+    <h1>알림 발송 이력</h1>
+    <p class="sub">출석/회비/공지 알림 발송 이력과 수신 상태 (SCR-W-18)</p>
+
+    <!-- 필터: 유형/읽음/대상자 이름
+         TODO(팀 확인): 화면설계의 기간 필터는 NTI-01 파라미터에 없음 - 회의 안건 -->
+    <div class="noti-toolbar">
+      <form class="noti-filter" th:action="@{/admin/notifications}" method="get">
+        <select name="notificationType">
+          <option value=""           th:selected="${search.notificationType == null or search.notificationType == ''}">전체 유형</option>
+          <option value="ATTENDANCE" th:selected="${search.notificationType == 'ATTENDANCE'}">출석</option>
+          <option value="FEE"        th:selected="${search.notificationType == 'FEE'}">회비</option>
+          <option value="NOTICE"     th:selected="${search.notificationType == 'NOTICE'}">공지</option>
+          <option value="GRADE"      th:selected="${search.notificationType == 'GRADE'}">성적</option>
+        </select>
+        <select name="readYn">
+          <option value=""  th:selected="${search.readYn == null or search.readYn == ''}">읽음 전체</option>
+          <option value="Y" th:selected="${search.readYn == 'Y'}">읽음</option>
+          <option value="N" th:selected="${search.readYn == 'N'}">안읽음</option>
+        </select>
+        <!-- 대상자 이름 부분검색 (동명이인이면 여러 명이 함께 조회됨) -->
+        <input type="text" name="userName" placeholder="대상자 이름" th:value="${search.userName}">
+        <button type="submit">조회</button>
+      </form>
+    </div>
+
+    <!-- 알림 이력 테이블 -->
+    <table class="noti-table">
+      <!-- colgroup: 컬럼 폭을 페이지 내용과 무관하게 고정 (page 전환 시 흔들리는 문제 방지) -->
+      <colgroup>
+        <col style="width:14%">
+        <col style="width:10%">
+        <col style="width:12%">
+        <col style="width:30%">
+        <col style="width:10%">
+        <col style="width:12%">
+        <col style="width:12%">
+      </colgroup>
+      <thead>
+      <tr>
+        <th>일시</th>
+        <th>유형</th>
+        <th>대상</th>
+        <th>제목</th>
+        <th>채널</th>
+        <th>발송</th>
+        <th>읽음</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr th:each="noti : ${notificationPage.items}">
+        <!-- 발송 전(PENDING)이면 sent_at 이 null 이라 생성 시각으로 대체 -->
+        <td th:text="${#temporals.format(noti.sentAt != null ? noti.sentAt : noti.createdAt, 'yyyy-MM-dd HH:mm')}">2026-07-14 10:30</td>
+        <td>
+          <span class="noti-type-badge"
+                th:classappend="${noti.notificationType == 'ATTENDANCE'} ? 'type-attendance' : (${noti.notificationType == 'FEE'} ? 'type-fee' : (${noti.notificationType == 'GRADE'} ? 'type-grade' : 'type-notice'))"
+                th:text="${noti.notificationType == 'ATTENDANCE'} ? '출석' : (${noti.notificationType == 'FEE'} ? '회비' : (${noti.notificationType == 'GRADE'} ? '성적' : '공지'))">유형</span>
+        </td>
+        <td th:text="${noti.userName}">홍길동</td>
+        <td class="noti-title-cell" th:text="${noti.title}" th:attr="title=${noti.title}">7월 회비 안내</td>
+        <td th:text="${noti.sendChannel}">APP</td>
+        <td>
+          <span class="send-badge"
+                th:classappend="${noti.sendStatus == 'SENT'} ? 'send-sent' : (${noti.sendStatus == 'FAILED'} ? 'send-failed' : 'send-pending')"
+                th:text="${noti.sendStatus == 'SENT'} ? '성공' : (${noti.sendStatus == 'FAILED'} ? '실패' : '대기')">발송</span>
+        </td>
+        <td>
+          <span class="read-badge"
+                th:classappend="${noti.readYn == 'Y'} ? 'read-y' : 'read-n'"
+                th:text="${noti.readYn == 'Y'} ? '읽음' : '안읽음'">읽음</span>
+        </td>
+        <!-- 관리(재발송/수정/삭제) 컬럼 제거 (2026-07-15)
+             : 알림은 발송 '이력'이라 불변이 원칙 + 해당 API 가 명세에 없음.
+               화면설계(SCR-W-18)와 다른 부분이므로 팀 공유 필요 -->
+      </tr>
+      <tr th:if="${#lists.isEmpty(notificationPage.items)}" class="empty-row">
+        <td colspan="7">조회된 알림 이력이 없습니다.</td>
+      </tr>
+      </tbody>
+    </table>
+
+    <!-- 페이지네이션: 필터 조건 유지한 채 page 만 변경
+         10페이지 단위로 그룹핑(1~10, 11~20 ...). totalPages 를 그냥 전부 나열하면 이력이 쌓여서
+         페이지가 많아질 때 페이징 바 한 줄에 번호가 계속 늘어나는 문제가 있어서 그룹 단위로 잘라서 보여줌.
+         그룹 시작/끝(pageGroup)은 컨트롤러에서 계산해서 넘겨줌 (com.edu.common.dto.PageGroup) -
+         정수 나눗셈을 템플릿(SpEL)이 아니라 Java 쪽에서 계산해 타입 강제 문제 없이 정확히 처리.
+         이전/다음은 1페이지씩이 아니라 그룹(10페이지) 단위로 이동 -->
+    <div class="noti-paging" th:if="${notificationPage.totalPages > 1}">
+      <a th:if="${pageGroup.start > 1}"
+         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userName=${search.userName}, page=${pageGroup.start - 1})}">이전</a>
+
+      <a th:each="i : ${#numbers.sequence(pageGroup.start, pageGroup.end)}"
+         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userName=${search.userName}, page=${i})}"
+         th:text="${i}"
+         th:classappend="${i == notificationPage.page} ? 'now-page'">1</a>
+
+      <a th:if="${pageGroup.end < notificationPage.totalPages}"
+         th:href="@{/admin/notifications(notificationType=${search.notificationType}, readYn=${search.readYn}, userName=${search.userName}, page=${pageGroup.end + 1})}">다음</a>
+    </div>
+  </main>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+</body>
+</html>

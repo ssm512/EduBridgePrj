@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  출석기록 매퍼 (틀). map-underscore-to-camel-case=true 설정이라 컬럼→카멜 자동 매핑.
+  담당자는 필요에 따라 컬럼/조건을 확장하면 된다.
+-->
+<mapper namespace="com.edu.domain.attendance.mapper.AttendanceMapper">
+
+    <insert id="insert" parameterType="AttendanceRecord"
+            useGeneratedKeys="true" keyProperty="attendanceId" keyColumn="attendance_id">
+        INSERT INTO attendance_records
+            (student_id, class_id, attendance_date, status_code, check_type,
+             checked_at, gps_latitude, gps_longitude, beacon_uuid, rssi_value,
+             failure_reason, created_by)
+        VALUES
+            (#{studentId}, #{classId}, #{attendanceDate}, #{statusCode}, #{checkType},
+             #{checkedAt}, #{gpsLatitude}, #{gpsLongitude}, #{beaconUuid}, #{rssiValue},
+             #{failureReason}, #{createdBy})
+    </insert>
+
+    <!-- ATT-08 자동 결석 전용 INSERT.
+         이미 그날 기록이 있으면(동시 체크인/중복 수강행) ON CONFLICT 로 조용히 무시한다.
+         반환값 = 실제 삽입 행수(1=삽입, 0=이미 있음). 일반 insert 와 달리 예외를 던지지 않는다. -->
+    <insert id="insertAbsentIfAbsent" parameterType="AttendanceRecord">
+        INSERT INTO attendance_records
+            (student_id, class_id, attendance_date, status_code, check_type,
+             failure_reason, created_by)
+        VALUES
+            (#{studentId}, #{classId}, #{attendanceDate}, #{statusCode}, #{checkType},
+             #{failureReason}, #{createdBy})
+        ON CONFLICT ON CONSTRAINT uk_att_one_day DO NOTHING
+    </insert>
+
+    <!-- 학생/반 이름 조인 공통 SELECT -->
+    <sql id="selectWithNames">
+        SELECT ar.*, u.name AS student_name, c.class_name AS class_name
+        FROM attendance_records ar
+        LEFT JOIN students s ON ar.student_id = s.student_id
+        LEFT JOIN users    u ON s.user_id     = u.user_id
+        LEFT JOIN classes  c ON ar.class_id   = c.class_id
+    </sql>
+
+    <select id="findById" resultType="AttendanceRecord">
+        <include refid="selectWithNames"/>
+        WHERE ar.attendance_id = #{attendanceId}
+    </select>
+
+    <!-- 목록 조건 공통 (findList / countList 공유) -->
+    <sql id="listWhere">
+        <where>
+            <if test="studentId != null"> AND ar.student_id = #{studentId} </if>
+            <if test="classId  != null"> AND ar.class_id   = #{classId}   </if>
+            <if test="fromDate != null"> AND ar.attendance_date &gt;= #{fromDate} </if>
+            <if test="toDate   != null"> AND ar.attendance_date &lt;= #{toDate}   </if>
+            <if test="keyword != null and keyword != ''"> AND u.name ILIKE '%' || #{keyword} || '%' </if>
+        </where>
+    </sql>
+
+    <select id="findList" resultType="AttendanceRecord">
+        <include refid="selectWithNames"/>
+        <include refid="listWhere"/>
+        ORDER BY ar.attendance_date DESC, ar.attendance_id DESC
+    </select>
+
+    <select id="findPage" resultType="AttendanceRecord">
+        <include refid="selectWithNames"/>
+        <include refid="listWhere"/>
+        ORDER BY ar.attendance_date DESC, ar.attendance_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countList" resultType="long">
+        SELECT COUNT(*)
+        FROM attendance_records ar
+        LEFT JOIN students s ON ar.student_id = s.student_id
+        LEFT JOIN users    u ON s.user_id     = u.user_id
+        LEFT JOIN classes  c ON ar.class_id   = c.class_id
+        <include refid="listWhere"/>
+    </select>
+
+    <update id="updateStatus">
+        UPDATE attendance_records
+        SET status_code    = #{statusCode},
+            failure_reason = #{failureReason}
+        WHERE attendance_id = #{attendanceId}
+    </update>
+
+    <select id="countByStudentClassDate" resultType="int">
+        SELECT COUNT(*) FROM attendance_records
+        WHERE student_id = #{studentId}
+          AND class_id   = #{classId}
+          AND attendance_date = #{attendanceDate}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM attendance_records WHERE attendance_id = #{attendanceId}
+    </delete>
+
+    <update id="updateDetail">
+        UPDATE attendance_records
+        <set>
+            <if test="statusCode    != null"> status_code    = #{statusCode},    </if>
+            <if test="failureReason != null"> failure_reason = #{failureReason}, </if>
+            <if test="checkedAt     != null"> checked_at     = #{checkedAt},     </if>
+            <if test="checkOutAt    != null"> check_out_at   = #{checkOutAt},    </if>
+        </set>
+        WHERE attendance_id = #{attendanceId}
+    </update>
+
+    <select id="findByStudentClassDate" resultType="AttendanceRecord">
+        SELECT * FROM attendance_records
+        WHERE student_id = #{studentId}
+          AND class_id   = #{classId}
+          AND attendance_date = #{attendanceDate}
+        LIMIT 1
+    </select>
+
+    <update id="updateCheckOut">
+        UPDATE attendance_records
+        SET check_out_at = #{checkOutAt},
+            status_code  = #{statusCode}
+        WHERE attendance_id = #{attendanceId}
+    </update>
+
+    <!-- 반 시간표 조회 (classes 읽기 전용) -->
+    <select id="findClassSchedule" resultType="com.edu.domain.attendance.vo.ClassScheduleView">
+        SELECT start_time AS startTime, end_time AS endTime
+        FROM classes
+        WHERE class_id = #{classId}
+    </select>
+
+    <!-- 반의 활성 비콘 조회 (UUID/RSSI 기준) -->
+    <select id="findActiveBeaconByClass" resultType="com.edu.domain.attendance.vo.BeaconView">
+        SELECT beacon_uuid AS beaconUuid, rssi_threshold AS rssiThreshold,
+               gps_latitude AS gpsLatitude, gps_longitude AS gpsLongitude
+        FROM beacons
+        WHERE class_id = #{classId} AND active_yn = 'Y'
+        ORDER BY beacon_id
+        LIMIT 1
+    </select>
+
+    <!-- 로그인 ID → student_id (본인 확인) -->
+    <select id="findStudentIdByLoginId" resultType="long">
+        SELECT s.student_id
+        FROM students s
+        JOIN users u ON s.user_id = u.user_id
+        WHERE u.login_id = #{loginId}
+    </select>
+
+    <!-- student_id → 학생 이름 (알림 메시지용) -->
+    <select id="getStudentName" resultType="string">
+        SELECT u.name
+        FROM students s
+        JOIN users u ON s.user_id = u.user_id
+        WHERE s.student_id = #{studentId}
+    </select>
+
+    <!-- 로그인 학생의 수강 중(ACTIVE) 반 목록 -->
+    <select id="findMyClasses" resultType="com.edu.domain.attendance.dto.response.ClassOptionResponse">
+        SELECT c.class_id AS classId, c.class_name AS className
+        FROM enrollments e
+        JOIN classes  c ON e.class_id   = c.class_id
+        JOIN students s ON e.student_id = s.student_id
+        JOIN users    u ON s.user_id    = u.user_id
+        WHERE u.login_id = #{loginId}
+          AND e.status_code = 'ACTIVE'
+        ORDER BY c.class_id
+    </select>
+
+    <!-- 앱 오늘 수업: 오늘 요일 수업 있는 본인 반 + 반정보(강사/시간/강의실) + 그날 출석기록 -->
+    <select id="findMyTodayClasses" resultType="com.edu.domain.attendance.dto.response.TodayClassResponse">
+        SELECT c.class_id     AS classId,
+               c.class_name   AS className,
+               tu.name        AS teacherName,
+               c.classroom    AS classroom,
+               c.start_time   AS startTime,
+               c.end_time     AS endTime,
+               ar.status_code AS statusCode,
+               ar.checked_at  AS checkedAt,
+               ar.check_out_at AS checkOutAt
+        FROM enrollments e
+        JOIN classes  c ON e.class_id   = c.class_id
+        JOIN students s ON e.student_id = s.student_id
+        JOIN users    u ON s.user_id    = u.user_id
+        LEFT JOIN teachers t ON c.teacher_id = t.teacher_id
+        LEFT JOIN users    tu ON t.user_id   = tu.user_id
+        LEFT JOIN attendance_records ar
+               ON ar.student_id = e.student_id
+              AND ar.class_id   = c.class_id
+              AND ar.attendance_date = #{date}
+        WHERE u.login_id = #{loginId}
+          AND e.status_code = 'ACTIVE'
+          AND c.status_code = 'ACTIVE'
+          AND (c.days_of_week IS NULL OR c.days_of_week LIKE '%' || #{dayCode} || '%')
+        ORDER BY c.start_time ASC NULLS LAST, c.class_id
+    </select>
+
+    <!-- 강사 앱 오늘 우리 반 로스터: ACTIVE 수강생 전원 + 그날 출석기록(LEFT JOIN, 없으면 미출석) -->
+    <select id="findClassRosterForDate" resultType="com.edu.domain.attendance.dto.response.ClassRosterEntryResponse">
+        SELECT s.student_id    AS studentId,
+               u.name          AS studentName,
+               ar.status_code  AS statusCode,
+               ar.checked_at   AS checkedAt,
+               ar.check_out_at AS checkOutAt
+        FROM enrollments e
+        JOIN students s ON e.student_id = s.student_id
+        JOIN users    u ON s.user_id    = u.user_id
+        LEFT JOIN attendance_records ar
+               ON ar.student_id = e.student_id
+              AND ar.class_id   = e.class_id
+              AND ar.attendance_date = #{date}
+        WHERE e.class_id = #{classId}
+          AND e.status_code = 'ACTIVE'
+        ORDER BY u.name
+    </select>
+
+    <!-- 결석 대상: 해당 반 ACTIVE 수강생 중 그 날짜 출석 기록 없는 학생 -->
+    <!-- 오늘(dayCode)이 이 반 수업 요일인지. days_of_week NULL=매일 → 1. 자동 출석 요일검증용 -->
+    <select id="countClassOnDay" resultType="int">
+        SELECT COUNT(*)
+        FROM classes
+        WHERE class_id = #{classId}
+          AND status_code = 'ACTIVE'
+          AND (days_of_week IS NULL OR days_of_week LIKE '%' || #{dayCode} || '%')
+    </select>
+
+    <select id="findAbsentCandidates" resultType="long">
+        SELECT e.student_id
+        FROM enrollments e
+        WHERE e.class_id = #{classId}
+          AND e.status_code = 'ACTIVE'
+          AND NOT EXISTS (
+              SELECT 1 FROM attendance_records ar
+              WHERE ar.student_id = e.student_id
+                AND ar.class_id   = e.class_id
+                AND ar.attendance_date = #{date}
+          )
+    </select>
+
+    <select id="getClassName">
+        SELECT class_name
+        FROM classes
+        WHERE class_id = #{classId}
+    </select>
+
+    <select id="getMyUserId">
+        SELECT user_id
+        FROM users
+        WHERE login_id = #{loginId}
+    </select>
+
+    <!-- 로그인 학부모의 자녀 목록 -->
+    <select id="findMyChildren" resultType="com.edu.domain.attendance.dto.response.ChildOptionResponse">
+        SELECT s.student_id AS studentId, u.name AS studentName
+        FROM parents p
+        JOIN users pu           ON p.user_id      = pu.user_id
+        JOIN student_parents sp ON sp.parent_id   = p.parent_id
+        JOIN students s         ON sp.student_id  = s.student_id
+        JOIN users u            ON s.user_id      = u.user_id
+        WHERE pu.login_id = #{loginId}
+        ORDER BY u.name
+    </select>
+
+    <!-- ===== 강사 담당반 스코프 (classes.teacher_id) ===== -->
+
+    <!-- 로그인 강사의 담당반 목록 -->
+    <select id="findMyTeacherClasses" resultType="com.edu.domain.attendance.dto.response.ClassOptionResponse">
+        SELECT c.class_id AS classId, c.class_name AS className
+        FROM classes c
+        JOIN teachers t ON c.teacher_id = t.teacher_id
+        JOIN users    u ON t.user_id    = u.user_id
+        WHERE u.login_id = #{loginId}
+        ORDER BY c.class_id
+    </select>
+
+    <!-- 해당 반이 로그인 강사의 담당반인지 (쓰기 경로 소유 검증) -->
+    <select id="countTeacherClass" resultType="int">
+        SELECT COUNT(*)
+        FROM classes c
+        JOIN teachers t ON c.teacher_id = t.teacher_id
+        JOIN users    u ON t.user_id    = u.user_id
+        WHERE u.login_id = #{loginId}
+          AND c.class_id = #{classId}
+    </select>
+
+    <!-- 강사 담당반 한정 WHERE (담당반 IN 서브쿼리 + 선택 조건) -->
+    <sql id="teacherWhere">
+        <where>
+            ar.class_id IN (
+                SELECT c2.class_id FROM classes c2
+                JOIN teachers t2 ON c2.teacher_id = t2.teacher_id
+                JOIN users    u2 ON t2.user_id    = u2.user_id
+                WHERE u2.login_id = #{loginId}
+            )
+            <if test="classId != null"> AND ar.class_id = #{classId} </if>
+            <if test="fromDate != null"> AND ar.attendance_date &gt;= #{fromDate} </if>
+            <if test="toDate   != null"> AND ar.attendance_date &lt;= #{toDate}   </if>
+            <if test="keyword != null and keyword != ''"> AND u.name ILIKE '%' || #{keyword} || '%' </if>
+        </where>
+    </sql>
+
+    <select id="findTeacherList" resultType="AttendanceRecord">
+        <include refid="selectWithNames"/>
+        <include refid="teacherWhere"/>
+        ORDER BY ar.attendance_date DESC, ar.attendance_id DESC
+    </select>
+
+    <select id="findTeacherPage" resultType="AttendanceRecord">
+        <include refid="selectWithNames"/>
+        <include refid="teacherWhere"/>
+        ORDER BY ar.attendance_date DESC, ar.attendance_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countTeacherList" resultType="long">
+        SELECT COUNT(*)
+        FROM attendance_records ar
+        LEFT JOIN students s ON ar.student_id = s.student_id
+        LEFT JOIN users    u ON s.user_id     = u.user_id
+        LEFT JOIN classes  c ON ar.class_id   = c.class_id
+        <include refid="teacherWhere"/>
+    </select>
+
+    <!-- 자녀 소유 확인 (학부모-학생 연결 존재 여부) -->
+    <select id="countChildOfParent" resultType="int">
+        SELECT COUNT(*)
+        FROM parents p
+        JOIN users pu           ON p.user_id     = pu.user_id
+        JOIN student_parents sp ON sp.parent_id  = p.parent_id
+        WHERE pu.login_id = #{loginId}
+          AND sp.student_id = #{studentId}
+    </select>
+
+    <!-- 재가동 백필 시작점: 가장 최근 출석기록 일자 (없으면 null) -->
+    <select id="findLatestAttendanceDate" resultType="java.time.LocalDate">
+        SELECT MAX(attendance_date) FROM attendance_records
+    </select>
+
+    <!-- 결석 자동화: 오늘 요일 수업 + 종료 후 cutoff 지난 ACTIVE 반 -->
+    <select id="findEndedClasses" resultType="long">
+        SELECT class_id
+        FROM classes
+        WHERE status_code = 'ACTIVE'
+          AND end_time IS NOT NULL
+          AND end_time &lt;= #{cutoff}
+          AND (days_of_week IS NULL OR days_of_week LIKE '%' || #{dayCode} || '%')
+    </select>
+
+    <!-- 활동로그 저장 (출석 실패 사유 등). created_at은 DEFAULT -->
+    <insert id="insertActivityLog">
+        INSERT INTO activity_logs (user_id, action_type, target_table, target_id, description)
+        VALUES (#{userId}, #{actionType}, #{targetTable}, #{targetId}, #{description})
+    </insert>
+
+</mapper>

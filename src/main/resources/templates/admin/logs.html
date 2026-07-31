@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${@branding.name} + ' · 활동로그'">EduBridge · 활동로그</title>
+  <link rel="stylesheet" href="/css/common.css">
+  <style>
+    :root { color-scheme: light; }
+    input, select { background:#fff; color:#111827; font-family:inherit; }
+    .page-sub { color:#6b7280; font-size:13px; margin:-6px 0 14px; }
+    .tabs { display:flex; gap:4px; flex-wrap:wrap; border-bottom:2px solid #e5e7eb; margin-bottom:14px; }
+    .tab { padding:8px 15px; border:0; background:none; cursor:pointer; font-size:13.5px; font-weight:600;
+           color:#94a3b8; border-bottom:2px solid transparent; margin-bottom:-2px; }
+    .tab:hover { color:#475569; } .tab.active { color:#1e3a8a; border-bottom-color:#1e3a8a; }
+    .panel { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:14px 16px;
+             box-shadow:0 1px 2px rgba(0,0,0,.04); }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px; }
+    .row.quick { gap:6px; }
+    .row .f { display:flex; flex-direction:column; font-size:12px; gap:4px; color:#475569; }
+    .row input { padding:6px 9px; border:1px solid #cbd5e1; border-radius:7px; font-size:13px; }
+    .btn { padding:7px 13px; border:0; border-radius:7px; background:#1e3a8a; color:#fff; cursor:pointer; font-size:13px; font-weight:600; }
+    .btn:hover { filter:brightness(1.12); }
+    .btn.sub { background:#64748b; color:#fff; }
+    .btn.sm { padding:4px 9px; font-size:11.5px; font-weight:500; }
+    .tbl-wrap { border:1px solid #eef2f7; border-radius:8px; overflow:hidden; margin-top:2px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { padding:8px 10px; text-align:left; vertical-align:top; }
+    thead th { background:#f8fafc; color:#64748b; font-size:11.5px; font-weight:600; border-bottom:1px solid #e5e7eb; }
+    tbody tr { border-bottom:1px solid #f1f5f9; } tbody tr:last-child { border-bottom:0; }
+    tbody tr:nth-child(even) { background:#fcfcfd; }
+    .muted { color:#9ca3af; }
+    .when { white-space:nowrap; color:#475569; font-size:12px; }
+    .tag { padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:600; white-space:nowrap; }
+    .t-ATTENDANCE_FAIL { background:#fee2e2; color:#991b1b; }
+    .t-SETTING_CHANGED { background:#e0e7ff; color:#3730a3; }
+    .t-default { background:#f1f5f9; color:#475569; }
+    .target { font-family:monospace; font-size:11px; color:#64748b; white-space:nowrap; }
+    .pager { display:flex; align-items:center; justify-content:center; gap:12px; margin-top:12px; }
+    .pager .pageinfo { font-size:12.5px; color:#475569; }
+    .pager button[disabled] { opacity:.4; cursor:default; filter:none; }
+  </style>
+</head>
+<body>
+<div th:replace="~{fragments/common :: topbar('활동로그')}"></div>
+
+<div class="shell">
+  <nav class="sidebar">
+    <a href="/admin/dashboard">대시보드</a>
+    <a href="/admin/members">회원관리</a>
+    <div class="group-label">반 / 수강</div>
+    <a href="/admin/classes">반관리</a>
+    <a href="/admin/enrollments">수강관리</a>
+    <div class="group-label">학생</div>
+    <a href="/admin/attendance">출석관리</a>
+    <a href="/admin/fees">회비관리</a>
+    <a href="/admin/grades">성적관리</a>
+    <div class="group-label">소통</div>
+    <a href="/admin/notices">공지관리</a>
+    <a href="/admin/counseling">상담관리</a>
+    <div class="group-label">운영</div>
+    <a href="/admin/ai">AI 리포트</a>
+    <a href="/admin/notifications">알림이력</a>
+    <a href="/admin/logs">활동로그</a>
+    <a href="/admin/settings">시스템설정</a>
+  </nav>
+
+  <main class="content">
+    <h1>활동로그</h1>
+    <p class="page-sub">시스템 주요 행위(출석 실패·설정 변경 등)를 분류별로 조회합니다.</p>
+
+    <div class="tabs" id="tabs"><button class="tab active" onclick="selectTab('')">전체</button></div>
+
+    <div class="panel">
+      <div class="row">
+        <div class="f"><label>시작일</label><input id="s_from" type="date"></div>
+        <div class="f"><label>종료일</label><input id="s_to" type="date"></div>
+        <button class="btn" onclick="loadLogs(1)">조회</button>
+      </div>
+      <div class="row quick">
+        <button class="btn sub sm" onclick="setRange('today')">오늘</button>
+        <button class="btn sub sm" onclick="setRange('week')">이번주</button>
+        <button class="btn sub sm" onclick="setRange('month')">이번달</button>
+        <button class="btn sub sm" onclick="setRange('3m')">3개월</button>
+        <button class="btn sub sm" onclick="setRange('all')">전체기간</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th style="width:150px">시각</th><th style="width:100px">분류</th><th style="width:110px">사용자</th><th style="width:150px">대상</th><th>내용</th></tr></thead>
+          <tbody id="tbody"><tr><td colspan="5" class="muted">불러오는 중…</td></tr></tbody>
+        </table>
+      </div>
+      <div id="pager" class="pager"></div>
+    </div>
+  </main>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script th:inline="none">
+  function esc(s){ return (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function ymd(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
+  function fmtWhen(s){ return s ? s.replace('T',' ').slice(0,19) : '-'; }
+
+  const TYPE_LABEL = {
+    ATTENDANCE_FAIL:'출석 실패', SETTING_CHANGED:'설정 변경',
+    LOGIN:'로그인', LOGOUT:'로그아웃', CREATE:'생성', UPDATE:'수정', DELETE:'삭제'
+  };
+  function typeLabel(t){ return TYPE_LABEL[t] || t || '-'; }
+  function typeClass(t){ return (t==='ATTENDANCE_FAIL'||t==='SETTING_CHANGED') ? ('t-'+t) : 't-default'; }
+
+  let curType = '';   // '' = 전체
+
+  function rangeDates(kind){
+    const now=new Date(); let from=new Date(now), to=new Date(now);
+    if(kind==='week'){const mon=(now.getDay()+6)%7; from=new Date(now); from.setDate(now.getDate()-mon); to=new Date(from); to.setDate(from.getDate()+6);}
+    else if(kind==='month'){from=new Date(now.getFullYear(),now.getMonth(),1); to=new Date(now.getFullYear(),now.getMonth()+1,0);}
+    else if(kind==='3m'){from=new Date(now); from.setMonth(now.getMonth()-3); to=new Date(now);}
+    return {from,to};
+  }
+  function setRange(kind){
+    if(kind==='all'){ document.getElementById('s_from').value=''; document.getElementById('s_to').value=''; }
+    else { const r=rangeDates(kind); document.getElementById('s_from').value=ymd(r.from); document.getElementById('s_to').value=ymd(r.to); }
+    loadLogs(1);
+  }
+
+  async function loadTypes(){
+    const res = await fetch('/api/logs/types');
+    if(!res.ok) return;
+    const types = await res.json();
+    const bar = document.getElementById('tabs');
+    bar.innerHTML = `<button class="tab active" onclick="selectTab('')">전체</button>` +
+      types.map(t => `<button class="tab" data-t="${esc(t)}" onclick="selectTab('${esc(t)}')">${esc(typeLabel(t))}</button>`).join('');
+  }
+  function selectTab(t){
+    curType = t;
+    document.querySelectorAll('#tabs .tab').forEach(b => b.classList.toggle('active', (b.dataset.t||'') === t));
+    loadLogs(1);
+  }
+
+  function renderPager(data, page){
+    const el=document.getElementById('pager');
+    const totalPages=data.totalPages??1, totalCount=data.totalCount??0;
+    if(totalCount===0||totalPages<=1){ el.innerHTML=''; return; }
+    const prev=page<=1?'disabled':'', next=page>=totalPages?'disabled':'';
+    el.innerHTML=`<button class="btn sub sm" ${prev} onclick="loadLogs(${page-1})">이전</button>
+      <span class="pageinfo">${page} / ${totalPages} <span class="muted">(총 ${totalCount}건)</span></span>
+      <button class="btn sub sm" ${next} onclick="loadLogs(${page+1})">다음</button>`;
+  }
+
+  async function loadLogs(page=1){
+    const from=document.getElementById('s_from').value, to=document.getElementById('s_to').value;
+    const qs=new URLSearchParams({ page, size:20 });
+    if(curType) qs.set('actionType', curType);
+    if(from) qs.set('fromDate', from);
+    if(to) qs.set('toDate', to);
+    const tbody=document.getElementById('tbody');
+    document.getElementById('pager').innerHTML='';
+    const res=await fetch('/api/logs?'+qs.toString());
+    if(!res.ok){ tbody.innerHTML=`<tr><td colspan="5">조회 실패 (${res.status})</td></tr>`; return; }
+    const data=await res.json(); const list=data.items??[];
+    if(!list.length){ tbody.innerHTML=`<tr><td colspan="5" class="muted">기록 없음</td></tr>`; return; }
+    tbody.innerHTML=list.map(l=>{
+      const user = l.userName ? esc(l.userName) : (l.userId ? ('#'+l.userId) : '<span class="muted">시스템</span>');
+      const target = l.targetTable ? `<span class="target">${esc(l.targetTable)}${l.targetId!=null?(' #'+l.targetId):''}</span>` : '<span class="muted">-</span>';
+      return `<tr>
+        <td class="when">${fmtWhen(l.createdAt)}</td>
+        <td><span class="tag ${typeClass(l.actionType)}">${esc(typeLabel(l.actionType))}</span></td>
+        <td>${user}</td>
+        <td>${target}</td>
+        <td>${esc(l.description) || '-'}</td>
+      </tr>`;
+    }).join('');
+    renderPager(data, page);
+  }
+
+  loadTypes();
+  loadLogs(1);
+</script>
+</body>
+</html>

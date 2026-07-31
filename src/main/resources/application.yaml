@@ -34,6 +34,20 @@ spring:
       max-file-size: 100MB
       max-request-size: 1000MB
 
+  # [추가 2026-07-20] 메일 발송(SMTP) 설정 - app.mail.enabled=true일 때만 SmtpMailService가 사용
+  # MAIL_* 환경변수가 비어 있어도(.env 미설정) 기본값(enabled=false)이라 개발 중엔 ConsoleMailService 그대로 동작
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
   type-aliases-package: com.edu.domain
@@ -47,6 +61,16 @@ app:
     access-token-minutes: 30
     refresh-token-days: 7
 
+  mail:
+    # true로 바꾸고 위 spring.mail 값(MAIL_HOST 등)을 채우면 SmtpMailService가 ConsoleMailService를 대체한다
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:no-reply@edubridge.local}
+
+  # FCM 푸시 발송. enabled=true + credentials-path(서비스계정 JSON)이 있어야 활성.
+  # 미설정(기본)이면 FCM 비활성 - 앱/알림은 정상 동작하고 푸시만 안 나감(팀 빌드 영향 없음).
+  fcm:
+    enabled: ${FCM_ENABLED:false}
+    credentials-path: ${FCM_CREDENTIALS_PATH:}
+
 part1:
   upload-path: ${UPLOAD_PATH}
-

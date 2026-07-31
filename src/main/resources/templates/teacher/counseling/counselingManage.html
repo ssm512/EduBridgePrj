@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>상담 관리</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .counseling-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .counseling-panel {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 16px;
+        }
+
+        .counseling-panel h2 {
+            margin: 0 0 14px;
+            font-size: 17px;
+        }
+
+        .form-row {
+            margin-bottom: 12px;
+        }
+
+        .form-row label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-row input,
+        .form-row select,
+        .form-row textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #fff;
+        }
+
+        .form-row textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        #teacherName {
+            background: #f1f5f9;
+            color: #475569;
+            cursor: not-allowed;
+        }
+
+        .counseling-form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(220px, 1fr));
+            gap: 12px 16px;
+        }
+
+        .counseling-content-row {
+            margin-top: 4px;
+        }
+
+        .picker {
+            position: relative;
+        }
+
+        .picker input {
+            padding-right: 38px;
+        }
+
+        .picker-toggle {
+            position: absolute;
+            right: 1px;
+            top: 1px;
+            bottom: 1px;
+            width: 34px;
+            border: 0;
+            border-left: 1px solid #cbd5e1;
+            border-radius: 0 6px 6px 0;
+            background: #f8fafc;
+            color: #111827;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .picker-toggle:hover {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .picker-menu {
+            display: none;
+            position: absolute;
+            top: 40px;
+            left: 0;
+            z-index: 12;
+            min-width: 260px;
+            max-height: 240px;
+            overflow-y: auto;
+            padding: 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, .12);
+        }
+
+        .picker-menu.show {
+            display: block;
+        }
+
+        .picker-menu button {
+            display: block;
+            width: 100%;
+            border: 0;
+            border-radius: 5px;
+            padding: 8px 9px;
+            background: #fff;
+            color: #111827;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .picker-menu button:hover,
+        .picker-menu button.active {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .counseling-action-row {
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .counseling-main-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .counseling-btn {
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #2563eb;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .counseling-btn.secondary {
+            background: #e5e7eb;
+            color: #111827;
+        }
+
+        .counseling-btn.danger {
+            background: #dc2626;
+        }
+
+        .counseling-btn:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 280px 220px 170px 160px;
+            gap: 10px;
+            flex: 0 1 auto;
+        }
+
+        .filter-toolbar {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            margin-left: 0;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .filter-tab {
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .filter-tab.active {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .filter-pane {
+            display: none;
+        }
+
+        .filter-pane.active {
+            display: block;
+        }
+
+        .filter-pane.active.filter-toolbar {
+            display: flex;
+        }
+
+        .period-filter-toolbar {
+            display: grid;
+            grid-template-columns: 220px 220px auto auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .period-quick-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .period-quick-actions .counseling-btn {
+            padding: 7px 10px;
+        }
+
+        .period-action-row .filter-actions {
+            margin-bottom: 0;
+        }
+
+        .date-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .date-row input {
+            flex: 1;
+        }
+
+        .date-row .counseling-btn {
+            flex: 0 0 auto;
+            padding: 8px 10px;
+        }
+
+        .date-picker-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 30;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, .28);
+        }
+
+        .date-picker-overlay.show {
+            display: flex;
+        }
+
+        .date-picker-modal {
+            width: min(340px, calc(100vw - 32px));
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, .22);
+            padding: 18px;
+        }
+
+        .date-picker-modal h3 {
+            margin: 0 0 14px;
+            font-size: 16px;
+        }
+
+        .date-picker-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        .counseling-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .counseling-table th,
+        .counseling-table td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 9px 8px;
+            text-align: left;
+            vertical-align: middle;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .counseling-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-size: 12px;
+        }
+
+        .counseling-table tbody tr {
+            cursor: pointer;
+        }
+
+        .counseling-table tbody tr:hover {
+            background: #eff6ff;
+        }
+
+        .counseling-date-col {
+            width: 128px;
+        }
+
+        .counseling-name-col {
+            width: 88px;
+        }
+
+        .counseling-writer-col {
+            width: 86px;
+        }
+
+        .counseling-action-col {
+            width: 118px;
+            text-align: center;
+        }
+
+        .counseling-small-col {
+            width: 60px;
+            text-align: center;
+        }
+
+        .counseling-content-col {
+            width: auto;
+        }
+
+        .content-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            min-width: 0;
+        }
+
+        .content-preview {
+            display: block;
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            color: #111827;
+            line-height: 1.45;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .row-actions {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .row-action-btn {
+            border: 0;
+            border-radius: 5px;
+            padding: 5px 8px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .row-action-btn:hover {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .row-action-btn.danger {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .row-action-btn.danger:hover {
+            background: #fecaca;
+            color: #991b1b;
+        }
+
+        .content-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 35;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, .34);
+        }
+
+        .content-modal-overlay.show {
+            display: flex;
+        }
+
+        .content-modal {
+            width: min(720px, calc(100vw - 32px));
+            max-height: min(620px, calc(100vh - 48px));
+            overflow-y: auto;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, .24);
+            padding: 20px;
+        }
+
+        .content-modal-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .content-modal-header h3 {
+            margin: 0;
+            font-size: 17px;
+        }
+
+        .content-modal-close {
+            border: 0;
+            border-radius: 6px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            padding: 7px 10px;
+            font-weight: 700;
+        }
+
+        .content-modal-body {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 14px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            color: #111827;
+        }
+
+        .content-modal-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 14px;
+            margin-bottom: 14px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            font-size: 13px;
+        }
+
+        .content-modal-meta div {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .content-modal-meta strong {
+            display: inline-block;
+            min-width: 58px;
+            color: #475569;
+        }
+
+        .empty-row {
+            text-align: center;
+            color: #6b7280;
+            padding: 22px 8px;
+        }
+
+        .hint {
+            margin-top: 6px;
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .status {
+            display: none;
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            z-index: 20;
+            max-width: 420px;
+            padding: 14px 16px;
+            border: 1px solid #bfdbfe;
+            border-left: 5px solid #2563eb;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #1e3a8a;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .18);
+        }
+
+        .status.error {
+            border-color: #fecaca;
+            border-left-color: #dc2626;
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .page-actions {
+            margin-bottom: 16px;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #e5e7eb;
+            color: #111827;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .back-btn:hover {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/common :: topbar('강사')}"></div>
+
+<div class="shell">
+    <div th:replace="~{fragments/common :: teacherSidebar('counseling')}"></div>
+    <main class="content">
+        <a class="home-btn" href="/teacherPage">홈으로</a>
+        <h1>상담기록</h1>
+        <p class="sub">학생명으로 상담 대상을 선택하면 연결된 학부모가 자동으로 채워집니다.</p>
+
+        <div id="status" class="status"></div>
+
+        <div class="counseling-layout">
+            <section class="counseling-panel">
+                <h2>상담 등록 / 수정</h2>
+
+                <input id="studentId" type="hidden">
+                <input id="parentId" type="hidden">
+
+                <div class="counseling-form-grid">
+                    <div class="form-row">
+                        <label for="studentSearch">학생명</label>
+                        <div class="picker">
+                            <input id="studentSearch" placeholder="수강중인 학생명 검색" autocomplete="off"
+                                   oninput="handleStudentSearchInput('studentMenu', 'studentSearch', false, false)"
+                                   onkeydown="handleStudentMenuKeydown(event, 'studentMenu', 'studentSearch', false)">
+                            <button type="button" class="picker-toggle" onclick="toggleStudentMenu('studentMenu', 'studentSearch')">▼</button>
+                            <div id="studentMenu" class="picker-menu"></div>
+                        </div>
+                        <div id="studentHint" class="hint">학생을 선택하면 학부모명이 자동으로 입력됩니다.</div>
+                    </div>
+
+                    <div class="form-row">
+                        <label for="parentName">학부모명</label>
+                        <input id="parentName" placeholder="학생 선택 시 자동 입력" readonly>
+                    </div>
+
+                    <div class="form-row">
+                        <label for="teacherName">강사</label>
+                        <input id="teacherName" placeholder="현재 로그인 강사" readonly>
+                        <input id="teacherId" type="hidden">
+                    </div>
+
+                    <div class="form-row">
+                        <label for="counselingDateDisplay">상담일</label>
+                        <div class="date-row">
+                            <input id="counselingDateDisplay" placeholder="상담일을 선택하세요" readonly>
+                            <input id="counselingDate" type="hidden">
+                            <button type="button" class="counseling-btn secondary" onclick="openCounselingDatePicker()">선택</button>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <label for="counselingType">상담 유형</label>
+                        <select id="counselingType">
+                            <option value="STUDENT">학생 상담</option>
+                            <option value="PARENT">학부모 상담</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <label for="visibilityCode">공개 범위</label>
+                        <select id="visibilityCode">
+                            <option value="PRIVATE">비공개</option>
+                            <option value="SHARED">공유</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row counseling-content-row">
+                    <label for="content">상담 내용</label>
+                    <textarea id="content" placeholder="상담 내용을 입력하세요"></textarea>
+                </div>
+
+                <div class="button-row counseling-action-row">
+                    <div class="counseling-main-actions">
+                        <button id="saveCounselingButton" class="counseling-btn" onclick="saveCounseling()">상담 등록</button>
+                        <button id="deleteCounselingButton" class="counseling-btn danger" onclick="deleteCounseling()" disabled>상담 삭제</button>
+                    </div>
+                    <button class="counseling-btn secondary" onclick="resetCounselingForm()">새 상담 작성하기</button>
+                </div>
+            </section>
+
+            <section class="counseling-panel">
+                <h2>상담 목록</h2>
+
+                <input id="filterStudentId" type="hidden">
+                <input id="filterParentId" type="hidden">
+                <input id="filterTeacherId" type="hidden">
+
+                <div class="filter-tabs">
+                    <button type="button" class="filter-tab active" data-filter-tab="basic" onclick="showCounselingFilterTab('basic')">기본 필터</button>
+                    <button type="button" class="filter-tab" data-filter-tab="period" onclick="showCounselingFilterTab('period')">기간 검색</button>
+                </div>
+
+                <div id="basicFilterPane" class="filter-pane active filter-toolbar">
+                    <div class="filter-grid">
+                        <div class="form-row">
+                            <label for="filterStudentSearch">학생명</label>
+                            <div class="picker">
+                                <input id="filterStudentSearch" placeholder="전체 학생" autocomplete="off"
+                                       oninput="handleStudentSearchInput('filterStudentMenu', 'filterStudentSearch', true, true)"
+                                       onkeydown="handleStudentMenuKeydown(event, 'filterStudentMenu', 'filterStudentSearch', true)">
+                                <button type="button" class="picker-toggle" onclick="toggleStudentMenu('filterStudentMenu', 'filterStudentSearch', true)">▼</button>
+                                <div id="filterStudentMenu" class="picker-menu"></div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label for="filterParentSearch">학부모명</label>
+                            <div class="picker">
+                                <input id="filterParentSearch" placeholder="전체 학부모" autocomplete="off"
+                                       oninput="handleParentSearchInput('filterParentMenu', 'filterParentSearch')"
+                                       onkeydown="handleParentMenuKeydown(event, 'filterParentMenu', 'filterParentSearch')">
+                                <button type="button" class="picker-toggle" onclick="toggleParentMenu('filterParentMenu', 'filterParentSearch')">▼</button>
+                                <div id="filterParentMenu" class="picker-menu"></div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label for="filterVisibilityCode">공개 범위</label>
+                            <select id="filterVisibilityCode">
+                                <option value="">전체</option>
+                                <option value="PRIVATE">비공개</option>
+                                <option value="SHARED">공유</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label for="filterCounselingType">상담 유형</label>
+                            <select id="filterCounselingType">
+                                <option value="">전체</option>
+                                <option value="STUDENT">학생 상담</option>
+                                <option value="PARENT">학부모 상담</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filter-actions">
+                        <button class="counseling-btn" onclick="loadCounselingList()">조회</button>
+                        <button class="counseling-btn secondary" onclick="clearCounselingFilters()">필터 초기화</button>
+                    </div>
+                </div>
+
+                <div id="periodFilterPane" class="filter-pane">
+                    <div class="period-filter-toolbar">
+                        <div class="form-row">
+                            <label for="filterFromDate">시작일</label>
+                            <input id="filterFromDate" type="date">
+                        </div>
+                        <div class="form-row">
+                            <label for="filterToDate">종료일</label>
+                            <input id="filterToDate" type="date">
+                        </div>
+                        <div class="form-row">
+                            <label>빠른 선택</label>
+                            <div class="period-quick-actions">
+                                <button type="button" class="counseling-btn secondary" onclick="setQuickCounselingPeriod(7)">일주일</button>
+                                <button type="button" class="counseling-btn secondary" onclick="setQuickCounselingPeriod(30)">한 달</button>
+                                <button type="button" class="counseling-btn secondary" onclick="setQuickCounselingPeriod(90)">세 달</button>
+                            </div>
+                        </div>
+                        <div class="form-row period-action-row">
+                            <label>&nbsp;</label>
+                            <div class="filter-actions">
+                                <button class="counseling-btn" onclick="loadCounselingList()">조회</button>
+                                <button class="counseling-btn secondary" onclick="clearCounselingFilters()">필터 초기화</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="counseling-table">
+                        <thead>
+                        <tr>
+                            <th class="counseling-date-col">상담일</th>
+                            <th class="counseling-name-col">학생</th>
+                            <th class="counseling-name-col">학부모</th>
+                            <th class="counseling-name-col">강사</th>
+                            <th class="counseling-small-col">유형</th>
+                            <th class="counseling-small-col">공개</th>
+                            <th class="counseling-content-col">내용</th>
+                            <th class="counseling-writer-col">등록자</th>
+                            <th class="counseling-action-col">관리</th>
+                        </tr>
+                        </thead>
+                        <tbody id="counselingList"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+
+<div id="counselingDatePickerOverlay" class="date-picker-overlay">
+    <div class="date-picker-modal">
+        <h3>상담일 선택</h3>
+        <div class="form-row">
+            <label for="counselingDatePickerDate">상담일</label>
+            <input id="counselingDatePickerDate" type="date">
+        </div>
+        <div class="date-picker-actions">
+            <button type="button" class="counseling-btn secondary" onclick="closeCounselingDatePicker()">취소</button>
+            <button type="button" class="counseling-btn" onclick="applyCounselingDateSelection()">확인</button>
+        </div>
+    </div>
+</div>
+
+<div id="counselingContentModalOverlay" class="content-modal-overlay">
+    <div class="content-modal">
+        <div class="content-modal-header">
+            <h3 id="counselingContentModalTitle">상담 내용</h3>
+            <button type="button" class="content-modal-close" onclick="closeCounselingContentModal()">닫기</button>
+        </div>
+        <div id="counselingContentModalMeta" class="content-modal-meta"></div>
+        <div id="counselingContentModalBody" class="content-modal-body"></div>
+    </div>
+</div>
+
+<script th:replace="~{fragments/common :: logoutScript}"></script>
+<script>
+    let editingCounselingId = null;
+    let counselingRows = [];
+    let studentOptions = [];
+    let parentOptions = [];
+    let teacherOptions = [];
+    let currentTeacher = null;
+    let studentMenuIndexes = {};
+    let parentMenuIndexes = {};
+
+    // XSRF-TOKEN 쿠키 값을 읽는다.
+    function getCsrfCookie() {
+        const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+        return match ? decodeURIComponent(match[1]) : null;
+    }
+
+    // CSRF 쿠키가 없으면 서버에서 먼저 발급받는다.
+    async function ensureCsrf() {
+        if (!getCsrfCookie()) {
+            await fetch('/api/auth/csrf');
+        }
+        return getCsrfCookie();
+    }
+
+    // JSON 요청 공통 함수
+    async function sendJson(url, method, body) {
+        return fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-XSRF-TOKEN': await ensureCsrf()
+            },
+            body: JSON.stringify(body)
+        });
+    }
+
+    // DELETE 요청 공통 함수
+    async function sendDelete(url) {
+        return fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'X-XSRF-TOKEN': await ensureCsrf()
+            }
+        });
+    }
+
+    // 화면 상태 메시지를 출력한다.
+    function setStatus(message, isError = false) {
+        const status = document.getElementById('status');
+        status.innerText = message;
+        status.className = isError ? 'status error show' : 'status show';
+
+        clearTimeout(status.dataset.timerId);
+        status.dataset.timerId = setTimeout(() => {
+            status.className = 'status';
+            status.innerText = '';
+        }, 4500);
+    }
+
+    // HTML 문자열 출력 시 특수문자로 인한 깨짐을 막는다.
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[ch]);
+    }
+
+    // 상담 화면에서 필요한 학생/강사 선택 목록을 조회한다.
+    async function loadCounselingOptions() {
+        const [studentRes, parentRes, teacherRes] = await Promise.all([
+            fetch('/api/counseling/students'),
+            fetch('/api/counseling/parents'),
+            fetch('/api/counseling/my-teacher')
+        ]);
+
+        if (!studentRes.ok || !parentRes.ok || !teacherRes.ok) {
+            setStatus('상담 선택 목록을 불러오지 못했습니다.', true);
+            return;
+        }
+
+        studentOptions = await studentRes.json();
+        parentOptions = await parentRes.json();
+        currentTeacher = await teacherRes.json();
+        teacherOptions = [currentTeacher];
+        applyCurrentTeacherFields();
+    }
+
+    // 강사 화면에서는 현재 로그인한 강사를 자동으로 입력하고 변경하지 못하게 한다.
+    function applyCurrentTeacherFields() {
+        if (!currentTeacher) {
+            return;
+        }
+
+        const subjectText = currentTeacher.subject ? ' / ' + currentTeacher.subject : '';
+        document.getElementById('teacherId').value = currentTeacher.teacher_id || '';
+        document.getElementById('teacherName').value = (currentTeacher.teacher_name || '') + subjectText;
+        document.getElementById('filterTeacherId').value = currentTeacher.teacher_id || '';
+    }
+
+    // 학생명 입력값이 직접 바뀌면 내부 ID를 비워 잘못된 학생 저장을 막는다.
+    function handleStudentSearchInput(menuId, inputId, includeAll, isFilter) {
+        if (isFilter) {
+            document.getElementById('filterStudentId').value = '';
+        } else {
+            document.getElementById('studentId').value = '';
+            document.getElementById('parentId').value = '';
+            document.getElementById('parentName').value = '';
+            document.getElementById('studentHint').innerText = '검색 목록에서 학생을 선택하세요.';
+        }
+
+        renderStudentMenu(menuId, inputId, includeAll);
+    }
+
+    // 학생명 자동완성 메뉴를 그린다.
+    function renderStudentMenu(menuId, inputId, includeAll = false, showAll = false) {
+        const menu = document.getElementById(menuId);
+        const keyword = document.getElementById(inputId).value.trim().toLowerCase();
+        const rows = studentOptions.filter(row => {
+            const text = `${row.student_name || ''} ${row.student_no || ''} ${row.school_name || ''}`.toLowerCase();
+            return showAll || !keyword || text.includes(keyword);
+        });
+
+        studentMenuIndexes[menuId] = -1;
+        menu.classList.add('show');
+        menu.innerHTML = '';
+        if (includeAll) {
+            menu.innerHTML += `<button type="button" data-picker-option="true" onclick="selectStudentOption('${inputId}', '', '', true)">전체 학생</button>`;
+        }
+
+        if (rows.length === 0) {
+            menu.innerHTML += '<div class="empty-row">검색된 수강 학생이 없습니다.</div>';
+            return;
+        }
+
+        rows.forEach(row => {
+            const label = `${row.student_name || ''}${row.student_no ? ' / ' + row.student_no : ''}`;
+            menu.innerHTML += `
+                <button type="button" data-picker-option="true" onclick="selectStudentOption('${inputId}', '${row.student_id}', '${escapeHtml(label)}', ${includeAll})">
+                    ${escapeHtml(label)}
+                </button>
+            `;
+        });
+    }
+
+    // 자동완성 목록에서 방향키로 이동하고 Enter로 선택한다.
+    function handleStudentMenuKeydown(event, menuId, inputId, includeAll = false) {
+        if (!['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(event.key)) {
+            return;
+        }
+
+        const menu = document.getElementById(menuId);
+        if (!menu.classList.contains('show')) {
+            renderStudentMenu(menuId, inputId, includeAll);
+        }
+
+        const options = Array.from(menu.querySelectorAll('button[data-picker-option="true"]'));
+        if (event.key === 'Escape') {
+            menu.classList.remove('show');
+            return;
+        }
+
+        if (options.length === 0) {
+            return;
+        }
+
+        event.preventDefault();
+        const currentIndex = studentMenuIndexes[menuId] ?? -1;
+
+        if (event.key === 'ArrowDown') {
+            setActiveStudentMenuOption(menuId, Math.min(currentIndex + 1, options.length - 1));
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            setActiveStudentMenuOption(menuId, Math.max(currentIndex - 1, 0));
+            return;
+        }
+
+        if (event.key === 'Enter') {
+            const selectedIndex = currentIndex >= 0 ? currentIndex : 0;
+            options[selectedIndex].click();
+        }
+    }
+
+    // 방향키로 선택 중인 자동완성 항목을 화면에 표시한다.
+    function setActiveStudentMenuOption(menuId, index) {
+        const menu = document.getElementById(menuId);
+        const options = Array.from(menu.querySelectorAll('button[data-picker-option="true"]'));
+        studentMenuIndexes[menuId] = index;
+
+        options.forEach((option, optionIndex) => {
+            option.classList.toggle('active', optionIndex === index);
+        });
+
+        options[index]?.scrollIntoView({block: 'nearest'});
+    }
+
+    // 학부모명 입력값이 바뀌면 내부 parent_id를 비운다.
+    function handleParentSearchInput(menuId, inputId) {
+        document.getElementById('filterParentId').value = '';
+        renderParentMenu(menuId, inputId);
+    }
+
+    // 학부모명 자동완성 메뉴를 그린다.
+    function renderParentMenu(menuId, inputId, showAll = false) {
+        const menu = document.getElementById(menuId);
+        const keyword = document.getElementById(inputId).value.trim().toLowerCase();
+        const rows = parentOptions.filter(row => {
+            const text = `${row.parent_name || ''} ${row.student_names || ''}`.toLowerCase();
+            return showAll || !keyword || text.includes(keyword);
+        });
+
+        parentMenuIndexes[menuId] = -1;
+        menu.classList.add('show');
+        menu.innerHTML = '<button type="button" data-picker-option="true" onclick="selectParentOption(\'\', \'\')">전체 학부모</button>';
+
+        if (rows.length === 0) {
+            menu.innerHTML += '<div class="empty-row">검색된 학부모가 없습니다.</div>';
+            return;
+        }
+
+        rows.forEach(row => {
+            const label = `${row.parent_name || ''}${row.student_names ? ' / ' + row.student_names : ''}`;
+            menu.innerHTML += `
+                <button type="button" data-picker-option="true" onclick="selectParentOption('${row.parent_id}', '${escapeHtml(label)}')">
+                    ${escapeHtml(label)}
+                </button>
+            `;
+        });
+    }
+
+    // 학부모 자동완성 목록에서 방향키로 이동하고 Enter로 선택한다.
+    function handleParentMenuKeydown(event, menuId, inputId) {
+        if (!['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(event.key)) {
+            return;
+        }
+
+        const menu = document.getElementById(menuId);
+        if (!menu.classList.contains('show')) {
+            renderParentMenu(menuId, inputId);
+        }
+
+        const options = Array.from(menu.querySelectorAll('button[data-picker-option="true"]'));
+        if (event.key === 'Escape') {
+            menu.classList.remove('show');
+            return;
+        }
+
+        if (options.length === 0) {
+            return;
+        }
+
+        event.preventDefault();
+        const currentIndex = parentMenuIndexes[menuId] ?? -1;
+
+        if (event.key === 'ArrowDown') {
+            setActiveParentMenuOption(menuId, Math.min(currentIndex + 1, options.length - 1));
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            setActiveParentMenuOption(menuId, Math.max(currentIndex - 1, 0));
+            return;
+        }
+
+        if (event.key === 'Enter') {
+            const selectedIndex = currentIndex >= 0 ? currentIndex : 0;
+            options[selectedIndex].click();
+        }
+    }
+
+    // 방향키로 선택 중인 학부모 자동완성 항목을 표시한다.
+    function setActiveParentMenuOption(menuId, index) {
+        const menu = document.getElementById(menuId);
+        const options = Array.from(menu.querySelectorAll('button[data-picker-option="true"]'));
+        parentMenuIndexes[menuId] = index;
+
+        options.forEach((option, optionIndex) => {
+            option.classList.toggle('active', optionIndex === index);
+        });
+
+        options[index]?.scrollIntoView({block: 'nearest'});
+    }
+
+    // 학부모 선택 메뉴를 열고 닫는다.
+    function toggleParentMenu(menuId, inputId) {
+        document.querySelectorAll('.picker-menu').forEach(menu => {
+            if (menu.id !== menuId) {
+                menu.classList.remove('show');
+            }
+        });
+
+        const menu = document.getElementById(menuId);
+        if (menu.classList.contains('show')) {
+            menu.classList.remove('show');
+            return;
+        }
+
+        renderParentMenu(menuId, inputId, true);
+    }
+
+    // 학부모 선택 시 화면에는 이름을, 내부 값에는 parent_id를 저장한다.
+    function selectParentOption(parentId, label) {
+        document.getElementById('filterParentId').value = parentId;
+        document.getElementById('filterParentSearch').value = label;
+        document.querySelectorAll('.picker-menu').forEach(menu => menu.classList.remove('show'));
+    }
+
+    // 학생 선택 메뉴를 열고 닫는다.
+    function toggleStudentMenu(menuId, inputId, includeAll = false) {
+        document.querySelectorAll('.picker-menu').forEach(menu => {
+            if (menu.id !== menuId) {
+                menu.classList.remove('show');
+            }
+        });
+
+        const menu = document.getElementById(menuId);
+        if (menu.classList.contains('show')) {
+            menu.classList.remove('show');
+            return;
+        }
+
+        renderStudentMenu(menuId, inputId, includeAll, true);
+    }
+
+    // 학생 선택 시 화면에는 이름을, 내부 값에는 student_id를 저장한다.
+    async function selectStudentOption(inputId, studentId, label, isFilter) {
+        document.getElementById(inputId).value = label;
+        document.querySelectorAll('.picker-menu').forEach(menu => menu.classList.remove('show'));
+
+        if (isFilter) {
+            document.getElementById('filterStudentId').value = studentId;
+            return;
+        }
+
+        document.getElementById('studentId').value = studentId;
+        await loadParentsForStudent(studentId);
+    }
+
+    // 선택 학생과 매핑된 학부모를 조회해 자동으로 채운다.
+    async function loadParentsForStudent(studentId) {
+        document.getElementById('parentId').value = '';
+        document.getElementById('parentName').value = '';
+        document.getElementById('studentHint').innerText = '연결된 학부모를 확인 중입니다.';
+
+        if (!studentId) {
+            document.getElementById('studentHint').innerText = '학생을 선택하면 학부모명이 자동으로 입력됩니다.';
+            return;
+        }
+
+        const res = await fetch('/api/counseling/students/' + studentId + '/parents');
+        if (!res.ok) {
+            document.getElementById('studentHint').innerText = '학부모 정보를 불러오지 못했습니다.';
+            return;
+        }
+
+        const parents = await res.json();
+        if (parents.length === 0) {
+            document.getElementById('studentHint').innerText = '연결된 학부모가 없습니다.';
+            return;
+        }
+
+        const parent = parents[0];
+        document.getElementById('parentId').value = parent.parent_id;
+        document.getElementById('parentName').value = parent.parent_name || '';
+        document.getElementById('studentHint').innerText = parents.length > 1
+            ? '대표 학부모를 자동 선택했습니다.'
+            : '학부모가 자동 입력되었습니다.';
+    }
+
+    // 강사 선택 박스를 그린다.
+    function renderTeacherSelect(selectId, placeholder) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = `<option value="">${placeholder}</option>`;
+
+        teacherOptions.forEach(row => {
+            const subjectText = row.subject ? ` / ${row.subject}` : '';
+            select.innerHTML += `<option value="${row.teacher_id}">${escapeHtml(row.teacher_name || '')}${escapeHtml(subjectText)}</option>`;
+        });
+    }
+
+    // 상담일 선택 팝업을 연다.
+    function openCounselingDatePicker() {
+        document.getElementById('counselingDatePickerDate').value = document.getElementById('counselingDate').value || '';
+        document.getElementById('counselingDatePickerOverlay').classList.add('show');
+    }
+
+    // 상담일 선택 팝업을 닫는다.
+    function closeCounselingDatePicker() {
+        document.getElementById('counselingDatePickerOverlay').classList.remove('show');
+    }
+
+    // 팝업에서 선택한 상담일을 화면에 반영한다.
+    function applyCounselingDateSelection() {
+        const dateValue = document.getElementById('counselingDatePickerDate').value;
+        if (!dateValue) {
+            setStatus('상담일을 선택하세요.', true);
+            return;
+        }
+
+        setCounselingDateValue(dateValue);
+        closeCounselingDatePicker();
+    }
+
+    // 서버 전송용 상담일과 화면 표시용 상담일을 함께 갱신한다.
+    function setCounselingDateValue(value) {
+        document.getElementById('counselingDate').value = value || '';
+        document.getElementById('counselingDateDisplay').value = value ? formatKoreanDate(value) : '';
+    }
+
+    // 날짜를 사람이 읽기 쉬운 한국어 형식으로 바꾼다.
+    function formatKoreanDate(value) {
+        if (!value) {
+            return '';
+        }
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return value;
+        }
+
+        return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+    }
+
+    // 상담 내용이 길 때 전체 내용을 팝업으로 보여준다.
+    function openCounselingContentModal(counselingId, event = null) {
+        if (event) {
+            event.stopPropagation();
+        }
+
+        const selected = counselingRows.find(row => Number(row.counseling_id) === Number(counselingId));
+        if (!selected) {
+            return;
+        }
+
+        const counselingTypeText = selected.counseling_type === 'PARENT' ? '학부모 상담' : '학생 상담';
+        const visibilityText = selected.visibility_code === 'SHARED' ? '공유' : '비공개';
+        const title = `${selected.student_name || '학생'} 상담 상세`;
+        document.getElementById('counselingContentModalTitle').innerText = title;
+        document.getElementById('counselingContentModalMeta').innerHTML = `
+            <div><strong>상담일</strong>${escapeHtml(formatKoreanDate(selected.counseling_date) || '-')}</div>
+            <div><strong>상담학생</strong>${escapeHtml(selected.student_name || '-')}</div>
+            <div><strong>학부모</strong>${escapeHtml(selected.parent_name || '-')}</div>
+            <div><strong>강사</strong>${escapeHtml(selected.teacher_name || '-')}</div>
+            <div><strong>유형</strong>${escapeHtml(counselingTypeText)}</div>
+            <div><strong>공개</strong>${escapeHtml(visibilityText)}</div>
+            <div><strong>등록자</strong>${escapeHtml(selected.created_by_name || '-')}</div>
+        `;
+        document.getElementById('counselingContentModalBody').innerText = selected.content || '';
+        document.getElementById('counselingContentModalOverlay').classList.add('show');
+    }
+
+    // 상담 내용 전체보기 팝업을 닫는다.
+    function closeCounselingContentModal() {
+        document.getElementById('counselingContentModalOverlay').classList.remove('show');
+    }
+
+    // 상담 등록 또는 수정
+    async function saveCounseling() {
+        const studentId = document.getElementById('studentId').value;
+        const counselingDate = document.getElementById('counselingDate').value;
+        const content = document.getElementById('content').value;
+
+        if (!studentId) {
+            setStatus('상담 대상 학생을 검색해서 선택하세요.', true);
+            return;
+        }
+
+        if (!counselingDate) {
+            setStatus('상담일을 선택하세요.', true);
+            return;
+        }
+
+        if (!content.trim()) {
+            setStatus('상담 내용을 입력하세요.', true);
+            return;
+        }
+
+        const body = {
+            studentId: Number(studentId),
+            parentId: document.getElementById('parentId').value ? Number(document.getElementById('parentId').value) : null,
+            teacherId: document.getElementById('teacherId').value ? Number(document.getElementById('teacherId').value) : null,
+            counselingDate: counselingDate,
+            counselingType: document.getElementById('counselingType').value,
+            visibilityCode: document.getElementById('visibilityCode').value,
+            content: content
+        };
+
+        const url = editingCounselingId ? '/api/counseling/' + editingCounselingId : '/api/counseling';
+        const method = editingCounselingId ? 'PUT' : 'POST';
+        const res = await sendJson(url, method, body);
+        await res.text();
+
+        if (!res.ok) {
+            setStatus('상담 저장에 실패했습니다. 학생과 입력값을 확인해주세요.', true);
+            return;
+        }
+
+        setStatus(editingCounselingId ? '상담 기록을 수정했습니다.' : '상담 기록을 등록했습니다.');
+        resetCounselingForm();
+        loadCounselingList();
+    }
+
+    // 상담 입력 폼 초기화
+    function resetCounselingForm() {
+        editingCounselingId = null;
+        document.getElementById('studentId').value = '';
+        document.getElementById('studentSearch').value = '';
+        document.getElementById('parentId').value = '';
+        document.getElementById('parentName').value = '';
+        applyCurrentTeacherFields();
+        setCounselingDateValue('');
+        document.getElementById('counselingType').value = 'STUDENT';
+        document.getElementById('visibilityCode').value = 'PRIVATE';
+        document.getElementById('content').value = '';
+        document.getElementById('studentHint').innerText = '학생을 선택하면 학부모명이 자동으로 입력됩니다.';
+        document.getElementById('saveCounselingButton').innerText = '상담 등록';
+        document.getElementById('deleteCounselingButton').disabled = true;
+    }
+
+    // 상담 목록 조회
+    async function loadCounselingList() {
+        const params = new URLSearchParams();
+        const studentId = document.getElementById('filterStudentId').value;
+        const parentId = document.getElementById('filterParentId').value;
+        const teacherId = document.getElementById('filterTeacherId').value;
+        const visibilityCode = document.getElementById('filterVisibilityCode').value;
+        const fromDate = document.getElementById('filterFromDate').value;
+        const toDate = document.getElementById('filterToDate').value;
+
+        if (studentId) params.append('studentId', studentId);
+        if (parentId) params.append('parentId', parentId);
+        if (teacherId) params.append('teacherId', teacherId);
+        if (visibilityCode) params.append('visibilityCode', visibilityCode);
+        if (fromDate) params.append('fromDate', fromDate);
+        if (toDate) params.append('toDate', toDate);
+
+        const queryString = params.toString();
+        const res = await fetch('/api/counseling' + (queryString ? '?' + queryString : ''));
+
+        if (!res.ok) {
+            setStatus('상담 목록 조회에 실패했습니다.', true);
+            return;
+        }
+
+        counselingRows = await res.json();
+        renderCounselingRows();
+    }
+
+    // 상담 목록을 테이블에 출력한다.
+    function renderCounselingRows() {
+        const tbody = document.getElementById('counselingList');
+        tbody.innerHTML = '';
+
+        if (counselingRows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="empty-row">조회된 상담 기록이 없습니다.</td></tr>';
+            return;
+        }
+
+        const visibleRows = counselingRows.filter(row => {
+            const type = document.getElementById('filterCounselingType').value;
+            return !type || row.counseling_type === type;
+        });
+
+        if (visibleRows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="empty-row">조회된 상담 기록이 없습니다.</td></tr>';
+            return;
+        }
+
+        visibleRows.forEach(row => {
+            const content = row.content || '';
+            const manageable = canManageCounseling(row);
+
+            tbody.innerHTML += `
+                <tr onclick="openCounselingContentModal(${row.counseling_id}, event)">
+                    <td>${formatKoreanDate(row.counseling_date)}</td>
+                    <td>${escapeHtml(row.student_name || '')}</td>
+                    <td>${row.parent_id ? escapeHtml(row.parent_name || '') : '-'}</td>
+                    <td>${row.teacher_id ? escapeHtml(row.teacher_name || '') : '-'}</td>
+                    <td>${row.counseling_type === 'PARENT' ? '학부모' : '학생'}</td>
+                    <td>${row.visibility_code === 'SHARED' ? '공유' : '비공개'}</td>
+                    <td>
+                        <div class="content-cell">
+                            <span class="content-preview">${escapeHtml(content)}</span>
+                        </div>
+                    </td>
+                    <td>${escapeHtml(row.created_by_name || '')}</td>
+                    <td>
+                        <div class="row-actions">
+                            ${manageable ? `<button type="button" class="row-action-btn" onclick="editCounselingFromRow(${row.counseling_id}, event)">수정</button>` : '-'}
+                            ${manageable ? `<button type="button" class="row-action-btn danger" onclick="deleteCounseling(${row.counseling_id}, event)">삭제</button>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // 강사는 본인이 작성한 상담 기록만 수정/삭제할 수 있다.
+    function canManageCounseling(row) {
+        return currentTeacher && Number(row.created_by) === Number(currentTeacher.user_id);
+    }
+
+    // 행의 수정 버튼을 누르면 목록 클릭과 동일하게 수정 폼을 채운다.
+    function editCounselingFromRow(counselingId, event) {
+        event.stopPropagation();
+        selectCounseling(counselingId);
+    }
+
+    // 상담 목록에서 선택한 상담을 수정 폼에 채운다.
+    function selectCounseling(counselingId) {
+        const selected = counselingRows.find(row => Number(row.counseling_id) === Number(counselingId));
+        if (!selected) {
+            return;
+        }
+
+        if (!canManageCounseling(selected)) {
+            setStatus('본인이 작성한 상담 기록만 수정하거나 삭제할 수 있습니다.', true);
+            return;
+        }
+
+        editingCounselingId = counselingId;
+        document.getElementById('studentId').value = selected.student_id || '';
+        document.getElementById('studentSearch').value = selected.student_name || '';
+        document.getElementById('parentId').value = selected.parent_id || '';
+        document.getElementById('parentName').value = selected.parent_name || '';
+        document.getElementById('teacherId').value = selected.teacher_id || '';
+        setCounselingDateValue(selected.counseling_date || '');
+        document.getElementById('counselingType').value = selected.counseling_type || 'STUDENT';
+        document.getElementById('visibilityCode').value = selected.visibility_code || 'PRIVATE';
+        document.getElementById('content').value = selected.content || '';
+        document.getElementById('studentHint').innerText = '선택한 상담 기록의 학생/학부모 정보입니다.';
+        document.getElementById('saveCounselingButton').innerText = '상담 수정';
+        document.getElementById('deleteCounselingButton').disabled = false;
+        setStatus('상담 기록을 선택했습니다. 내용을 수정하거나 삭제할 수 있습니다.');
+    }
+
+    // 상담 삭제
+    async function deleteCounseling(counselingId = editingCounselingId, event = null) {
+        if (event) {
+            event.stopPropagation();
+        }
+
+        if (!counselingId) {
+            setStatus('삭제할 상담 기록을 먼저 선택하세요.', true);
+            return;
+        }
+
+        if (!confirm('선택한 상담 기록을 삭제할까요?')) {
+            return;
+        }
+
+        const res = await sendDelete('/api/counseling/' + counselingId);
+        await res.text();
+
+        if (!res.ok) {
+            setStatus('상담 삭제에 실패했습니다.', true);
+            return;
+        }
+
+        setStatus('상담 기록을 삭제했습니다.');
+        resetCounselingForm();
+        loadCounselingList();
+    }
+
+    // 상담 검색 필터 초기화
+    function clearCounselingFilters() {
+        document.getElementById('filterStudentId').value = '';
+        document.getElementById('filterStudentSearch').value = '';
+        document.getElementById('filterParentId').value = '';
+        document.getElementById('filterParentSearch').value = '';
+        applyCurrentTeacherFields();
+        document.getElementById('filterVisibilityCode').value = '';
+        document.getElementById('filterCounselingType').value = '';
+        document.getElementById('filterFromDate').value = '';
+        document.getElementById('filterToDate').value = '';
+        loadCounselingList();
+    }
+
+    // 상담 목록 필터 탭 전환
+    function showCounselingFilterTab(tabName) {
+        document.querySelectorAll('[data-filter-tab]').forEach(button => {
+            button.classList.toggle('active', button.dataset.filterTab === tabName);
+        });
+        document.getElementById('basicFilterPane').classList.toggle('active', tabName === 'basic');
+        document.getElementById('periodFilterPane').classList.toggle('active', tabName === 'period');
+    }
+
+    // 최근 N일 기간을 자동 입력하고 바로 조회한다.
+    function setQuickCounselingPeriod(days) {
+        const today = new Date();
+        const fromDate = new Date(today);
+        fromDate.setDate(today.getDate() - days + 1);
+        document.getElementById('filterFromDate').value = formatDateInput(fromDate);
+        document.getElementById('filterToDate').value = formatDateInput(today);
+        loadCounselingList();
+    }
+
+    function formatDateInput(date) {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.picker')) {
+            document.querySelectorAll('.picker-menu').forEach(menu => menu.classList.remove('show'));
+        }
+
+        if (event.target.id === 'counselingDatePickerOverlay') {
+            closeCounselingDatePicker();
+        }
+
+        if (event.target.id === 'counselingContentModalOverlay') {
+            closeCounselingContentModal();
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadCounselingOptions();
+        loadCounselingList();
+    });
+</script>
+
+</body>
+</html>

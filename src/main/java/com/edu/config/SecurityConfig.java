@@ -1,5 +1,6 @@
 package com.edu.config;
 
+import com.edu.domain.member.mapper.UserMapper;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -19,6 +20,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
@@ -31,7 +33,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, UserMapper userMapper) throws Exception {
         http
                 // ===== CSRF 활성화 (Double Submit Cookie 방식) =====
                 // 세션이 없는(STATELESS) JWT API에서도 CSRF 방어를 켠다.
@@ -63,24 +65,118 @@ public class SecurityConfig {
                         // CSRF 토큰 발급용 (GET이라 CSRF 검증 대상 아님)
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
 
-                        // 회원가입과 로그인/재발급은 토큰 없이 접근 가능
-                        .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
+                        // [변경 2026-07-14] REST API URL을 /api 프리픽스로 통일 (팀 결정)
+                        // - 기존 "명세서 URL 그대로(프리픽스 없음)" 결정을 폐기
+                        // - 회원가입용으로 남아 있던 POST /api/users permitAll 규칙은
+                        //   회원관리 API(/api/users, ADMIN 전용)와 충돌(보안 구멍)하므로 삭제.
+                        //   실제 회원가입은 POST /api/auth/signup (아래 permitAll 유지)
+
+                        // [추가] 회원관리 API (명세서 USER-01~03) - /api/users, /api/users/{userId}
+                        // 컨트롤러의 @PreAuthorize("hasRole('ADMIN')")와 이중 방어
+                        .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
+
+                        // [추가] 강사관리 API (명세서 TEA-01~03) - ADMIN 전용
+                        .requestMatchers("/api/teachers", "/api/teachers/**").hasRole("ADMIN")
+
+                        // [추가] 학생관리 API (명세서 STU-01~04) - API마다 허용 롤이 다름
+                        // 등록/수정: ADMIN / 목록: ADMIN,TEACHER / 상세: 4개 롤(본인/자녀 검증은 서비스에서)
+                        .requestMatchers(HttpMethod.POST, "/api/students").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/students/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/students").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/students/*")
+                            .hasAnyRole("ADMIN", "TEACHER", "STUDENT", "PARENT")
+
+                        // [추가] 반관리 API (명세서 CLS-01~04)
+                        // 등록/수정: ADMIN / 목록/상세: ADMIN,TEACHER
+                        .requestMatchers(HttpMethod.POST, "/api/classes").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/classes/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/classes", "/api/classes/*")
+                            .hasAnyRole("ADMIN", "TEACHER")
+
+                        // [추가] 수강관리 API (명세서 ENR-01~02 + 목록)
+                        // 등록/해제: ADMIN / 목록: ADMIN,TEACHER
+                        .requestMatchers(HttpMethod.POST, "/api/enrollments").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/enrollments/*/end").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/enrollments").hasAnyRole("ADMIN", "TEACHER")
+
+                        // [추가] 학부모관리 API (명세서 PAR-01~03) - ADMIN 전용
+                        // PAR-03(학생-학부모 연결)은 POST /api/students/{id}/parents
+                        .requestMatchers("/api/parents", "/api/parents/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/students/*/parents").hasRole("ADMIN")
+                        // 연결 내역 수정 (명세서 외 추가 API)
+                        .requestMatchers(HttpMethod.PUT, "/api/students/*/parents/*").hasRole("ADMIN")
+
+                        // [추가] 공지사항 API (명세서 NOT-01~08) - API마다 허용 롤이 다름
+                        // 등록/수정/삭제/첨부업로드: ADMIN,TEACHER (TEACHER 본인 공지 검증은 서비스에서)
+                        // 목록/상세/다운로드/읽음처리: 4개 롤 (대상자별 가시성은 서비스+SQL에서)
+                        .requestMatchers(HttpMethod.POST, "/api/notices").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.PUT, "/api/notices/*").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/notices/*").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.POST, "/api/notices/*/files").hasAnyRole("ADMIN", "TEACHER")
+                        .requestMatchers(HttpMethod.POST, "/api/notices/*/read")
+                            .hasAnyRole("ADMIN", "TEACHER", "STUDENT", "PARENT")
+                        .requestMatchers(HttpMethod.GET, "/api/notices", "/api/notices/*")
+                            .hasAnyRole("ADMIN", "TEACHER", "STUDENT", "PARENT")
+                        .requestMatchers(HttpMethod.GET, "/api/notice-files/*/download")
+                            .hasAnyRole("ADMIN", "TEACHER", "STUDENT", "PARENT")
+                        // 첨부 삭제 (명세서 외 추가 API)
+                        .requestMatchers(HttpMethod.DELETE, "/api/notice-files/*").hasAnyRole("ADMIN", "TEACHER")
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/signup",
                                 "/api/auth/login",
                                 "/api/auth/refresh",
                                 "/api/auth/logout",
-                                "/api/auth/logout-web"
+                                "/api/auth/logout-web",
+                                "/api/auth/password-reset"
                         ).permitAll()
+                        // 학원 이름(브랜딩) - 로그인 전에도 표시 가능하게 공개
+                        .requestMatchers(HttpMethod.GET, "/api/branding").permitAll()
+
+                        // [추가] 회비관리 API (명세서 FEE-01~09) - API마다 허용 롤이 다름
+                        // 컨트롤러의 @PreAuthorize 와 이중 방어. 등록/수정/통계/납부등록/알림발송/삭제: ADMIN
+                        // 목록/납부이력 조회: 4개 롤 (본인·자녀 회비만 보이도록 하는 필터는 서비스에서 처리)
+                        .requestMatchers(HttpMethod.GET, "/api/fees")
+                            .hasAnyRole("ADMIN", "TEACHER", "PARENT", "STUDENT")
+                        .requestMatchers(HttpMethod.POST, "/api/fees").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/fees/statistics").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/fees/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/fees/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/fees/*/payments").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/fees/*/payments")
+                            .hasAnyRole("ADMIN", "TEACHER", "PARENT", "STUDENT")
+                        .requestMatchers(HttpMethod.POST, "/api/fees/notifications/run").hasRole("ADMIN")
+
+                        // [추가] 회비 할인 적용 이력 조회 API (명세서 FEE-15/16, DCP-05)
+                        // /payments 조회와 동일한 롤 구성 (본인·자녀 회비만 보이도록 하는 필터는 서비스에서 처리)
+                        .requestMatchers(HttpMethod.GET, "/api/fees/*/discounts")
+                            .hasAnyRole("ADMIN", "TEACHER", "PARENT", "STUDENT")
+
+                        // [추가] 회비 납부 취소 API (명세서 FEE-05) - ADMIN 전용
+                        .requestMatchers(HttpMethod.PUT, "/api/fee-payments/*/cancel").hasRole("ADMIN")
+
+                        // [추가] 영수증 조회/PDF 출력 API (명세서 RCT-01/02) - 명세대로 ADMIN/PARENT + STUDENT 만 허용.
+                        // (2026-07-22 결정으로 잠시 TEACHER 도 허용했었으나, 같은 날 재논의 후 철회 - TEACHER 용 화면 자체가
+                        // 없어서(=/teacher/** 밑에 회비/영수증 화면 없음) 굳이 API 접근을 열어둘 이유가 없다고 판단)
+                        .requestMatchers(HttpMethod.GET, "/api/fee-payments/*/receipt", "/api/fee-payments/*/receipt/pdf")
+                            .hasAnyRole("ADMIN", "PARENT", "STUDENT")
+
+                        // [추가] 할인정책관리 API (명세서 FEE-10) - 컨트롤러 클래스 레벨 @PreAuthorize("hasRole('ADMIN')")와 이중 방어
+                        // 목록/단건조회/등록/수정/계산미리보기(DCP-04, /{id}/preview) 전부 ADMIN 전용
+                        // (삭제 API 없음 - active_yn 토글로 대체. /** 와일드카드가 /preview 도 함께 커버함)
+                        .requestMatchers("/api/discount-policies", "/api/discount-policies/**").hasRole("ADMIN")
 
                         // ===== 서버 렌더링 페이지: 역할별 접근 제어 =====
                         // 로그인 후 진입점(디스패처). 인증만 되어 있으면 됨.
                         .requestMatchers("/home").authenticated()
                         // 각 역할 전용 화면 (JWT roles 클레임의 ROLE_XXX 권한으로 검사)
-                        .requestMatchers("/adminPage/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/teacherPage/**").hasRole("TEACHER")
                         .requestMatchers("/studentPage/**").hasRole("STUDENT")
                         .requestMatchers("/parentPage/**").hasRole("PARENT")
+                        // [추가] 역할별 기능 페이지 (예: /teacher/attendance, /student/attendance, /parent/attendance)
+                        .requestMatchers("/teacher/**").hasRole("TEACHER")
+                        .requestMatchers("/student/**").hasRole("STUDENT")
+                        .requestMatchers("/parent/**").hasRole("PARENT")
 
                         // 나머지 API/페이지는 인증 필요
                         .anyRequest().authenticated()
@@ -92,6 +188,11 @@ public class SecurityConfig {
                         .authenticationEntryPoint(new HtmlAwareAuthenticationEntryPoint())
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                 )
+
+                // [추가 2026-07-20] 관리자 초기화 계정(must_change_password=TRUE)은 비밀번호를
+                // 바꾸기 전까지 /api/**를 못 쓰게 서버에서 강제한다 (코드점검 우선순위3-1 대응).
+                // JWT 인증이 SecurityContext에 채워진 뒤에 돌아야 하므로 그 필터 바로 뒤에 붙인다.
+                .addFilterAfter(new MustChangePasswordFilter(userMapper), BearerTokenAuthenticationFilter.class)
 
                 // 인증 안 된 요청: 브라우저는 로그인("/")으로, API는 401
                 .exceptionHandling(ex -> ex
@@ -108,13 +209,13 @@ public class SecurityConfig {
 
     // 로그인할 때 사용하는 인증 관리자입니다.
     // AuthService
-        //→ AuthenticationManager
-        //→ DaoAuthenticationProvider
-        //→ CustomUserDetailsService
-        //→ UserRepository
-        //→ PasswordEncoder.matches()
-        //→ 인증 성공 또는 실패
-        // 로그인 성공 후에야 JwtService가 Access Token을 발급
+    //→ AuthenticationManager
+    //→ DaoAuthenticationProvider
+    //→ CustomUserDetailsService
+    //→ UserRepository
+    //→ PasswordEncoder.matches()
+    //→ 인증 성공 또는 실패
+    // 로그인 성공 후에야 JwtService가 Access Token을 발급
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
@@ -134,9 +235,9 @@ public class SecurityConfig {
     // JWT Access Token을 검증할 때 사용합니다. 요청이 들어올 때 Spring Security가 이 Decoder를 사용
 
     //검증하는 내용은 다음입니다.
-        // JWT 서명이 올바른가?
-        // 만료 시간이 지나지 않았는가?
-        // 토큰 구조가 정상인가?
+    // JWT 서명이 올바른가?
+    // 만료 시간이 지나지 않았는가?
+    // 토큰 구조가 정상인가?
 
     // 현재 예제는 HS256 방식입니다.
     //  HS256 = 하나의 secret key로 서명도 하고 검증도 하는 방식
@@ -152,8 +253,8 @@ public class SecurityConfig {
 
     // JWT 안의 권한 정보를 Spring Security 권한으로 바꿔주는 설정
     //  JWT 안의 roles claim을 권한 목록으로 사용하라
-      // 기본적으로 Spring Security는 권한 ROLE_ JWT 권한 앞에 SCOPE_
-      // JWT 권한 앞에 SCOPE_이므로 .setAuthorityPrefix("");
+    // 기본적으로 Spring Security는 권한 ROLE_ JWT 권한 앞에 SCOPE_
+    // JWT 권한 앞에 SCOPE_이므로 .setAuthorityPrefix("");
     //  JWT roles: ["ROLE_ADMIN"]  → Spring Security 권한: ROLE_ADMIN
     //  만약 prefix를 비우지 않으면 의도와 다른 권한명이 될 수 있습니다.
     // JWT SCOPE_ADMIN -> spring security의 ROLE_ADMIN으로 변환해줌
@@ -172,8 +273,8 @@ public class SecurityConfig {
     // application.yml에 있는 secret 문자열을 바이트 배열로 바꾼 뒤, HMAC SHA-256용 SecretKey로 만듭니다.
     // HMAC SHA-256 용으로 SecreyKey로 만드다.
     // 이 SecretKey는 두 곳에서 사용됩니다.
-     // JwtEncoder → JWT 생성
-     // JwtDecoder → JWT 검증
+    // JwtEncoder → JWT 생성
+    // JwtDecoder → JWT 검증
     private SecretKey secretKey(JwtProperties jwtProperties) {
         byte[] secretBytes = jwtProperties.secret().getBytes(java.nio.charset.StandardCharsets.UTF_8);
         return new SecretKeySpec(secretBytes, "HmacSHA256");

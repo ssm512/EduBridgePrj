@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 할인정책 매퍼 (FEE-10). map-underscore-to-camel-case=true -->
+<mapper namespace="com.edu.domain.fee.mapper.DiscountPolicyMapper">
+
+    <sql id="listWhere">
+        <where>
+            <if test="activeYn != null and activeYn != ''"> AND active_yn = #{activeYn} </if>
+            <if test="targetDate != null">
+                AND (start_date IS NULL OR start_date &lt;= #{targetDate})
+                AND (end_date IS NULL OR end_date &gt;= #{targetDate})
+            </if>
+        </where>
+    </sql>
+
+    <select id="findList" resultType="DiscountPolicyVo">
+        SELECT * FROM discount_policies
+        <include refid="listWhere"/>
+        ORDER BY discount_policy_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countList" resultType="long">
+        SELECT COUNT(*) FROM discount_policies
+        <include refid="listWhere"/>
+    </select>
+
+    <select id="findById" resultType="DiscountPolicyVo">
+        SELECT * FROM discount_policies WHERE discount_policy_id = #{discountPolicyId}
+    </select>
+
+    <insert id="insert" parameterType="DiscountPolicyVo"
+            useGeneratedKeys="true" keyProperty="discountPolicyId" keyColumn="discount_policy_id">
+        INSERT INTO discount_policies
+            (policy_name, discount_type, discount_value,
+             start_date, end_date, active_yn, description, created_by)
+        VALUES
+            (#{policyName}, #{discountType}, #{discountValue},
+             #{startDate}, #{endDate}, #{activeYn}, #{description}, #{createdBy})
+    </insert>
+
+    <update id="update" parameterType="DiscountPolicyVo">
+        UPDATE discount_policies
+        SET policy_name    = #{policyName},
+            discount_type  = #{discountType},
+            discount_value = #{discountValue},
+            start_date     = #{startDate},
+            end_date       = #{endDate},
+            active_yn      = #{activeYn},
+            description    = #{description},
+            updated_at     = CURRENT_TIMESTAMP
+        WHERE discount_policy_id = #{discountPolicyId}
+    </update>
+
+</mapper>
